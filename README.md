@@ -11,9 +11,9 @@
 - 暗色模式与 Debug 模式（自由移动棋子）
 - 纯前端实现，打开即玩，可作为化学/棋类教学工具
 ## 快速开始
-1. 克隆仓库或下载 `化学棋-Chemiss-双人对战.html` 文件
+1. 克隆仓库或下载 `Chemiss.html` 文件
 2. 直接用浏览器打开该 HTML 文件
 3. 白方先行，点击己方棋子查看合法移动，再次点击目标格移动
-> 也可通过 GitHub Pages 在线体验。
+> 也可通过 GitHub Pages 在线体验[化学棋Chemiss](./https://bil812.github.io/Chemiss/)。
 ## 规则文档
 完整规则见 [化学棋Chemiss规则.md](./化学棋Chemiss规则.md)
