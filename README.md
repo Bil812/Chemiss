@@ -1,5 +1,4 @@
-<img width="4763" height="3368" alt="画板 1tou" src="https://github.com/user-attachments/assets/e2bfbdbb-ba22-4a3c-996f-4a7e2e86c3b4" />
-
+<img width="1280" height="640" alt="画板 1" src="https://github.com/user-attachments/assets/1bf84de8-6ff0-42a9-92fa-d0b1dc32ff27" />
 
 # 化学棋 Chemiss
 以化学原理为核心的本地双人对战策略棋类游戏，完全基于 HTML/CSS/JavaScript 实现，无需服务器，直接在浏览器中运行。
