@@ -21,11 +21,12 @@
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            display: flex; justify-content: center; align-items: center;
+            display: flex; justify-content: center; align-items: flex-start;
             min-height: 100vh; background: #f9f9f9;
             font-family: 'Times New Roman', 'Segoe UI', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
             user-select: none; -webkit-user-select: none;
-            gap: 16px; padding: 10px; flex-wrap: wrap;
+            gap: 16px; padding: 10px; padding-top: max(20px, calc((100vh - var(--board-size) - 40px) / 2));
+            flex-wrap: wrap;
         }
         .game-container { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
         .board-wrapper {
@@ -214,8 +215,7 @@
             font-size: 0.7em;
         }
         .pt-grid-wrapper {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
+            overflow: hidden;
             margin: 0 -4px; padding: 0 4px;
         }
         .pt-cell {
@@ -444,12 +444,10 @@
                 display: grid;
                 grid-template-columns: repeat(18, 1fr);
                 min-width: 580px;
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
+                overflow: hidden;
             }
             .modal .pt-grid-wrapper {
-                overflow-x: auto; margin: 0 -10px; padding: 0 10px;
-                -webkit-overflow-scrolling: touch;
+                overflow: hidden; margin: 0 -10px; padding: 0 10px;
             }
             .pt-cell {
                 min-width: 24px; min-height: 24px; padding: 0;
@@ -552,7 +550,6 @@
         body.dark-mode .pt-cell.pt-missing { border-color: #333; }
         body.dark-mode .pt-cell:hover { background: #4a4038; }
         body.dark-mode .pt-cell .pt-z { color: #aaa; }
-        body.dark-mode .pt-grid-wrapper { /* 滚动条暗色 */ scrollbar-color: #555 #2a2a2a; }
 
         /* ========== 射线动画 ========== */
         .cell.ray-source::after {
@@ -987,10 +984,29 @@
                     this.currentTurn = COLOR_WHITE; this.selectedPiece = null; this.legalMoves = [];
                     this.bonds = []; this.roundNumber = 1; this.gameOver = false; this.winner = null;
                     this.logEntries = [];
-                    this.debugMode = false;
+                    this.debugMode = false; this._debugAddTarget = null; this._debugAddColor = COLOR_WHITE;
                     this.initBoard(); this.updateUI();
                     this.addLog('游戏开始！白方先行。');
                     this.addLog('离子键可直接吃子；共价/金属键需目标已键合且攻击者非键合伙伴。');
+                    // Debug模式右键菜单：右键空格添加棋子，右键棋子删除
+                    document.getElementById('board').addEventListener('contextmenu', (e) => {
+                        if (!this.debugMode) return;
+                        e.preventDefault();
+                        const cell = e.target.closest('.cell');
+                        if (!cell) return;
+                        const r = parseInt(cell.dataset.r), c = parseInt(cell.dataset.c);
+                        const piece = this.board[r][c];
+                        if (piece) {
+                            this.removePiece(piece);
+                            this.selectedPiece = null; this.legalMoves = [];
+                            this.addLog(`[DEBUG] 删除了${piece.symbol}(${r},${c})`);
+                            this.updateAllBonds(); this.updateUI();
+                        } else {
+                            this._debugAddTarget = { row: r, col: c };
+                            this._debugAddColor = this.currentTurn;
+                            this.showNuclearChoices(null);
+                        }
+                    });
                 }
 
                 initBoard() {
@@ -1576,6 +1592,16 @@
                 }
 
                 getAdjacentEmptyCells(r,c){ const res=[]; for(const[d,e]of ALL_DIRS){ const nr=r+d,nc=c+e; if(nr>=0&&nr<8&&nc>=0&&nc<8&&!this.board[nr][nc]) res.push({row:nr,col:nc}); } return res; }
+                debugPlaceNewPiece(row, col, elementKey, isotopeSpec, color){
+                    const np = new Piece(elementKey, color, this.getNextId(), isotopeSpec || null);
+                    np.row = row; np.col = col;
+                    this.placePiece(np);
+                    const colorLabel = color === COLOR_WHITE ? '白' : '黑';
+                    this.addLog(`[DEBUG] 在(${row},${col})添加了${this.nuclideText(np.symbol,np.mass)}(${colorLabel})`);
+                    this.selectedPiece = null; this.legalMoves = [];
+                    this.updateAllBonds(); this.updateUI();
+                }
+
                 getNextId(){ return Math.max(0,...this.pieces.map(p=>p.id))+1; }
                 placePiece(p){ this.board[p.row][p.col]=p; this.pieces.push(p); (p.color===COLOR_WHITE?this.whitePieces:this.blackPieces).push(p); }
                 removePiece(p){
@@ -1698,7 +1724,27 @@
 
                 showNuclearChoices(piece){
                     const modal=document.getElementById('nuclearModal'), content=document.getElementById('nuclearModalContent');
-                    content.innerHTML='<h3 style="margin:0 0 8px;">Li核变 — 选择目标核素</h3>';
+                    const isDebugAdd = !piece;
+                    if (isDebugAdd) {
+                        content.innerHTML = `<h3 style="margin:0 0 8px;">DEBUG: 添加棋子 → 选择核素
+                            <span style="font-size:0.7em;display:inline-flex;gap:6px;margin-left:8px;">
+                                <button class="choice-btn" id="dbgColorWhite" style="padding:2px 8px;font-size:0.85em;${this._debugAddColor===COLOR_WHITE?'background:#b0908a;color:#fff;':''}">白方</button>
+                                <button class="choice-btn" id="dbgColorBlack" style="padding:2px 8px;font-size:0.85em;${this._debugAddColor===COLOR_BLACK?'background:#333;color:#fff;':''}">黑方</button>
+                            </span></h3>`;
+                    } else {
+                        content.innerHTML='<h3 style="margin:0 0 8px;">Li核变 — 选择目标核素</h3>';
+                    }
+                    // Debug模式：颜色切换按钮事件
+                    if (isDebugAdd) {
+                        const btnW = content.querySelector('#dbgColorWhite');
+                        const btnB = content.querySelector('#dbgColorBlack');
+                        if (btnW) btnW.addEventListener('click', (e) => {
+                            e.stopPropagation(); this._debugAddColor = COLOR_WHITE; this.showNuclearChoices(null);
+                        });
+                        if (btnB) btnB.addEventListener('click', (e) => {
+                            e.stopPropagation(); this._debugAddColor = COLOR_BLACK; this.showNuclearChoices(null);
+                        });
+                    }
 
                     // 构建网格数据：{period,group}→cell
                     const grid = {}; // "row-col" → elementKey
@@ -1742,6 +1788,12 @@
                                     cell.onclick=()=>{
                                         this.showIsotopeChoices(piece, key);
                                     };
+                                    // Debug模式：H也可选（氢王在debug下可添加）
+                                    if (isDebugAdd && d.isHK) {
+                                        cell.className = 'pt-cell pt-metal';
+                                        cell.title = 'H Z=1 价:1 EN:2.20';
+                                        cell.onclick = () => { this.showIsotopeChoices(null, key); };
+                                    }
                                 }
                             } else {
                                 cell.className='pt-cell pt-missing';
@@ -1821,9 +1873,16 @@
                         card.addEventListener('click', ()=>{
                             const spec=isStable?{mass:iso.mass,radio:false,halfLife:0,decay:null,name:iso.name||null}
                                 :{mass:iso.mass,radio:true,halfLife:iso.halfLife||3,decay:iso.decay||'alpha',name:iso.name||null};
-                            this.nuclearTransform(piece,elementKey,spec);
-                            this.selectedPiece=null; this.legalMoves=[];
-                            closeModal(modal); this.endTurn();
+                            if (this._debugAddTarget) {
+                                this.debugPlaceNewPiece(this._debugAddTarget.row, this._debugAddTarget.col, elementKey, spec, this._debugAddColor);
+                                this._debugAddTarget = null;
+                            } else {
+                                this.nuclearTransform(piece,elementKey,spec);
+                                this.selectedPiece=null; this.legalMoves=[];
+                                closeModal(modal); this.endTurn();
+                                return;
+                            }
+                            closeModal(modal);
                         });
                         cardsContainer.appendChild(card);
                     });
@@ -1911,7 +1970,7 @@
                             else if(piece.charge<0){ const cm=document.createElement('span'); cm.className='charge-mark charge-anion'; cm.textContent='-'; pieceEl.appendChild(cm); }
                             if(piece.stunned){ const si=document.createElement('span'); si.className='stun-icon'; si.textContent='\u00D7'; pieceEl.appendChild(si); }
                             if(piece.bonusElectrons>0){ const bo=document.createElement('span'); bo.style.cssText='position:absolute;bottom:-8px;left:2px;font-size:0.62em;color:#b0908a;text-shadow:none;font-weight:700;'; bo.textContent='\u00D7'+piece.bonusElectronRounds; pieceEl.appendChild(bo); }
-                            if(piece.radioactive){ const ra=document.createElement('span'); ra.style.cssText='position:absolute;top:0px;left:1px;font-size:0.85em;font-weight:900;color:#b8a0c4;text-shadow:0 0 3px rgba(184,160,196,0.5);'; ra.textContent='\u2022'; pieceEl.appendChild(ra); }
+                            if(piece.radioactive){ const ra=document.createElement('span'); ra.style.cssText='position:absolute;top:-10px;left:-8px;font-size:1.1em;font-weight:900;color:#b8a0c4;text-shadow:0 0 3px rgba(184,160,196,0.5);'; ra.textContent='\u2022'; pieceEl.appendChild(ra); }
                             wrapper.appendChild(pieceEl);
                             cell.appendChild(wrapper);
                         }
