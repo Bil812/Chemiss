@@ -1,3 +1,4 @@
+<img width="5120" height="2560" alt="画板 1" src="https://github.com/user-attachments/assets/b6ffcd93-78be-4c17-bf60-b2f36aebd3ab" />
 # 化学棋 Chemiss
 以化学原理为核心的本地双人对战策略棋类游戏，完全基于 HTML/CSS/JavaScript 实现，无需服务器，直接在浏览器中运行。
 棋子的移动、吃子、成键等机制模拟了真实的化学概念：离子键、共价键、金属键、电负性、放射性衰变、核裂变、同位素嬗变等。玩家需要吃掉对方的氢王（H）来获胜。
