@@ -106,10 +106,11 @@
             border: 2px solid rgba(0,0,0,0.5); box-shadow: 0 3px 8px rgba(0,0,0,0.4);
             letter-spacing: -0.5px; text-shadow: 0 1px 1px rgba(0,0,0,0.3);
             transition: transform 0.12s, box-shadow 0.12s;
+            position: relative;
         }
         /* 棋子落地时轻微弹跳 */
         .piece-wrapper.just-moved .piece {
-            animation: piece-bounce 0.38s ease-out forwards;
+            animation: piece-bounce 0.38s ease-out;
         }
         @keyframes piece-bounce {
             0%   { transform: scale(0.75); }
@@ -539,7 +540,7 @@
         body.dark-mode .bond-item { background: #3a3a3a; color: #ddd; border-left-color: #c4b898; }
         body.dark-mode .log { background: #2a2a2a; color: #ccc; }
         body.dark-mode .log .log-entry { border-bottom-color: #444; }
-        body.dark-mode .turn-white { background: #4a4a4a; color: #ddd; border-color: #888; }
+        body.dark-mode .turn-white { background: #d8d8d8; color: #1a1a1a; border-color: #aaa; }
         body.dark-mode .modal { background: #2a2a2a; color: #eee; }
         body.dark-mode .modal .choice-btn { background: #3a3a3a; color: #ddd; }
         body.dark-mode .modal .choice-btn:hover { background: #4a4a4a; }
@@ -1199,9 +1200,9 @@
                     }
                     if (isIonic) {
                         attacker.bonusElectrons += defender.valence;
-                        attacker.bonusElectronRounds = 3;
+                        attacker.bonusElectronRounds = 6;
                         if (attacker.totalElectrons > 8) this.emitBetaRay(attacker);
-                        this.addLog(`离子键捕获: ${attacker.symbol}获得+${defender.valence}电子(3回合)`);
+                        this.addLog(`离子键捕获: ${attacker.symbol}获得+${defender.valence}电子(6回合)`);
                     } else {
                         this.addLog(`共价/金属键吃子，不获得额外电子`);
                     }
@@ -1218,12 +1219,10 @@
                             this.animateImpact(nr, nc, 'beta');
                             // 重核(Z≥90)有概率裂变
                             if (this.tryFissionOnHit(target, 'β射线')) break;
-                            const change = Math.random() < 0.5 ? -1 : 1;
-                            target.valence = Math.max(1, Math.min(8, target.valence + change));
-                            if (change > 0) target.bonusElectrons += 1;
-                            else target.bonusElectrons = Math.max(0, target.bonusElectrons - 1);
-                            target.bonusElectronRounds = 3;
-                            this.addLog(`β射线(离子键溢出)击中${this.nuclideText(target.symbol,target.mass)}，化合价${change>0?'+1':'-1'}`);
+                            const change = Math.random() < 0.5 ? 1 : -1;
+                            target.bonusElectrons = Math.max(0, target.bonusElectrons + change);
+                            target.bonusElectronRounds = 6;
+                            this.addLog(`β射线(离子键溢出)击中${this.nuclideText(target.symbol,target.mass)}，额外电子${change>0?'+1':'-1'}(6回合)`);
                             this.updateUI();
                             break;
                         }
@@ -1279,8 +1278,8 @@
                 giveElectron(metal, nonmetal) {
                     metal.charge=1; metal.chargeRounds=3;
                     nonmetal.charge=-1; nonmetal.chargeRounds=3;
-                    nonmetal.bonusElectrons+=1; nonmetal.bonusElectronRounds=3;
-                    this.addLog(`${metal.symbol} 给出1个电子给 ${nonmetal.symbol} → 阳离子/阴离子`);
+                    nonmetal.bonusElectrons+=1; nonmetal.bonusElectronRounds=6;
+                    this.addLog(`${metal.symbol} 给出1个电子给 ${nonmetal.symbol} → 阳离子/阴离子(6回合)`);
                 }
 
                 canNuclearTransform(piece) {
@@ -1510,12 +1509,10 @@
                             this.animateImpact(nr, nc, 'beta');
                             // 重核(Z≥90)有概率裂变
                             if (this.tryFissionOnHit(t, 'β射线')) break;
-                            const change = Math.random() < 0.5 ? -1 : 1;
-                            t.valence = Math.max(1, Math.min(8, t.valence + change));
-                            if (change > 0) t.bonusElectrons += 1;
-                            else t.bonusElectrons = Math.max(0, t.bonusElectrons - 1);
-                            t.bonusElectronRounds = 3;
-                            this.addLog(`β射线击中${this.nuclideText(t.symbol,t.mass)}，价电子${change > 0 ? '+1' : '-1'}(3回合)`);
+                            const change = Math.random() < 0.5 ? 1 : -1;
+                            t.bonusElectrons = Math.max(0, t.bonusElectrons + change);
+                            t.bonusElectronRounds = 6;
+                            this.addLog(`β射线击中${this.nuclideText(t.symbol,t.mass)}，额外电子${change > 0 ? '+1' : '-1'}(6回合)`);
                             this.updateUI();
                             break;
                         }
@@ -1601,7 +1598,8 @@
                     this.roundNumber++;
                     this.selectedPiece=null; this.legalMoves=[];
                     this.resolveElectrostaticAttraction(); this.resolveRadioactiveDecay();
-                    this.updateAllBonds(); this.updateUI();
+                    this.updateAllBonds();
+                    this.updateUI();
                     if(this.gameOver) this.showVictory();
                 }
 
@@ -1868,11 +1866,11 @@
                 // 动画状态标记
                 _animMovedInfo = null;
 
-                updateUI(){ this.renderBoard(); this.updateSidePanel(); }
+                updateUI(){ this.renderBoard(); requestAnimationFrame(() => this.updateSidePanel()); }
 
                 renderBoard(){
                     const boardEl=document.getElementById('board');
-                    boardEl.innerHTML='';
+                    const frag = document.createDocumentFragment();
                     for(let r=0;r<8;r++) for(let c=0;c<8;c++){
                         const cell=document.createElement('div');
                         cell.className='cell ' + ((r+c)%2===0?'white-cell':'black-cell');
@@ -1912,13 +1910,14 @@
                             if(piece.charge>0){ const cm=document.createElement('span'); cm.className='charge-mark charge-cation'; cm.textContent='+'; pieceEl.appendChild(cm); }
                             else if(piece.charge<0){ const cm=document.createElement('span'); cm.className='charge-mark charge-anion'; cm.textContent='-'; pieceEl.appendChild(cm); }
                             if(piece.stunned){ const si=document.createElement('span'); si.className='stun-icon'; si.textContent='\u00D7'; pieceEl.appendChild(si); }
-                            if(piece.bonusElectrons>0){ const bo=document.createElement('span'); bo.style.cssText='position:absolute;bottom:2px;left:2px;font-size:0.62em;color:#b0908a;text-shadow:none;font-weight:700;'; bo.textContent='\u00D7'+piece.bonusElectronRounds; pieceEl.appendChild(bo); }
+                            if(piece.bonusElectrons>0){ const bo=document.createElement('span'); bo.style.cssText='position:absolute;bottom:-8px;left:2px;font-size:0.62em;color:#b0908a;text-shadow:none;font-weight:700;'; bo.textContent='\u00D7'+piece.bonusElectronRounds; pieceEl.appendChild(bo); }
                             if(piece.radioactive){ const ra=document.createElement('span'); ra.style.cssText='position:absolute;top:0px;left:1px;font-size:0.85em;font-weight:900;color:#b8a0c4;text-shadow:0 0 3px rgba(184,160,196,0.5);'; ra.textContent='\u2022'; pieceEl.appendChild(ra); }
                             wrapper.appendChild(pieceEl);
                             cell.appendChild(wrapper);
                         }
-                        boardEl.appendChild(cell);
+                        frag.appendChild(cell);
                     }
+                    boardEl.replaceChildren(frag);
                     // 清除一次性动画标记
                     this._animMovedInfo = null;
                 }
