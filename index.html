@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -38,11 +38,14 @@
             display: grid; grid-template-columns: repeat(8, var(--cell-size));
             grid-template-rows: repeat(8, var(--cell-size));
             width: var(--board-size); height: var(--board-size);
+            touch-action: manipulation;
         }
         .cell {
             width: var(--cell-size); height: var(--cell-size);
             position: relative; display: flex; align-items: center; justify-content: center;
             cursor: pointer; transition: background 0.15s; border: 1px solid transparent;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
         }
         .cell.white-cell { background: var(--white-cell); }
         .cell.black-cell { background: var(--black-cell); }
@@ -84,7 +87,8 @@
         }
         .cell.stunned-cell {
             box-shadow: inset 0 0 0 5px #c4a0a0, 0 0 14px rgba(180,140,140,0.6);
-            animation: stun-pulse 0.5s ease-in-out infinite;
+            animation: stun-pulse 1s ease-in-out infinite;
+            will-change: box-shadow;
         }
         @keyframes stun-pulse {
             0%, 100% { box-shadow: inset 0 0 0 5px #c4a0a0, 0 0 8px rgba(180,140,140,0.3); }
@@ -106,7 +110,7 @@
             font-weight: 900; cursor: pointer; z-index: 5;
             border: 2px solid rgba(0,0,0,0.5); box-shadow: 0 3px 8px rgba(0,0,0,0.4);
             letter-spacing: -0.5px; text-shadow: 0 1px 1px rgba(0,0,0,0.3);
-            transition: transform 0.12s, box-shadow 0.12s;
+            transition: transform 0.12s;
             position: relative;
         }
         /* 棋子落地时轻微弹跳 */
@@ -135,15 +139,19 @@
             opacity: 0; pointer-events: none; transform: translateX(10px);
         }
         .charge-mark {
-            position: absolute; top: -5px; right: -5px; font-size: 0.65em; font-weight: 900;
-            width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center;
+            position: absolute; top: -10px; right: -10px; font-size: 0.65em; font-weight: 900;
+            min-width: 16px; min-height: 16px; padding: 0 2px; border-radius: 50%; display: flex; align-items: center;
             justify-content: center; line-height: 1; z-index: 6;
         }
         .charge-cation { background: var(--cation-mark); color: #2a1a10; }
         .charge-anion { background: var(--anion-mark); color: #e8ecf0; }
+        .charge-round-badge {
+            position: absolute; bottom: -8px; left: 0px; font-size: 0.62em; font-weight: 700;
+            color: #6a8fba; text-shadow: none; z-index: 6; pointer-events: none;
+        }
         .stun-icon {
             position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%);
-            font-size: 0.65em; z-index: 6; animation: stun-pulse 0.5s ease-in-out infinite;
+            font-size: 0.65em; z-index: 6; animation: stun-pulse 1s ease-in-out infinite;
         }
         .direction-dot {
             position: absolute;
@@ -156,12 +164,15 @@
             transform: translate(-50%, -50%);
         }
         .side-panel {
-            background: var(--panel-bg); color: var(--panel-text);
+            background: rgba(255,255,255,0.72); color: #222;
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
             border-radius: 10px; padding: 16px; width: 260px; min-width: 220px;
             box-shadow: 0 4px 16px rgba(0,0,0,0.15); font-size: 0.9em;
             max-height: 85vh; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;
         }
         .side-panel h2 { text-align: center; color: #333; margin: 0; font-size: 1.2em; border-bottom: 2px solid #ccc; padding-bottom: 8px; }
+        /* 移动端设置行：PC端隐藏 */
+        .settings-mobile-row { display: none; }
         .turn-indicator { font-size: 1.1em; font-weight: 700; text-align: center; padding: 6px 10px; border-radius: 6px; }
         .turn-white { background: #eee; color: #222; border: 2px solid #aaa; }
         .turn-black { background: #333; color: #fff; border: 2px solid #888; }
@@ -173,7 +184,7 @@
         .log .log-entry { padding: 2px 0; border-bottom: 1px solid #ddd; }
         button {
             padding: 8px 14px; border: none; border-radius: 6px; cursor: pointer;
-            font-weight: 700; font-size: 0.9em; transition: all 0.2s; letter-spacing: 0.5px;
+            font-weight: 700; font-size: 0.9em; transition: transform 0.2s, opacity 0.2s, background 0.2s, box-shadow 0.2s; letter-spacing: 0.5px;
         }
         button:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
         .btn-reset { background: #b0908a; color: #fff; width: 100%; }
@@ -182,7 +193,9 @@
         .btn-draw { background: #90a0a0; color: #fff; width: 100%; margin-top: 6px; }
         .modal-overlay {
             display: none; position: fixed; top:0; left:0; width:100%; height:100%;
-            background: rgba(0,0,0,0.75); z-index:100; justify-content:center; align-items:center;
+            background: rgba(0,0,0,0.45);
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            z-index:100; justify-content:center; align-items:center;
         }
         .modal-overlay.active { display: flex; animation: modal-fade-in 0.25s ease-out; }
         .modal-overlay.closing { animation: modal-fade-out 0.2s ease-in forwards; }
@@ -195,7 +208,8 @@
             100% { opacity: 0; }
         }
         .modal {
-            background: #fff; border-radius:12px; padding:20px; color:#222;
+            background: rgba(255,255,255,0.78); border-radius:12px; padding:20px; color:#222;
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
             max-width:720px; width:95%; box-shadow:0 10px 40px rgba(0,0,0,0.3); text-align:center;
             max-height:90vh; overflow-y:auto;
             position: relative;
@@ -224,7 +238,7 @@
             border: 1px solid #ddd; border-radius: 3px;
             display: flex; flex-direction: column;
             align-items: center; justify-content: center;
-            cursor: pointer; transition: all 0.15s;
+            cursor: pointer; transition: transform 0.15s, opacity 0.15s, background 0.15s, border-color 0.15s;
             background: #fafafa; color: #222;
             position: relative; padding: 1px;
         }
@@ -245,7 +259,7 @@
         .modal h3 { margin:0 0 12px; color:#b0908a; }
         .modal .choice-btn {
             display:inline-block; padding:8px 14px; margin:4px; background:#f0f0f0;
-            color:#222; border-radius:6px; cursor:pointer; border:2px solid transparent; transition:all 0.2s;
+            color:#222; border-radius:6px; cursor:pointer; border:2px solid transparent; transition:transform 0.2s, opacity 0.2s, background 0.2s, border-color 0.2s;
         }
         .modal .choice-btn:hover { border-color:#b0908a; background:#eee; }
         .modal .btn-close { margin-top:10px; background:#aaa; color:#fff; padding:6px 16px; border-radius:6px; cursor:pointer; }
@@ -262,7 +276,8 @@
             100% { opacity: 1; }
         }
         .iso-popup {
-            background: var(--panel-bg); color: var(--panel-text);
+            background: rgba(255,255,255,0.78); color: #222;
+            backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
             border-radius: 14px; padding: 18px 20px 14px;
             box-shadow: 0 6px 28px rgba(0,0,0,0.3);
             text-align: center; max-width: 560px; width: 90%;
@@ -290,7 +305,7 @@
             display: flex; flex-direction: column; align-items: center;
             width: 80px; padding: 10px 6px 8px;
             border-radius: 10px; cursor: pointer;
-            transition: all 0.18s;
+            transition: transform 0.18s, opacity 0.18s, background 0.18s, border-color 0.18s, box-shadow 0.18s;
             border: 2px solid #e0e0e0;
             background: #fafafa;
         }
@@ -325,14 +340,15 @@
         }
         .victory-overlay {
             display:none; position:fixed; top:0; left:0; width:100%; height:100%;
-            background:rgba(20,18,16,0.88); z-index:200;
+            background:rgba(20,18,16,0.65);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            z-index:200;
             justify-content:center; align-items:center; flex-direction:column; gap:0;
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
         }
         .victory-overlay.active { display:flex; }
         .victory-card {
-            background: var(--panel-bg); color: var(--panel-text);
+            background: rgba(255,255,255,0.72); color: #222;
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
             border-radius: 16px; padding: 40px 48px; text-align: center;
             box-shadow: 0 8px 40px rgba(0,0,0,0.35);
             max-width: 420px; width: 88%;
@@ -367,7 +383,7 @@
             background: #b0908a; color: #fff; border: none;
             border-radius: 8px; cursor: pointer; font-weight: 600;
             font-size: 0.95em; letter-spacing: 1px;
-            transition: all 0.25s;
+            transition: transform 0.25s, opacity 0.25s, background 0.25s, box-shadow 0.25s;
         }
         .victory-btn:hover {
             background: #a08070; box-shadow: 0 4px 16px rgba(176,144,138,0.4);
@@ -379,7 +395,7 @@
                 --board-size: min(94vw, 58vh, 480px);
             }
             body {
-                padding: 4px; gap: 6px; flex-direction: column;
+                padding: 4px; gap: 4px; flex-direction: column;
                 justify-content: flex-start; align-items: center;
             }
             .game-container {
@@ -393,19 +409,19 @@
             /* 侧面板 */
             .side-panel {
                 width: 100%; max-width: 500px; max-height: none;
-                border-radius: 10px; padding: 16px 14px;
-                font-size: 0.85em; gap: 12px;
+                border-radius: 8px; padding: 10px 12px;
+                font-size: 0.78em; gap: 6px;
                 order: 2;
             }
             .side-panel h2 {
-                font-size: 1em; padding-bottom: 8px; margin: 0;
-                border-bottom: 2px solid #ccc;
+                font-size: 0.9em; padding-bottom: 4px; margin: 0;
+                border-bottom: 1px solid #ccc;
             }
-            .turn-indicator { font-size: 0.95em; padding: 5px 8px; }
-            .info-section { font-size: 0.75em; padding: 6px 8px; }
-            .info-section h3 { font-size: 0.82em; }
-            .bond-list { max-height: 100px; font-size: 0.7em; }
-            .log { max-height: 100px; font-size: 0.68em; }
+            .turn-indicator { font-size: 0.85em; padding: 4px 6px; }
+            .info-section { font-size: 0.7em; padding: 5px 6px; }
+            .info-section h3 { font-size: 0.75em; margin: 0 0 2px; }
+            .bond-list { max-height: 60px; font-size: 0.65em; }
+            .log { max-height: 60px; font-size: 0.62em; }
             button {
                 padding: 10px 16px; font-size: 0.85em;
                 min-height: 40px; min-width: 44px;
@@ -414,15 +430,14 @@
             .piece .symbol { font-size: 1.05em; }
             .piece .info-tiny { font-size: 0.36em; }
             .charge-mark {
-                width: 14px; height: 14px; font-size: 0.6em; top: -4px; right: -4px;
+                min-width: 14px; min-height: 14px; font-size: 0.6em; top: -8px; right: -8px; padding: 0 2px;
             }
+            .charge-round-badge { font-size: 0.56em; bottom: -6px; }
             .stun-icon { font-size: 0.6em; bottom: -3px; }
-            /* 设置图标栏移动端 */
-            .settings-bar { top: 6px; right: 6px; gap: 4px; }
-            .settings-bar-row { gap: 4px; }
-            .settings-icon-btn {
-                width: 30px; height: 30px; font-size: 0.9em;
-                border-width: 1.2px;
+            /* 移动端设置行：放在侧栏内部 */
+            .settings-mobile-row .settings-icon-btn {
+                width: 30px; height: 30px; min-width: 30px; min-height: 30px;
+                font-size: 0.82em; border-width: 1px;
             }
             /* 弹窗移动端适配 */
             .modal {
@@ -495,21 +510,17 @@
                 --board-size: min(96vw, 54vh, 360px);
             }
             .board-wrapper { border-width: 2px; padding: 2px; }
-            .side-panel { padding: 10px 10px; font-size: 0.76em; gap: 6px; }
-            .side-panel h2 { font-size: 0.9em; }
+            .side-panel { padding: 8px 8px; font-size: 0.7em; gap: 4px; }
+            .side-panel h2 { font-size: 0.8em; }
             .piece .symbol { font-size: 0.9em; }
             .piece .info-tiny { font-size: 0.32em; }
-            button { padding: 8px 14px; font-size: 0.78em; min-height: 36px; }
-            .info-section { font-size: 0.7em; padding: 5px 6px; }
-            .bond-list { max-height: 80px; font-size: 0.65em; }
-            .log { max-height: 80px; font-size: 0.63em; }
-            .settings-bar { top: 4px; right: 4px; gap: 3px; }
-            .settings-bar-row { gap: 3px; }
-            .settings-icon-btn { width: 26px; height: 26px; font-size: 0.82em; }
-            .modal { padding: 10px; font-size: 0.78em; }
-            .modal .choice-btn { padding: 8px 12px; font-size: 0.78em; min-height: 36px; }
-            .pt-grid { font-size: 0.55em; min-width: 520px; }
-            .pt-cell { min-width: 20px; min-height: 20px; }
+            button { padding: 6px 10px; font-size: 0.72em; min-height: 32px; }
+            .info-section { font-size: 0.65em; padding: 4px 5px; }
+            .bond-list { max-height: 50px; font-size: 0.6em; }
+            .log { max-height: 50px; font-size: 0.58em; }
+            .settings-mobile-row .settings-icon-btn {
+                width: 24px; height: 24px; min-width: 24px; min-height: 24px; font-size: 0.72em;
+            }
             .iso-card { width: 58px; padding: 6px 3px; }
             .iso-card .iso-nuclide { font-size: 1em; }
             .victory-card { padding: 22px 18px; gap: 12px; }
@@ -532,6 +543,7 @@
             background: #1a1a1a !important;
         }
         body.dark-mode .board-wrapper { border-color: #555; background: #333; }
+        body.dark-mode .side-panel { background: rgba(42,42,42,0.78); color: #eee; }
         body.dark-mode .side-panel h2 { color: #ddd; border-bottom-color: #555; }
         body.dark-mode .info-section { background: #333; color: #ddd; }
         body.dark-mode .info-section h3 { color: #c4a48a; }
@@ -539,7 +551,7 @@
         body.dark-mode .log { background: #2a2a2a; color: #ccc; }
         body.dark-mode .log .log-entry { border-bottom-color: #444; }
         body.dark-mode .turn-white { background: #d8d8d8; color: #1a1a1a; border-color: #aaa; }
-        body.dark-mode .modal { background: #2a2a2a; color: #eee; }
+        body.dark-mode .modal { background: rgba(42,42,42,0.84); color: #eee; }
         body.dark-mode .modal .choice-btn { background: #3a3a3a; color: #ddd; }
         body.dark-mode .modal .choice-btn:hover { background: #4a4a4a; }
         body.dark-mode .pt-cell { background: #333; color: #ddd; border-color: #555; }
@@ -549,6 +561,8 @@
         body.dark-mode .pt-cell.pt-hk { background: #3a1a1a; }
         body.dark-mode .pt-cell.pt-missing { border-color: #333; }
         body.dark-mode .pt-cell:hover { background: #4a4038; }
+        body.dark-mode .iso-popup { background: rgba(42,42,42,0.84); color: #eee; }
+        body.dark-mode .victory-card { background: rgba(42,42,42,0.78); color: #eee; }
         body.dark-mode .pt-cell .pt-z { color: #aaa; }
 
         /* ========== 射线动画 ========== */
@@ -582,6 +596,7 @@
         /* 射线击中粒子的闪烁 */
         .piece.ray-hit-flash {
             animation: piece-hit 0.5s ease-out;
+            will-change: filter, transform;
         }
         @keyframes piece-hit {
             0% { filter: brightness(1.6); transform: scale(1.08); }
@@ -602,12 +617,12 @@
             opacity: 0; pointer-events: none; transform: translateX(10px);
         }
         .settings-icon-btn {
-            width: 34px; height: 34px; border-radius: 50%;
-            border: 1.5px solid #ddd; background: var(--panel-bg);
+            width: 34px; height: 34px; min-width: 34px; min-height: 34px;
+            border-radius: 50%; border: 1.5px solid #ddd; background: var(--panel-bg);
             color: var(--panel-text); cursor: pointer;
             display: flex; align-items: center; justify-content: center;
             font-size: 1em; box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-            transition: all 0.2s; padding: 0; line-height: 1;
+            transition: transform 0.2s, opacity 0.2s, background 0.2s, border-color 0.2s, box-shadow 0.2s; padding: 0; line-height: 1;
             flex-shrink: 0;
         }
         .settings-icon-btn:hover {
@@ -622,6 +637,14 @@
         .settings-icon-btn .icon-label {
             font-size: 0.85em; line-height: 1;
         }
+        /* ========== 平板及移动端：隐藏浮动设置栏，设置按钮移入侧边栏 ========== */
+        @media (max-width:900px) {
+            .settings-bar { display: none !important; }
+            .settings-mobile-row {
+                display: flex; flex-wrap: wrap; gap: 4px; justify-content: center;
+                padding: 2px 0;
+            }
+        }
         .settings-bar-top {
             display: flex; align-items: center; gap: 6px;
         }
@@ -632,6 +655,87 @@
             white-space: nowrap; line-height: 1;
         }
         body.debug-active .debug-badge { display: block; }
+        /* ========== 棋盘坐标 ========== */
+        .board-wrapper { position: relative; }
+        .coord-labels { display: none; }
+        body.show-coords .coord-labels { display: block; }
+        .coord-row-labels {
+            position: absolute; top: 4px; bottom: 4px; right: calc(100% + 6px);
+            display: flex; flex-direction: column; justify-content: space-around;
+            pointer-events: none; font-size: 0.65em; font-weight: 600; color: #999;
+            line-height: 1;
+        }
+        .coord-col-labels {
+            position: absolute; left: 4px; right: 4px; top: calc(100% + 4px);
+            display: flex; justify-content: space-around;
+            pointer-events: none; font-size: 0.65em; font-weight: 600; color: #999;
+            line-height: 1;
+        }
+        .coord-row-label, .coord-col-label { text-align: center; }
+        /* 旋转棋盘 */
+        .board-wrapper.flipped .board { transform: rotate(180deg); will-change: transform; }
+        .board-wrapper.flipped .cell { transform: rotate(180deg); }
+        .board-wrapper.flipped .coord-row-labels { flex-direction: column-reverse; }
+        .board-wrapper.flipped .coord-col-labels { flex-direction: row-reverse; }
+        /* ========== 联机弹窗 ========== */
+        .online-modal .modal { max-width: 460px; }
+        .online-tab-bar { display: flex; gap: 6px; border-bottom: 2px solid #ccc; margin-bottom: 14px; padding: 0 2px; }
+        .online-tab {
+            flex: 1; padding: 8px 4px; cursor: pointer; font-weight: 700; font-size: 0.85em;
+            border: none; background: transparent; color: #999; transition: color 0.2s, background 0.2s, border-color 0.2s;
+            border-bottom: 2px solid transparent; margin-bottom: -2px; border-radius: 6px 6px 0 0;
+        }
+        .online-tab:hover { color: #b0908a; background: rgba(176,144,138,0.05); }
+        .online-tab.active { color: #b0908a; border-bottom-color: #b0908a; }
+        .online-panel { display: none; }
+        .online-panel.active { display: block; }
+        .online-status-bar {
+            display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+            border-radius: 8px; font-size: 0.8em; font-weight: 600; margin-bottom: 12px;
+            background: #f5f5f5; border: 1px solid #e8e8e8; color: #666;
+        }
+        body.dark-mode .online-status-bar { background: #333; border-color: #444; color: #ccc; }
+        .online-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .online-dot.off { background: #ccc; }
+        .online-dot.connecting { background: #b0908a; animation: stun-pulse 0.6s ease-in-out infinite; }
+        .online-dot.on { background: #8a9fb8; }
+        .online-code-box {
+            width: 100%; min-height: 44px; padding: 8px 10px; border-radius: 6px;
+            border: 1.5px solid #ddd; font-family: monospace; font-size: 0.85em;
+            resize: vertical; background: var(--panel-bg); color: var(--panel-text);
+            word-break: break-all; margin: 6px 0; outline: none;
+            transition: border-color 0.2s;
+        }
+        .online-code-box:focus { border-color: #b0908a; }
+        body.dark-mode .online-code-box { border-color: #555; }
+        body.dark-mode .online-code-box:focus { border-color: #b0908a; }
+        .online-btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+        .online-btn-row button { flex: 1; min-width: 80px; }
+        .online-label {
+            font-size: 0.78em; color: #999; margin: 10px 0 4px;
+        }
+        body.dark-mode .online-label { color: #aaa; }
+        .online-room-code {
+            font-weight: 700; font-size: 1.4em; letter-spacing: 4px;
+            font-family: 'Courier New', monospace; flex: 1; text-align: center;
+            color: var(--panel-text);
+        }
+        .online-room-input {
+            text-align: center; font-size: 1.2em; letter-spacing: 4px;
+            text-transform: uppercase; width: 100%; min-height: 44px; padding: 8px 10px;
+            border-radius: 6px; border: 1.5px solid #ddd; font-family: inherit;
+            background: var(--panel-bg); color: var(--panel-text); outline: none;
+            transition: border-color 0.2s;
+        }
+        .online-room-input:focus { border-color: #b0908a; }
+        body.dark-mode .online-room-input { border-color: #555; }
+        body.dark-mode .online-room-input:focus { border-color: #b0908a; }
+        .btn-disconnect { background: #b0908a; color: #fff; }
+        .btn-disconnect:hover { background: #a08070; }
+        #btnCreateGame, #btnJoinGame { background: #b0908a; color: #fff; }
+        #btnCreateGame:hover, #btnJoinGame:hover { background: #a08070; }
+        #btnCopyRoom { background: #b0a080; color: #fff; }
+        #btnCopyRoom:hover { background: #a09070; }
     </style>
 </head>
 <body>
@@ -645,15 +749,23 @@
             <button class="settings-icon-btn" id="btnDarkMode" title="夜间模式">🌙</button>
             <button class="settings-icon-btn" id="btnDebug" title="Debug模式">🐛</button>
             <button class="settings-icon-btn" id="btnRules" title="游戏规则">📖</button>
+            <button class="settings-icon-btn" id="btnOnline" title="联机对战">🔗</button>
+            <button class="settings-icon-btn" id="btnFlip" title="翻转棋盘">🔄</button>
+            <button class="settings-icon-btn" id="btnCoords" title="显示坐标">🔢</button>
         </div>
     </div>
 
     <div class="game-container">
-        <div class="board-wrapper">
+        <div class="board-wrapper" id="boardWrapper">
             <div class="board" id="board"></div>
+            <div class="coord-labels" id="coordLabels">
+                <div class="coord-row-labels" id="coordRowLabels"></div>
+                <div class="coord-col-labels" id="coordColLabels"></div>
+            </div>
         </div>
         <div class="side-panel" id="sidePanel">
             <h2>化学棋 Chemiss</h2>
+            <div class="settings-mobile-row" id="settingsMobileRow"></div>
             <div class="turn-indicator turn-white" id="turnIndicator">白方回合</div>
                 <div class="info-section">
                     <h3>当前信息</h3>
@@ -679,6 +791,35 @@
     </div>
     <div class="modal-overlay" id="nuclearModal">
         <div class="modal" id="nuclearModalContent"></div>
+    </div>
+    <!-- 联机弹窗 -->
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <div class="modal-overlay online-modal" id="onlineModal">
+        <div class="modal">
+            <h3 style="margin:0 0 8px;color:#b0908a;">联机对战</h3>
+            <div class="online-status-bar" id="onlineStatusBar">
+                <span class="online-dot off" id="onlineDot"></span>
+                <span id="onlineStatusText">未连接</span>
+            </div>
+            <div class="online-tab-bar" id="onlineTabBar">
+                <button class="online-tab active" data-tab="host">创建对局</button>
+                <button class="online-tab" data-tab="join">加入对局</button>
+            </div>
+            <div class="online-panel active" id="onlinePanelHost">
+                <p class="online-label">创建对局，将房间码发送给对手</p>
+                <button id="btnCreateGame" style="width:100%;">生成房间码</button>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:10px;">
+                    <span class="online-room-code" id="hostRoomCode">----</span>
+                    <button id="btnCopyRoom" style="flex-shrink:0;">复制</button>
+                </div>
+            </div>
+            <div class="online-panel" id="onlinePanelJoin">
+                <p class="online-label">输入房间码加入对局</p>
+                <input type="text" class="online-room-input" id="joinRoomInput" placeholder="输入6位房间码" maxlength="6" autocomplete="off">
+                <button id="btnJoinGame" style="width:100%;margin-top:10px;">加入对局</button>
+            </div>
+            <button class="btn-disconnect" id="btnDisconnect" style="width:100%;margin-top:12px;display:none;">断开连接</button>
+        </div>
     </div>
     <div class="victory-overlay" id="victoryOverlay">
         <div class="victory-card">
@@ -947,7 +1088,7 @@
                     this.color = color; this.id = id; this.row = -1; this.col = -1;
                     this.sharedElectrons = 0; this.bonusElectrons = 0; this.bonusElectronRounds = 0;
                     this.charge = 0; this.chargeRounds = 0; this.stunned = false; this.stunRounds = 0;
-                    this.decayCounter = 0; this.bondedWith = null;
+                    this.electronsGiven = 0; this.decayCounter = 0; this.bondedWith = null;
                     // 同位素属性
                     if (isotopeSpec) {
                         this.mass = isotopeSpec.mass;
@@ -978,6 +1119,97 @@
                 }
             }
 
+            // ========== MQTT 联机管理器 ==========
+            class OnlineManager {
+                constructor(game) {
+                    this.game = game;
+                    this.client = null;
+                    this.connected = false;
+                    this.isHost = false;
+                    this.localColor = null;
+                    this.roomCode = null;
+                    this._myId = 'p' + Math.random().toString(36).slice(2, 10);
+                }
+                _brokerUrl() {
+                    // 国内可用免费 MQTT broker
+                    return 'wss://broker.emqx.io:8084/mqtt';
+                }
+                _genRoomCode() {
+                    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                    let s = '';
+                    for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
+                    return s;
+                }
+                _topic() { return 'chemis/' + this.roomCode; }
+                hostGame() {
+                    this.isHost = true; this.localColor = COLOR_WHITE;
+                    this.roomCode = this._genRoomCode();
+                    this._connect();
+                    return this.roomCode;
+                }
+                joinGame(roomCode) {
+                    this.isHost = false; this.localColor = COLOR_BLACK;
+                    this.roomCode = roomCode.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                    if (this.roomCode.length !== 6) return false;
+                    this._connect();
+                    return true;
+                }
+                _connect() {
+                    if (typeof mqtt === 'undefined') {
+                        console.error('[MQTT] mqtt.js 未加载，请检查网络');
+                        this.game.addLog('联机模块加载失败，请刷新重试');
+                        return;
+                    }
+                    const topic = this._topic();
+                    this.client = mqtt.connect(this._brokerUrl(), {
+                        clientId: 'chemis_' + this._myId,
+                        clean: true,
+                        connectTimeout: 10000,
+                        reconnectPeriod: 3000
+                    });
+                    this.client.on('connect', () => {
+                        console.log('[MQTT] 已连接 broker');
+                        this.client.subscribe(topic, (err) => {
+                            if (err) { console.error('[MQTT] 订阅失败', err); return; }
+                            if (!this.connected) {
+                                this.connected = true;
+                                this.game._onOnlineConnected();
+                            }
+                        });
+                    });
+                    this.client.on('message', (tpc, payload) => {
+                        try {
+                            const msg = JSON.parse(payload.toString());
+                            // 忽略自己发的消息
+                            if (msg._sender === this._myId) return;
+                            this.game._onRemoteMessage(msg);
+                        } catch (_) {}
+                    });
+                    this.client.on('error', (e) => {
+                        console.error('[MQTT] 连接错误', e);
+                    });
+                    this.client.on('close', () => {
+                        console.log('[MQTT] 连接关闭');
+                        if (this.connected) {
+                            this.connected = false;
+                            this.game._onOnlineDisconnected();
+                        }
+                    });
+                }
+                send(msg) {
+                    if (!this.client || !this.client.connected) return;
+                    msg._sender = this._myId;
+                    this.client.publish(this._topic(), JSON.stringify(msg));
+                }
+                disconnect() {
+                    if (this.client) {
+                        try { this.client.end(true); } catch (_) {}
+                        this.client = null;
+                    }
+                    this.connected = false;
+                }
+            }
+
             class ChemissGame {
                 constructor() {
                     this.board = []; this.pieces = []; this.whitePieces = []; this.blackPieces = [];
@@ -985,6 +1217,10 @@
                     this.bonds = []; this.roundNumber = 1; this.gameOver = false; this.winner = null;
                     this.logEntries = [];
                     this.debugMode = false; this._debugAddTarget = null; this._debugAddColor = COLOR_WHITE;
+                    this.onlineMode = false; this.onlineManager = null; this.onlineMyColor = null;
+                    this._remoteProcessing = false;
+                    this.boardFlipped = false;
+                    this._animating = false;
                     this.initBoard(); this.updateUI();
                     this.addLog('游戏开始！白方先行。');
                     this.addLog('离子键可直接吃子；共价/金属键需目标已键合且攻击者非键合伙伴。');
@@ -1197,10 +1433,12 @@
 
                 movePiece(piece, toRow, toCol, isAttack, target) {
                     this.board[piece.row][piece.col] = null;
-                    if (isAttack && target) this.handleCapture(piece, target);
+                    let wasIonic = false;
+                    if (isAttack && target) wasIonic = this.handleCapture(piece, target);
                     piece.row = toRow; piece.col = toCol;
                     this.board[toRow][toCol] = piece;
                     this.updateAllBonds();
+                    if (wasIonic && piece.totalElectrons > 8 && !this._remoteProcessing) this.emitBetaRay(piece);
                 }
 
                 handleCapture(attacker, defender) {
@@ -1212,17 +1450,17 @@
                     if (defender.isHydrogenKing) {
                         this.gameOver = true; this.winner = attacker.color;
                         this.addLog(`氢王(H)被吃，${attacker.color==='white'?'白方':'黑方'}获胜`);
-                        this.removePiece(defender); return;
+                        this.removePiece(defender); return false;
                     }
                     if (isIonic) {
                         attacker.bonusElectrons += defender.valence;
                         attacker.bonusElectronRounds = 6;
-                        if (attacker.totalElectrons > 8) this.emitBetaRay(attacker);
                         this.addLog(`离子键捕获: ${attacker.symbol}获得+${defender.valence}电子(6回合)`);
                     } else {
                         this.addLog(`共价/金属键吃子，不获得额外电子`);
                     }
                     this.removePiece(defender);
+                    return isIonic;
                 }
 
                 emitBetaRay(source) {
@@ -1233,13 +1471,17 @@
                         if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && this.board[nr][nc]) {
                             const target = this.board[nr][nc];
                             this.animateImpact(nr, nc, 'beta');
-                            // 重核(Z≥90)有概率裂变
-                            if (this.tryFissionOnHit(target, 'β射线')) break;
-                            const change = Math.random() < 0.5 ? 1 : -1;
-                            target.bonusElectrons = Math.max(0, target.bonusElectrons + change);
-                            target.bonusElectronRounds = 6;
-                            this.addLog(`β射线(离子键溢出)击中${this.nuclideText(target.symbol,target.mass)}，额外电子${change>0?'+1':'-1'}(6回合)`);
-                            this.updateUI();
+                            const hitStep = s, targetId = target.id;
+                            setTimeout(() => {
+                                const t = this.getPieceById(targetId);
+                                if (!t || !this.pieces.includes(t)) return;
+                                if (this.tryFissionOnHit(t, 'β射线')) return;
+                                const change = Math.random() < 0.5 ? 1 : -1;
+                                t.bonusElectrons = Math.max(0, t.bonusElectrons + change);
+                                t.bonusElectronRounds = 6;
+                                this.addLog(`β射线(离子键溢出)击中${this.nuclideText(t.symbol,t.mass)}，额外电子${change>0?'+1':'-1'}(6回合)`);
+                                this.updateUI();
+                            }, hitStep * 120 + 350);
                             break;
                         }
                     }
@@ -1253,7 +1495,8 @@
                         for (let j = i+1; j < charged.length; j++)
                             if (charged[i].charge * charged[j].charge < 0) {
                                 const diff = Math.abs(charged[i].charge - charged[j].charge);
-                                if (diff > maxDiff) { maxDiff = diff; best = [charged[i], charged[j]]; }
+                                const priority = diff + (charged[i].color !== charged[j].color ? 1000 : 0);
+                                if (priority > maxDiff) { maxDiff = priority; best = [charged[i], charged[j]]; }
                             }
                     if (!best) return;
                     const [p1, p2] = best;
@@ -1286,16 +1529,17 @@
                 }
 
                 canGiveElectron(piece) {
-                    if (!piece || piece.group !== METAL || piece.color !== this.currentTurn) return null;
+                    if (!piece || piece.group !== METAL || piece.color !== this.currentTurn || piece.totalElectrons <= 0) return null;
                     return this.getAdjacentPieces(piece.row, piece.col)
-                        .filter(n => n.color === piece.color && n.group === NONMETAL && n.charge === 0 && !n.noble);
+                        .filter(n => n.color === piece.color && n.group === NONMETAL && !n.noble);
                 }
 
                 giveElectron(metal, nonmetal) {
-                    metal.charge=1; metal.chargeRounds=3;
-                    nonmetal.charge=-1; nonmetal.chargeRounds=3;
+                    metal.valence = Math.max(0, metal.valence - 1); metal.electronsGiven++;
+                    metal.charge++; metal.chargeRounds=6;
+                    nonmetal.charge--; nonmetal.chargeRounds=6;
                     nonmetal.bonusElectrons+=1; nonmetal.bonusElectronRounds=6;
-                    this.addLog(`${metal.symbol} 给出1个电子给 ${nonmetal.symbol} → 阳离子/阴离子(6回合)`);
+                    this.addLog(`${metal.symbol} 给出1个电子给 ${nonmetal.symbol} → 阳离子/阴离子(3回合)`);
                 }
 
                 canNuclearTransform(piece) {
@@ -1315,6 +1559,95 @@
                     const isoLabel = isotopeSpec ? ` ${this.nuclideText(np.symbol,isotopeSpec.mass)}${isotopeSpec.name||''}` : '';
                     this.addLog(`Li核变为${isoLabel||np.symbol}${np.radioactive?' ['+np.decayMode+'衰变 t½:'+np.halfLifeRounds+'r]':''}`);
                     this.updateAllBonds();
+                    if(this.onlineMode && this.onlineManager){
+                        this.onlineManager.send({type:'nuclearTransform',pieceId:piece.id,newKey:newKey,isotopeSpec:isotopeSpec||null});
+                        this._skipNextEndTurnSend = true;
+                    }
+                }
+
+                // ========== 联机消息处理 ==========
+                _onRemoteMessage(msg){
+                    this._remoteProcessing = true;
+                    try {
+                        switch(msg.type){
+                            case 'move':{
+                                const piece = this.getPieceById(msg.pieceId);
+                                if(!piece) break;
+                                const target = msg.isAttack && msg.targetId ? this.getPieceById(msg.targetId) : null;
+                                const fromRow = piece.row, fromCol = piece.col;
+                                this.movePiece(piece, msg.toRow, msg.toCol, msg.isAttack, target);
+                                if(msg.animInfo){
+                                    this._animMovedInfo = {pieceId:piece.id,sdx:(fromCol-msg.toCol)*100+'%',sdy:(fromRow-msg.toRow)*100+'%'};
+                                }
+                                if(this.gameOver){ this.updateUI(); this.showVictory(); break; }
+                                if(msg.endTurn) this.endTurn(true);
+                                break;
+                            }
+                            case 'giveElectron':{
+                                const metal = this.getPieceById(msg.metalId), nonmetal = this.getPieceById(msg.nonmetalId);
+                                if(metal && nonmetal) this.giveElectron(metal, nonmetal);
+                                this.updateUI();
+                                break;
+                            }
+                            case 'nuclearTransform':{
+                                const piece = this.getPieceById(msg.pieceId);
+                                if(piece) this.nuclearTransform(piece, msg.newKey, msg.isotopeSpec||null);
+                                this.endTurn(true);
+                                break;
+                            }
+                            case 'draw':{
+                                if(confirm('对手请求和棋，同意吗？')){
+                                    this.gameOver=true; this.winner='draw'; this.addLog('双方同意和棋'); this.updateUI(); this.showVictory();
+                                    if(this.onlineManager) this.onlineManager.send({type:'drawAccept'});
+                                }
+                                break;
+                            }
+                            case 'drawAccept':{
+                                this.gameOver=true; this.winner='draw'; this.addLog('双方同意和棋'); this.updateUI(); this.showVictory();
+                                break;
+                            }
+                            case 'endTurn':{
+                                this.endTurn(true);
+                                break;
+                            }
+                            case 'reset':{
+                                this.initBoard(); this.currentTurn=COLOR_WHITE; this.updateUI(); this.addLog('对手已重置对局！白方先行。');
+                                break;
+                            }
+                        }
+                    } finally { this._remoteProcessing = false; }
+                }
+                _onOnlineConnected(){
+                    this.onlineMode = true;
+                    this.onlineMyColor = this.onlineManager.localColor;
+                    this.addLog(`联机已连接！你执${this.onlineMyColor==='white'?'白':'黑'}方`);
+                    this.updateUI();
+                    this._refreshOnlineUI();
+                }
+                _onOnlineDisconnected(){
+                    this.addLog('联机已断开');
+                    this.onlineMode = false; this.onlineMyColor = null;
+                    if(this.onlineManager){ this.onlineManager.disconnect(); this.onlineManager = null; }
+                    this.updateUI();
+                    this._refreshOnlineUI();
+                }
+                _refreshOnlineUI(){
+                    const dot = document.getElementById('onlineDot');
+                    const statusText = document.getElementById('onlineStatusText');
+                    const btnDisconnect = document.getElementById('btnDisconnect');
+                    if(this.onlineManager && this.onlineManager.connected){
+                        dot.className = 'online-dot on';
+                        statusText.textContent = `已连接 · 你执${this.onlineMyColor==='white'?'白':'黑'}方 · 房间 ${this.onlineManager.roomCode}`;
+                        if(btnDisconnect) btnDisconnect.style.display = 'block';
+                    } else if(this.onlineManager){
+                        dot.className = 'online-dot connecting';
+                        statusText.textContent = '连接中…(通过MQTT服务器)';
+                        if(btnDisconnect) btnDisconnect.style.display = 'none';
+                    } else {
+                        dot.className = 'online-dot off';
+                        statusText.textContent = '未连接';
+                        if(btnDisconnect) btnDisconnect.style.display = 'none';
+                    }
                 }
 
                 // ========== 核衰变系统 ==========
@@ -1386,6 +1719,11 @@
                 // 将棋子变换为另一元素（保留位置、颜色、id，衰变产物使用默认同位素）
                 transformPiece(piece, newKey) {
                     if (!PIECE_DEFS[newKey]) return null;
+                    if (piece.isHydrogenKing) {
+                        this.gameOver = true; this.winner = piece.color === COLOR_WHITE ? COLOR_BLACK : COLOR_WHITE;
+                        this.addLog(`氢王(H)因嬗变消失，${this.winner==='white'?'白方':'黑方'}获胜`);
+                        this.removePiece(piece); return null;
+                    }
                     // 衰变产物使用默认稳定同位素
                     const np = new Piece(newKey, piece.color, piece.id, null);
                     np.row = piece.row; np.col = piece.col;
@@ -1393,6 +1731,7 @@
                     np.charge = piece.charge; np.chargeRounds = piece.chargeRounds;
                     np.stunned = piece.stunned; np.stunRounds = piece.stunRounds;
                     np.bonusElectrons = piece.bonusElectrons; np.bonusElectronRounds = piece.bonusElectronRounds;
+                    np.electronsGiven = piece.electronsGiven; np.valence = piece.valence;
                     this.board[piece.row][piece.col] = np;
                     const idx = this.pieces.indexOf(piece); if (idx >= 0) this.pieces[idx] = np;
                     const arr = piece.color === COLOR_WHITE ? this.whitePieces : this.blackPieces;
@@ -1419,37 +1758,42 @@
                     const dir = ALL_DIRS[Math.floor(Math.random() * 8)];
                     const rayType = mode === 'alpha' ? 'alpha' : mode === 'beta' ? 'beta' : 'gamma';
                     const range = mode === 'alpha' ? 2 : mode === 'beta' ? 4 : 8;
-                    // 播放射线动画
                     this.animateRay(piece.row, piece.col, dir, range, rayType);
-                    if (mode === 'alpha') {
-                        // α衰变：Z-2, A-4, 发射α射线(射程2)
-                        const newZ = piece.Z - 2;
-                        const newKey = this.findKeyByZ(newZ);
-                        if (newKey) {
-                            const np = this.transformPiece(piece, newKey);
-                            this.addLog(`${this.nuclideText(piece.symbol,piece.mass)} →α衰变→ ${np.symbol} + α射线`);
-                            this.alphaRayEffect(np, dir);
+                    const delay = Math.max(400, range * 120);
+                    const pieceId = piece.id, oldSym = piece.symbol, oldMass = piece.mass;
+                    setTimeout(() => {
+                        const p = this.getPieceById(pieceId);
+                        if (!p || !this.pieces.includes(p)) return;
+                        if (mode === 'alpha') {
+                            const newZ = p.Z - 2;
+                            const newKey = this.findKeyByZ(newZ);
+                            if (newKey) {
+                                const np = this.transformPiece(p, newKey);
+                                if (!np) return;
+                                this.addLog(`${this.nuclideText(oldSym,oldMass)} →α衰变→ ${np.symbol} + α射线`);
+                                this.alphaRayEffect(np, dir);
+                            } else {
+                                this.addLog(`${this.nuclideText(oldSym,oldMass)} α衰变，无对应产物，眩晕1回合`);
+                                p.stunned = true; p.stunRounds = 1;
+                            }
+                        } else if (mode === 'beta') {
+                            const newZ = p.Z + 1;
+                            const newKey = this.findKeyByZ(newZ);
+                            if (newKey) {
+                                const np = this.transformPiece(p, newKey);
+                                if (!np) return;
+                                this.addLog(`${this.nuclideText(oldSym,oldMass)} →β⁻衰变→ ${np.symbol} + β射线`);
+                                this.betaRayEffect(np, dir);
+                            } else {
+                                this.addLog(`${this.nuclideText(oldSym,oldMass)} β衰变，无对应产物，眩晕1回合`);
+                                p.stunned = true; p.stunRounds = 1;
+                            }
                         } else {
-                            this.addLog(`${this.nuclideText(piece.symbol,piece.mass)} α衰变，无对应产物，眩晕1回合`);
-                            piece.stunned = true; piece.stunRounds = 1;
+                            this.addLog(`${this.nuclideText(oldSym,oldMass)} γ衰变 → 发射高能光子`);
+                            this.gammaRayEffect(p, dir);
                         }
-                    } else if (mode === 'beta') {
-                        // β⁻衰变：Z+1, 发射β射线(射程4)
-                        const newZ = piece.Z + 1;
-                        const newKey = this.findKeyByZ(newZ);
-                        if (newKey) {
-                            const np = this.transformPiece(piece, newKey);
-                            this.addLog(`${this.nuclideText(piece.symbol,piece.mass)} →β⁻衰变→ ${np.symbol} + β射线`);
-                            this.betaRayEffect(np, dir);
-                        } else {
-                            this.addLog(`${this.nuclideText(piece.symbol,piece.mass)} β衰变，无对应产物，眩晕1回合`);
-                            piece.stunned = true; piece.stunRounds = 1;
-                        }
-                    } else {
-                        // γ衰变或其他
-                        this.addLog(`${this.nuclideText(piece.symbol,piece.mass)} γ衰变 → 发射高能光子`);
-                        this.gammaRayEffect(piece, dir);
-                    }
+                        this.updateUI();
+                    }, delay);
                 }
 
                 // ========== 射线效果 ==========
@@ -1476,77 +1820,87 @@
                 }
 
                 alphaRayEffect(source, dir) {
-                    // α粒子(⁴He²⁺)射程2：击中目标可能被吸收，发生核嬗变 Z→Z+2
                     for (let s = 1; s <= 2; s++) {
                         const nr = source.row + dir[0] * s, nc = source.col + dir[1] * s;
                         if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && this.board[nr][nc]) {
                             const t = this.board[nr][nc];
                             this.animateImpact(nr, nc, 'alpha');
-                            // 重核(Z≥90)优先尝试裂变
-                            if (this.tryFissionOnHit(t, 'α粒子')) break;
-                            // 尝试α吸收嬗变: Z→Z+2, A→A+4
-                            const newZ = t.Z + 2;
-                            const newKey = this.findKeyByZ(newZ);
-                            if (newKey && PIECE_DEFS[newKey]) {
-                                const targetMass = t.mass + 4;
-                                const iso = this.findClosestIsotope(newKey, targetMass);
-                                if (iso) {
-                                    const spec = iso.stable ?
-                                        {mass:iso.mass, radio:false, halfLife:0, decay:null, name:iso.name||null} :
-                                        {mass:iso.mass, radio:true, halfLife:iso.halfLife||3, decay:iso.decay||'alpha', name:iso.name||null};
-                                    const np = this.transformPiece(t, newKey);
-                                    np.mass = spec.mass; np.radioactive = spec.radio;
-                                    np.halfLifeRounds = spec.halfLife; np.decayMode = spec.decay;
-                                    np.isotopeName = spec.name;
-                                    np.stunned = true; np.stunRounds = 1;
-                                    const isoLabel = np.radioactive ? `[${this.nuclideText(np.symbol,np.mass)}]` : this.nuclideText(np.symbol,np.mass);
-                                    this.addLog(`α粒子击中${this.nuclideText(t.symbol,t.mass)} → 吸收嬗变为${isoLabel}`);
+                            const hitStep = s, targetId = t.id;
+                            setTimeout(() => {
+                                const target = this.getPieceById(targetId);
+                                if (!target || !this.pieces.includes(target)) return;
+                                if (this.tryFissionOnHit(target, 'α粒子')) return;
+                                const oldSym = target.symbol, oldMass = target.mass;
+                                const newZ = target.Z + 2;
+                                const newKey = this.findKeyByZ(newZ);
+                                if (newKey && PIECE_DEFS[newKey]) {
+                                    const targetMass = target.mass + 4;
+                                    const iso = this.findClosestIsotope(newKey, targetMass);
+                                    if (iso) {
+                                        const spec = iso.stable ?
+                                            {mass:iso.mass, radio:false, halfLife:0, decay:null, name:iso.name||null} :
+                                            {mass:iso.mass, radio:true, halfLife:iso.halfLife||3, decay:iso.decay||'alpha', name:iso.name||null};
+                                        const np = this.transformPiece(target, newKey);
+                                        if (!np) return;
+                                        np.mass = spec.mass; np.radioactive = spec.radio;
+                                        np.halfLifeRounds = spec.halfLife; np.decayMode = spec.decay;
+                                        np.isotopeName = spec.name;
+                                        np.stunned = true; np.stunRounds = 1;
+                                        const isoLabel = np.radioactive ? `[${this.nuclideText(np.symbol,np.mass)}]` : this.nuclideText(np.symbol,np.mass);
+                                        this.addLog(`α粒子击中${this.nuclideText(oldSym,oldMass)} → 吸收嬗变为${isoLabel}`);
+                                    } else {
+                                        target.stunned = true; target.stunRounds = 1;
+                                        this.addLog(`α射线击中${this.nuclideText(target.symbol,target.mass)}，无合适同位素，眩晕1回合`);
+                                    }
                                 } else {
-                                    t.stunned = true; t.stunRounds = 1;
-                                    this.addLog(`α射线击中${this.nuclideText(t.symbol,t.mass)}，无合适同位素，眩晕1回合`);
+                                    target.valence = Math.max(1, target.valence - 1);
+                                    target.stunned = true; target.stunRounds = 1;
+                                    this.addLog(`α射线击中${this.nuclideText(target.symbol,target.mass)}(Z=${target.Z})，无法嬗变，价电子-1`);
                                 }
-                            } else {
-                                t.valence = Math.max(1, t.valence - 1);
-                                t.stunned = true; t.stunRounds = 1;
-                                this.addLog(`α射线击中${this.nuclideText(t.symbol,t.mass)}(Z=${t.Z})，无法嬗变，价电子-1`);
-                            }
-                            this.updateUI();
+                                this.updateUI();
+                            }, hitStep * 120 + 350);
                             break;
                         }
                     }
                 }
 
                 betaRayEffect(source, dir) {
-                    // β射线：射程4，击中目标价电子随机±1；重核可能裂变
                     for (let s = 1; s <= 4; s++) {
                         const nr = source.row + dir[0] * s, nc = source.col + dir[1] * s;
                         if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && this.board[nr][nc]) {
                             const t = this.board[nr][nc];
                             this.animateImpact(nr, nc, 'beta');
-                            // 重核(Z≥90)有概率裂变
-                            if (this.tryFissionOnHit(t, 'β射线')) break;
-                            const change = Math.random() < 0.5 ? 1 : -1;
-                            t.bonusElectrons = Math.max(0, t.bonusElectrons + change);
-                            t.bonusElectronRounds = 6;
-                            this.addLog(`β射线击中${this.nuclideText(t.symbol,t.mass)}，额外电子${change > 0 ? '+1' : '-1'}(6回合)`);
-                            this.updateUI();
+                            const hitStep = s, targetId = t.id;
+                            setTimeout(() => {
+                                const target = this.getPieceById(targetId);
+                                if (!target || !this.pieces.includes(target)) return;
+                                if (this.tryFissionOnHit(target, 'β射线')) return;
+                                const change = Math.random() < 0.5 ? 1 : -1;
+                                target.bonusElectrons = Math.max(0, target.bonusElectrons + change);
+                                target.bonusElectronRounds = 6;
+                                this.addLog(`β射线击中${this.nuclideText(target.symbol,target.mass)}，额外电子${change > 0 ? '+1' : '-1'}(6回合)`);
+                                this.updateUI();
+                            }, hitStep * 120 + 350);
                             break;
                         }
                     }
                 }
 
                 gammaRayEffect(source, dir) {
-                    // γ射线：射程8，眩晕目标1回合；重核可能裂变(光致裂变)
                     for (let s = 1; s <= 8; s++) {
                         const nr = source.row + dir[0] * s, nc = source.col + dir[1] * s;
                         if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && this.board[nr][nc]) {
                             const t = this.board[nr][nc];
                             this.animateImpact(nr, nc, 'gamma');
-                            // 重核(Z≥90)有概率光致裂变
-                            if (this.tryFissionOnHit(t, 'γ射线')) break;
-                            t.stunned = true; t.stunRounds = 1;
-                            this.addLog(`γ射线击中${this.nuclideText(t.symbol,t.mass)}，眩晕1回合`);
-                            this.updateUI();
+                            const hitStep = s, targetId = t.id;
+                            setTimeout(() => {
+                                const target = this.getPieceById(targetId);
+                                if (!target || !this.pieces.includes(target)) return;
+                                if (this.tryFissionOnHit(target, 'γ射线')) return;
+                                target.stunned = true; target.stunRounds = 1;
+                                this.addLog(`γ射线击中${this.nuclideText(target.symbol,target.mass)}，眩晕1回合`);
+                                this.updateUI();
+                            }, hitStep * 120 + 350);
                             break;
                         }
                     }
@@ -1588,6 +1942,10 @@
                         }
                     }
                     this.addLog(` ${piece.symbol}(Z=${piece.Z})发生裂变！`);
+                    if (piece.isHydrogenKing) {
+                        this.gameOver = true; this.winner = piece.color === COLOR_WHITE ? COLOR_BLACK : COLOR_WHITE;
+                        this.addLog(`氢王(H)因裂变消失，${this.winner==='white'?'白方':'黑方'}获胜`);
+                    }
                     this.removePiece(piece);
                 }
 
@@ -1613,24 +1971,30 @@
                     this.removeAllBondsFor(p);
                 }
 
-                endTurn(){
+                endTurn(skipSend){
                     for(const p of this.pieces){
                         if(p.bonusElectronRounds>0){ p.bonusElectronRounds--; if(p.bonusElectronRounds===0){ p.bonusElectrons=0; p.charge=0; p.chargeRounds=0; } }
-                        if(p.chargeRounds>0){ p.chargeRounds--; if(p.chargeRounds===0) p.charge=0; }
+                        if(p.chargeRounds>0){ p.chargeRounds--; if(p.chargeRounds===0){ p.charge=0; if(p.electronsGiven>0){ p.valence+=p.electronsGiven; p.electronsGiven=0; } } }
                         if(p.stunRounds>0){ p.stunRounds--; if(p.stunRounds===0) p.stunned=false; }
                     }
                     this.updateAllBonds();
                     this.currentTurn=this.currentTurn===COLOR_WHITE?COLOR_BLACK:COLOR_WHITE;
-                    this.roundNumber++;
+                    if(this.currentTurn===COLOR_WHITE) this.roundNumber++;
                     this.selectedPiece=null; this.legalMoves=[];
                     this.resolveElectrostaticAttraction(); this.resolveRadioactiveDecay();
                     this.updateAllBonds();
                     this.updateUI();
+                    if(!skipSend && this.onlineMode && this.onlineManager && !this._skipNextEndTurnSend){
+                        this.onlineManager.send({type:'endTurn'});
+                    }
+                    this._skipNextEndTurnSend = false;
                     if(this.gameOver) this.showVictory();
                 }
 
                 handleCellClick(row,col){
-                    if(this.gameOver)return;
+                    if(this.gameOver || this._animating) return;
+                    if(this.boardFlipped){ row=7-row; col=7-col; }
+                    if(this.onlineMode && this.onlineMyColor !== this.currentTurn) return;
                     // ===== Debug模式：自由移动棋子 =====
                     if(this.debugMode){
                         const piece=this.board[row][col];
@@ -1666,7 +2030,7 @@
                     const move=this.legalMoves.find(m=>m.row===row&&m.col===col);
                     if(move&&this.selectedPiece){ this.executeMove(this.selectedPiece,move); return; }
                     const piece=this.board[row][col];
-                    if(piece&&piece.color===this.currentTurn&&!piece.stunned){
+                    if(piece&&piece.color===this.currentTurn&&!piece.stunned&&piece.totalElectrons>0){
                         this.selectedPiece=piece; this.legalMoves=this.getLegalMoves(piece); this.updateUI();
                         // 选中底线Li自动弹出升变面板
                         if(piece.symbol==='Li' && this.canNuclearTransform(piece)){
@@ -1676,6 +2040,8 @@
                 }
 
                 executeMove(piece,move){
+                    this._animating = true;
+                    setTimeout(() => { this._animating = false; }, 420);
                     const fromRow = piece.row, fromCol = piece.col;
                     const captured = move.isAttack ? move.targetPiece : null;
                     this.movePiece(piece,move.row,move.col,move.isAttack,captured);
@@ -1686,6 +2052,10 @@
                         sdy: (fromRow - move.row) * 100 + '%'
                     };
                     if(this.gameOver){ this.updateUI(); this.showVictory(); return; }
+                    if(this.onlineMode && this.onlineManager) {
+                        this.onlineManager.send({type:'move',pieceId:piece.id,fromRow,fromCol,toRow:move.row,toCol:move.col,isAttack:move.isAttack,targetId:captured?captured.id:null,animInfo:this._animMovedInfo,endTurn:true});
+                        this._skipNextEndTurnSend = true;
+                    }
                     // Li移动后到达底线 → 自动弹出升变面板 (debug模式跳过)
                     if(!this.debugMode && piece.symbol==='Li' && this.canNuclearTransform(piece)){
                         this.selectedPiece=piece; this.legalMoves=[];
@@ -1695,13 +2065,27 @@
                     this.endTurn();
                 }
 
-                proposeDraw(){ if(this.gameOver)return; if(confirm('双方同意和棋吗？')){ this.gameOver=true; this.winner='draw'; this.addLog('双方同意和棋'); this.updateUI(); this.showVictory(); } }
+                proposeDraw(){
+                    if(this.gameOver)return;
+                    if(this.onlineMode && this.onlineManager){
+                        this.onlineManager.send({type:'draw'});
+                        this.addLog('已发送和棋请求');
+                        return;
+                    }
+                    if(confirm('双方同意和棋吗？')){ this.gameOver=true; this.winner='draw'; this.addLog('双方同意和棋'); this.updateUI(); this.showVictory(); }
+                }
 
                 triggerGiveElectron(){
                     if(this.gameOver||!this.selectedPiece)return;
+                    if(this.onlineMode && this.onlineMyColor !== this.currentTurn) return;
                     const targets=this.canGiveElectron(this.selectedPiece);
                     if(!targets||targets.length===0){ this.addLog('无法给电子'); return; }
-                    if(targets.length===1){ this.giveElectron(this.selectedPiece,targets[0]); this.selectedPiece=null; this.legalMoves=[]; this.endTurn(); }
+                    if(targets.length===1){
+                        this.giveElectron(this.selectedPiece,targets[0]);
+                        if(this.onlineMode && this.onlineManager)
+                            this.onlineManager.send({type:'giveElectron',metalId:this.selectedPiece.id,nonmetalId:targets[0].id});
+                        this.selectedPiece=null; this.legalMoves=[]; this.updateUI();
+                    }
                     else this.showGiveElectronChoices(this.selectedPiece,targets);
                 }
 
@@ -1710,7 +2094,7 @@
                     content.innerHTML='<h3>选择给电子目标</h3>';
                     targets.forEach(t=>{
                         const btn=document.createElement('button'); btn.className='choice-btn'; btn.textContent=`${t.symbol} (${t.row},${t.col})`;
-                        btn.onclick=()=>{ this.giveElectron(metal,t); this.selectedPiece=null; this.legalMoves=[]; closeModal(modal); this.endTurn(); };
+                        btn.onclick=()=>{ this.giveElectron(metal,t); if(this.onlineMode && this.onlineManager) this.onlineManager.send({type:'giveElectron',metalId:metal.id,nonmetalId:t.id}); this.selectedPiece=null; this.legalMoves=[]; closeModal(modal); this.updateUI(); };
                         content.appendChild(btn);
                     });
                     const cls=document.createElement('button'); cls.className='btn-close'; cls.textContent='取消'; cls.onclick=()=>closeModal(modal); content.appendChild(cls);
@@ -1719,6 +2103,7 @@
 
                 triggerNuclearTransform(){
                     if(this.gameOver||!this.selectedPiece||!this.canNuclearTransform(this.selectedPiece)){ this.addLog('请选择到达对方底线的Li棋子'); return; }
+                    if(this.onlineMode && this.onlineMyColor !== this.currentTurn) return;
                     this.showNuclearChoices(this.selectedPiece);
                 }
 
@@ -1817,10 +2202,6 @@
                     `;
                     content.appendChild(legend);
 
-                    const cls=document.createElement('button');
-                    cls.className='btn-close'; cls.textContent='取消';
-                    cls.onclick=()=>closeModal(modal);
-                    content.appendChild(cls);
                     modal.classList.add('active');
                 }
 
@@ -1918,6 +2299,7 @@
                     closeModal(document.getElementById('nuclearModal'));
                     closeModal(document.getElementById('rulesModal'));
                     this.initBoard(); this.currentTurn=COLOR_WHITE; this.updateUI(); this.addLog('游戏已重置！白方先行。');
+                    if(this.onlineMode && this.onlineManager) this.onlineManager.send({type:'reset'});
                 }
 
                 addLog(msg){ this.logEntries.push({msg,round:this.roundNumber}); if(this.logEntries.length>80) this.logEntries.shift(); }
@@ -1966,10 +2348,11 @@
                             pieceEl.className='piece ' + (piece.color===COLOR_WHITE?'white-piece':'black-piece');
                             const massLabel = piece.mass ? `<sup style="font-size:0.5em;">${piece.mass}</sup>` : '';
                             pieceEl.innerHTML=`<span class="symbol">${massLabel}${piece.symbol}</span><span class="info-tiny">${piece.electroneg.toFixed(1)}</span>`;
-                            if(piece.charge>0){ const cm=document.createElement('span'); cm.className='charge-mark charge-cation'; cm.textContent='+'; pieceEl.appendChild(cm); }
-                            else if(piece.charge<0){ const cm=document.createElement('span'); cm.className='charge-mark charge-anion'; cm.textContent='-'; pieceEl.appendChild(cm); }
+                            if(piece.charge>0){ const cm=document.createElement('span'); cm.className='charge-mark charge-cation'; cm.textContent=(piece.charge>1?piece.charge:'')+'+'; pieceEl.appendChild(cm); }
+                            else if(piece.charge<0){ const cm=document.createElement('span'); cm.className='charge-mark charge-anion'; cm.textContent=(piece.charge<-1?Math.abs(piece.charge):'')+'\u2212'; pieceEl.appendChild(cm); }
                             if(piece.stunned){ const si=document.createElement('span'); si.className='stun-icon'; si.textContent='\u00D7'; pieceEl.appendChild(si); }
-                            if(piece.bonusElectrons>0){ const bo=document.createElement('span'); bo.style.cssText='position:absolute;bottom:-8px;left:2px;font-size:0.62em;color:#b0908a;text-shadow:none;font-weight:700;'; bo.textContent='\u00D7'+piece.bonusElectronRounds; pieceEl.appendChild(bo); }
+                            if(piece.bonusElectrons>0){ const bo=document.createElement('span'); bo.style.cssText='position:absolute;bottom:-8px;right:-2px;font-size:0.62em;color:#b0908a;text-shadow:none;font-weight:700;'; bo.textContent='\u00D7'+Math.ceil(piece.bonusElectronRounds/2); pieceEl.appendChild(bo); }
+                            if(piece.charge>0){ const cr=document.createElement('span'); cr.className='charge-round-badge'; cr.textContent='\u00D7'+Math.ceil(piece.chargeRounds/2); pieceEl.appendChild(cr); }
                             if(piece.radioactive){ const ra=document.createElement('span'); ra.style.cssText='position:absolute;top:-10px;left:-8px;font-size:1.1em;font-weight:900;color:#b8a0c4;text-shadow:0 0 3px rgba(184,160,196,0.5);'; ra.textContent='\u2022'; pieceEl.appendChild(ra); }
                             wrapper.appendChild(pieceEl);
                             cell.appendChild(wrapper);
@@ -1995,7 +2378,7 @@
                     if(this.selectedPiece){
                         const p=this.selectedPiece;
                         const isotopeInfo = p.radioactive ? ` ${this.nuclideText(p.symbol,p.mass)}` : (p.isotopeName ? ` ${this.nuclideText(p.symbol,p.mass)}(${p.isotopeName})` : '');
-                        selInfo.innerHTML=`选中: <b>${p.symbol}</b> (${p.color==='white'?'白':'黑'}) Z=${p.Z}${isotopeInfo}<br>价:${p.valence} 总电子:${p.totalElectrons} EN:${p.electroneg.toFixed(2)}<br>方向:${p.effectiveMoveDirs} 步数:${p.effectiveMoveSteps}<br>电荷:${p.charge>0?'+'+p.charge:p.charge<0?p.charge:'0'} ${p.stunned?'[眩晕]':''}${p.noble?' [稀有气体]':''}<br>额外电子:${p.bonusElectrons}(${p.bonusElectronRounds}r)${p.radioactive?' ['+p.decayMode+'衰变 t½:'+p.halfLifeRounds+'r '+this.nuclideText(p.symbol,p.mass)+']':''}`;
+                        selInfo.innerHTML=`选中: <b>${p.symbol}</b> (${p.color==='white'?'白':'黑'}) Z=${p.Z}${isotopeInfo}<br>价:${p.valence} 总电子:${p.totalElectrons} EN:${p.electroneg.toFixed(2)}<br>方向:${p.effectiveMoveDirs} 步数:${p.effectiveMoveSteps}<br>电荷:${p.charge>0?'+'+p.charge:p.charge<0?p.charge:'0'}${p.charge!==0?'('+Math.ceil(p.chargeRounds/2)+'回合)':''} ${p.stunned?'[眩晕]':''}${p.noble?' [稀有气体]':''}<br>额外电子:${p.bonusElectrons}(${p.bonusElectrons>0?Math.ceil(p.bonusElectronRounds/2)+'回合':'0'})${p.radioactive?' ['+p.decayMode+'衰变 t½:'+p.halfLifeRounds+'r '+this.nuclideText(p.symbol,p.mass)+']':''}`;
                     } else selInfo.textContent='未选中棋子';
                     const bl=document.getElementById('bondList');
                     bl.innerHTML=this.bonds.length?this.bonds.map(b=>{
@@ -2041,6 +2424,37 @@
                 settingsRow.classList.toggle('hidden');
             });
 
+            // ========== 移动端：设置按钮复制到侧栏（直接绑定事件，不依赖原始按钮） ==========
+            (function initMobileSettings() {
+                const row = document.getElementById('settingsMobileRow');
+                const btnDefs = [
+                    { id: 'btnDarkMode', html: '🌙', title: '夜间模式', handler: () => { darkMode = !darkMode; document.body.classList.toggle('dark-mode', darkMode); btnDarkMode.classList.toggle('active', darkMode); } },
+                    { id: 'btnDebug', html: '🐛', title: 'Debug模式', handler: () => { debugMode = !debugMode; game.debugMode = debugMode; document.body.classList.toggle('debug-active', debugMode); btnDebug.classList.toggle('active', debugMode); game.selectedPiece = null; game.legalMoves = []; game.addLog(debugMode ? '[DEBUG] Debug模式开启' : '[DEBUG] Debug模式关闭'); game.updateUI(); } },
+                    { id: 'btnRules', html: '📖', title: '游戏规则', handler: () => showRulesModal() },
+                    { id: 'btnOnline', html: '🔗', title: '联机对战', handler: () => btnOnline.click() },
+                    { id: 'btnFlip', html: '🔄', title: '翻转棋盘', handler: () => { game.boardFlipped = !game.boardFlipped; boardWrapper.classList.toggle('flipped', game.boardFlipped); btnFlip.classList.toggle('active', game.boardFlipped); } },
+                    { id: 'btnCoords', html: '🔢', title: '显示坐标', handler: () => { showCoords = !showCoords; document.body.classList.toggle('show-coords', showCoords); btnCoords.classList.toggle('active', showCoords); } }
+                ];
+                btnDefs.forEach(def => {
+                    const clone = document.createElement('button');
+                    clone.className = 'settings-icon-btn';
+                    clone.id = def.id + 'Clone';
+                    clone.title = def.title;
+                    clone.innerHTML = '<span class="icon-label">' + def.html + '</span>';
+                    clone.addEventListener('click', def.handler);
+                    clone.dataset.mirror = def.id;
+                    row.appendChild(clone);
+                });
+                const mirrorActive = () => {
+                    row.querySelectorAll('.settings-icon-btn').forEach(cl => {
+                        const orig = document.getElementById(cl.dataset.mirror);
+                        if (orig) cl.classList.toggle('active', orig.classList.contains('active'));
+                    });
+                };
+                new MutationObserver(mirrorActive).observe(document.body, {attributes:true,subtree:true,attributeFilter:['class']});
+            })();
+
+
             // 夜间模式
             btnDarkMode.addEventListener('click', () => {
                 darkMode = !darkMode;
@@ -2062,6 +2476,43 @@
             // 规则弹窗
             btnRules.addEventListener('click', () => {
                 showRulesModal();
+            });
+
+            // ========== 坐标标签生成 ==========
+            const colLabels = ['a','b','c','d','e','f','g','h'];
+            (function buildCoordLabels(){
+                const rowEl = document.getElementById('coordRowLabels');
+                const colEl = document.getElementById('coordColLabels');
+                for(let r=0; r<8; r++){
+                    const span = document.createElement('span');
+                    span.className = 'coord-row-label';
+                    span.textContent = (8 - r);
+                    rowEl.appendChild(span);
+                }
+                for(let c=0; c<8; c++){
+                    const span = document.createElement('span');
+                    span.className = 'coord-col-label';
+                    span.textContent = colLabels[c];
+                    colEl.appendChild(span);
+                }
+            })();
+
+            // ========== 翻转棋盘 ==========
+            const btnFlip = document.getElementById('btnFlip');
+            const boardWrapper = document.getElementById('boardWrapper');
+            btnFlip.addEventListener('click', () => {
+                game.boardFlipped = !game.boardFlipped;
+                boardWrapper.classList.toggle('flipped', game.boardFlipped);
+                btnFlip.classList.toggle('active', game.boardFlipped);
+            });
+
+            // ========== 显示坐标 ==========
+            const btnCoords = document.getElementById('btnCoords');
+            let showCoords = false;
+            btnCoords.addEventListener('click', () => {
+                showCoords = !showCoords;
+                document.body.classList.toggle('show-coords', showCoords);
+                btnCoords.classList.toggle('active', showCoords);
             });
 
             function showRulesModal() {
@@ -2108,6 +2559,80 @@
             }
             document.getElementById('rulesModal').addEventListener('click', function(e) {
                 if (e.target === this) closeModal(this);
+            });
+
+            // ========== 联机弹窗逻辑 ==========
+            const btnOnline = document.getElementById('btnOnline');
+            const onlineModal = document.getElementById('onlineModal');
+            const btnDisconnect = document.getElementById('btnDisconnect');
+            let onlineTab = 'host';
+
+            btnOnline.addEventListener('click', () => {
+                if (onlineModal.classList.contains('active')) { closeModal(onlineModal); return; }
+                document.getElementById('hostRoomCode').textContent = '----';
+                document.getElementById('joinRoomInput').value = '';
+                switchOnlineTab('host');
+                game._refreshOnlineUI();
+                onlineModal.classList.add('active');
+            });
+
+            onlineModal.addEventListener('click', function(e) { if (e.target === this) closeModal(this); });
+
+            btnDisconnect.addEventListener('click', () => {
+                if (game.onlineManager) { game.onlineManager.disconnect(); game.onlineManager = null; }
+                game.onlineMode = false; game.onlineMyColor = null;
+                game.addLog('已断开联机');
+                game.updateUI(); game._refreshOnlineUI();
+            });
+
+            // Tab 切换
+            document.querySelectorAll('.online-tab').forEach(tab => {
+                tab.addEventListener('click', () => switchOnlineTab(tab.dataset.tab));
+            });
+            function switchOnlineTab(tab) {
+                onlineTab = tab;
+                document.querySelectorAll('.online-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+                document.getElementById('onlinePanelHost').classList.toggle('active', tab === 'host');
+                document.getElementById('onlinePanelJoin').classList.toggle('active', tab === 'join');
+            }
+
+            // 创建对局 - 主机
+            document.getElementById('btnCreateGame').addEventListener('click', () => {
+                if (game.onlineManager) game.onlineManager.disconnect();
+                game.onlineManager = new OnlineManager(game);
+                const code = game.onlineManager.hostGame();
+                document.getElementById('hostRoomCode').textContent = code;
+                game.addLog('房间已创建，等待对手加入…');
+                game._refreshOnlineUI();
+            });
+
+            document.getElementById('btnCopyRoom').addEventListener('click', () => {
+                const code = document.getElementById('hostRoomCode').textContent;
+                if (!code || code === '----') { alert('请先创建对局'); return; }
+                navigator.clipboard.writeText(code).then(() => alert('房间码已复制！\n"' + code + '"\n发送给对手即可。')).catch(() => alert('房间码: ' + code + '\n请手动复制发送给对手。'));
+            });
+
+            // 加入对局 - 客机
+            document.getElementById('btnJoinGame').addEventListener('click', () => {
+                const code = document.getElementById('joinRoomInput').value.trim().toUpperCase();
+                if (!code || code.length !== 6) { alert('请输入6位房间码'); return; }
+                if (game.onlineManager) game.onlineManager.disconnect();
+                game.onlineManager = new OnlineManager(game);
+                if (!game.onlineManager.joinGame(code)) { alert('房间码格式错误'); game.onlineManager = null; return; }
+                game.addLog('正在加入房间 ' + code + '…');
+                game._refreshOnlineUI();
+            });
+
+            // 输入框自动转大写
+            const joinRoomInput = document.getElementById('joinRoomInput');
+            joinRoomInput.addEventListener('input', function() {
+                this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            });
+            joinRoomInput.addEventListener('focus', function() {
+                this.placeholder = '';
+            });
+            joinRoomInput.addEventListener('blur', function() {
+                this.placeholder = '输入6位房间码';
             });
 
             console.log(' 化学棋 Chemiss 已就绪！');
