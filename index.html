@@ -124,8 +124,8 @@
         }
         .piece.white-piece { background: linear-gradient(145deg, #ffffff, #f0f0f0); color: #1a1a1a; }
         .piece.black-piece { background: linear-gradient(145deg, #222, #1a1a1a); color: #f0f0f0; border-color: #555; }
-        .piece .symbol { font-size: 1.4em; line-height: 1; }
-        .piece .info-tiny { font-size: 0.52em; line-height: 1; opacity: 0.55; display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; margin-top: 1px; }
+        .piece .symbol { font-size: calc(var(--cell-size) * 0.28); line-height: 1; }
+        .piece .info-tiny { font-size: calc(var(--cell-size) * 0.104); line-height: 1; opacity: 0.55; display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; margin-top: 1px; }
 
         /* 回合指示器：平滑文字过渡 */
         .turn-indicator {
@@ -139,19 +139,27 @@
             opacity: 0; pointer-events: none; transform: translateX(10px);
         }
         .charge-mark {
-            position: absolute; top: -10px; right: -10px; font-size: 0.65em; font-weight: 900;
-            min-width: 16px; min-height: 16px; padding: 0 2px; border-radius: 50%; display: flex; align-items: center;
+            position: absolute; top: -14%; right: -14%; font-size: 0.65em; font-weight: 900;
+            padding: 0 0.15em; border-radius: 50%; display: flex; align-items: center;
             justify-content: center; line-height: 1; z-index: 6;
         }
         .charge-cation { background: var(--cation-mark); color: #2a1a10; }
         .charge-anion { background: var(--anion-mark); color: #e8ecf0; }
         .charge-round-badge {
-            position: absolute; bottom: -8px; left: 0px; font-size: 0.62em; font-weight: 700;
+            position: absolute; bottom: -12%; left: 0; font-size: 0.62em; font-weight: 700;
             color: #6a8fba; text-shadow: none; z-index: 6; pointer-events: none;
         }
         .stun-icon {
-            position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%);
+            position: absolute; bottom: -6%; left: 50%; transform: translateX(-50%);
             font-size: 0.65em; z-index: 6; animation: stun-pulse 1s ease-in-out infinite;
+        }
+        .bonus-electron-badge {
+            position: absolute; bottom: -12%; right: -4%; font-size: 0.62em;
+            color: #b0908a; text-shadow: none; font-weight: 700;
+        }
+        .radioactive-dot {
+            position: absolute; top: -14%; left: -12%; font-size: 1.1em; font-weight: 900;
+            color: #b8a0c4; text-shadow: 0 0 3px rgba(184,160,196,0.5);
         }
         .direction-dot {
             position: absolute;
@@ -427,13 +435,6 @@
                 min-height: 40px; min-width: 44px;
                 border-radius: 8px;
             }
-            .piece .symbol { font-size: 1.05em; }
-            .piece .info-tiny { font-size: 0.36em; }
-            .charge-mark {
-                min-width: 14px; min-height: 14px; font-size: 0.6em; top: -8px; right: -8px; padding: 0 2px;
-            }
-            .charge-round-badge { font-size: 0.56em; bottom: -6px; }
-            .stun-icon { font-size: 0.6em; bottom: -3px; }
             /* 移动端设置行：放在侧栏内部 */
             .settings-mobile-row .settings-icon-btn {
                 width: 30px; height: 30px; min-width: 30px; min-height: 30px;
@@ -512,8 +513,6 @@
             .board-wrapper { border-width: 2px; padding: 2px; }
             .side-panel { padding: 8px 8px; font-size: 0.7em; gap: 4px; }
             .side-panel h2 { font-size: 0.8em; }
-            .piece .symbol { font-size: 0.9em; }
-            .piece .info-tiny { font-size: 0.32em; }
             button { padding: 6px 10px; font-size: 0.72em; min-height: 32px; }
             .info-section { font-size: 0.65em; padding: 4px 5px; }
             .bond-list { max-height: 50px; font-size: 0.6em; }
@@ -2441,9 +2440,9 @@
                             if(badgeState.charge>0){ const cm=document.createElement('span'); cm.className='charge-mark charge-cation'; cm.textContent=(badgeState.charge>1?badgeState.charge:'')+'+'; pieceEl.appendChild(cm); }
                             else if(badgeState.charge<0){ const cm=document.createElement('span'); cm.className='charge-mark charge-anion'; cm.textContent=(badgeState.charge<-1?Math.abs(badgeState.charge):'')+'\u2212'; pieceEl.appendChild(cm); }
                             if(badgeState.stunned){ const si=document.createElement('span'); si.className='stun-icon'; si.textContent='\u00D7'; pieceEl.appendChild(si); }
-                            if(badgeState.bonusElectrons>0){ const bo=document.createElement('span'); bo.className='bonus-electron-badge'; bo.style.cssText='position:absolute;bottom:-8px;right:-2px;font-size:0.62em;color:#b0908a;text-shadow:none;font-weight:700;'; bo.textContent='×'+piece.bonusElectronRounds; pieceEl.appendChild(bo); }
+                            if(badgeState.bonusElectrons>0){ const bo=document.createElement('span'); bo.className='bonus-electron-badge'; bo.textContent='×'+piece.bonusElectronRounds; pieceEl.appendChild(bo); }
                             if(badgeState.charge>0){ const cr=document.createElement('span'); cr.className='charge-round-badge'; cr.textContent='×'+piece.chargeRounds; pieceEl.appendChild(cr); }
-                            if(piece.radioactive){ const ra=document.createElement('span'); ra.style.cssText='position:absolute;top:-10px;left:-8px;font-size:1.1em;font-weight:900;color:#b8a0c4;text-shadow:0 0 3px rgba(184,160,196,0.5);'; ra.textContent='\u2022'; pieceEl.appendChild(ra); }
+                            if(piece.radioactive){ const ra=document.createElement('span'); ra.className='radioactive-dot'; ra.textContent='\u2022'; pieceEl.appendChild(ra); }
                             wrapper.appendChild(pieceEl);
                             cell.appendChild(wrapper);
                         }
