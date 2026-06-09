@@ -766,7 +766,7 @@
         <div class="side-panel" id="sidePanel">
             <h2>化学棋 Chemiss</h2>
             <div class="settings-mobile-row" id="settingsMobileRow"></div>
-            <div class="turn-indicator turn-white" id="turnIndicator">白方回合</div>
+            <div class="turn-indicator turn-white" id="turnIndicator">白方执子</div>
                 <div class="info-section">
                     <h3>当前信息</h3>
                     <div id="selectedInfo">未选中棋子</div>
@@ -1221,6 +1221,8 @@
                     this._remoteProcessing = false;
                     this.boardFlipped = false;
                     this._animating = false;
+                    this._whiteNoStepCount = 0;
+                    this._blackNoStepCount = 0;
                     this.initBoard(); this.updateUI();
                     this.addLog('游戏开始！白方先行。');
                     this.addLog('离子键可直接吃子；共价/金属键需目标已键合且攻击者非键合伙伴。');
@@ -1250,6 +1252,7 @@
                     this.pieces=[]; this.whitePieces=[]; this.blackPieces=[]; this.bonds=[];
                     this.roundNumber=1; this.gameOver=false; this.winner=null;
                     this.selectedPiece=null; this.legalMoves=[]; this.logEntries=[];
+                    this._whiteNoStepCount = 0; this._blackNoStepCount = 0;
                     let id = 0;
                     const place = (p, r, c) => {
                         p.row = r; p.col = c; this.board[r][c] = p;
@@ -1313,8 +1316,18 @@
                     const metallicCandidates = candidates.filter(c => c.type === 'metallic');
                     const covalentCandidates = candidates.filter(c => c.type !== 'metallic');
 
-                    // 共价键：贪心按电负性差降序，每原子最多一根共价键
-                    covalentCandidates.sort((a, b) => b.enDiff - a.enDiff);
+                    // 共价键：贪心按电负性差降序；相同时取最右端(最大col, 其次row)
+                    covalentCandidates.sort((a, b) => {
+                        if (b.enDiff !== a.enDiff) return b.enDiff - a.enDiff;
+                        const pa = this.getPieceById(a.p1), pb = this.getPieceById(b.p1);
+                        const pa2 = this.getPieceById(a.p2), pb2 = this.getPieceById(b.p2);
+                        const raCol = Math.max(pa?.col??0, pa2?.col??0);
+                        const rbCol = Math.max(pb?.col??0, pb2?.col??0);
+                        if (raCol !== rbCol) return rbCol - raCol;
+                        const raRow = Math.max(pa?.row??0, pa2?.row??0);
+                        const rbRow = Math.max(pb?.row??0, pb2?.row??0);
+                        return rbRow - raRow;
+                    });
                     const covBonded = new Set();
                     const applyBond = (c) => {
                         const p1 = this.getPieceById(c.p1);
@@ -1454,8 +1467,10 @@
                     }
                     if (isIonic) {
                         attacker.bonusElectrons += defender.valence;
-                        attacker.bonusElectronRounds = 6;
-                        this.addLog(`离子键捕获: ${attacker.symbol}获得+${defender.valence}电子(6回合)`);
+                        attacker.bonusElectronRounds = 3;
+                        attacker.charge -= defender.valence;
+                        attacker.chargeRounds = 3;
+                        this.addLog(`离子键捕获: ${attacker.symbol}获得+${defender.valence}电子(3回合)，电荷${attacker.charge>0?'+':''}${attacker.charge}`);
                     } else {
                         this.addLog(`共价/金属键吃子，不获得额外电子`);
                     }
@@ -1478,8 +1493,8 @@
                                 if (this.tryFissionOnHit(t, 'β射线')) return;
                                 const change = Math.random() < 0.5 ? 1 : -1;
                                 t.bonusElectrons = Math.max(0, t.bonusElectrons + change);
-                                t.bonusElectronRounds = 6;
-                                this.addLog(`β射线(离子键溢出)击中${this.nuclideText(t.symbol,t.mass)}，额外电子${change>0?'+1':'-1'}(6回合)`);
+                                t.bonusElectronRounds = 3;
+                                this.addLog(`β射线(离子键溢出)击中${this.nuclideText(t.symbol,t.mass)}，额外电子${change>0?'+1':'-1'}(3回合)`);
                                 this.updateUI();
                             }, hitStep * 120 + 350);
                             break;
@@ -1490,23 +1505,43 @@
                 resolveElectrostaticAttraction() {
                     const charged = this.pieces.filter(p => p.charge !== 0);
                     if (charged.length < 2) return;
-                    let best = null, maxDiff = 0;
+                    // 收集所有异号电荷对
+                    const pairs = [];
                     for (let i = 0; i < charged.length; i++)
                         for (let j = i+1; j < charged.length; j++)
-                            if (charged[i].charge * charged[j].charge < 0) {
-                                const diff = Math.abs(charged[i].charge - charged[j].charge);
-                                const priority = diff + (charged[i].color !== charged[j].color ? 1000 : 0);
-                                if (priority > maxDiff) { maxDiff = priority; best = [charged[i], charged[j]]; }
-                            }
-                    if (!best) return;
-                    const [p1, p2] = best;
-                    const steps = Math.ceil(Math.abs(p1.charge - p2.charge) / 2);
-                    if (steps <= 0) return;
-                    let s1 = Math.floor(steps/2), s2 = Math.ceil(steps/2);
+                            if (charged[i].charge * charged[j].charge < 0)
+                                pairs.push([charged[i], charged[j]]);
+                    if (pairs.length === 0) return;
+                    // 优先级：不同阵营 > 库仑力|q1*q2|/r² > 电负性差值 > 最右端
+                    const pairRank = ([a, b]) => {
+                        const crossColor = a.color !== b.color ? 1 : 0;
+                        const dr = a.row - b.row, dc = a.col - b.col;
+                        const r2 = dr*dr + dc*dc || 1;
+                        const coulomb = Math.abs(a.charge * b.charge) / r2;
+                        const enDiff = Math.abs(a.electroneg - b.electroneg);
+                        const rightmostCol = Math.max(a.col, b.col);
+                        const rightmostRow = Math.max(a.row, b.row);
+                        return [crossColor, coulomb, enDiff, rightmostCol, rightmostRow];
+                    };
+                    pairs.sort((a, b) => {
+                        const ra = pairRank(a), rb = pairRank(b);
+                        for (let k = 0; k < ra.length; k++) {
+                            if (ra[k] > rb[k]) return -1;
+                            if (ra[k] < rb[k]) return 1;
+                        }
+                        return 0;
+                    });
+                    const [p1, p2] = pairs[0];
+                    let s1 = Math.abs(p1.charge), s2 = Math.abs(p2.charge);
                     if (this.currentTurn === COLOR_WHITE && p1.color === COLOR_BLACK) s1 = Math.max(0, s1-1);
                     if (this.currentTurn === COLOR_BLACK && p1.color === COLOR_WHITE) s1 = Math.max(0, s1-1);
+                    const fromR1 = p1.row, fromC1 = p1.col, fromR2 = p2.row, fromC2 = p2.col;
                     this.moveToward(p1, p2, s1);
                     this.moveToward(p2, p1, s2);
+                    if (p1.row !== fromR1 || p1.col !== fromC1)
+                        this._animMovedInfos.push({pieceId:p1.id,sdx:(fromC1-p1.col)*100+'%',sdy:(fromR1-p1.row)*100+'%'});
+                    if (p2.row !== fromR2 || p2.col !== fromC2)
+                        this._animMovedInfos.push({pieceId:p2.id,sdx:(fromC2-p2.col)*100+'%',sdy:(fromR2-p2.row)*100+'%'});
                     this.updateAllBonds();
                 }
 
@@ -1515,17 +1550,23 @@
                     const dr = Math.sign(target.row - mover.row);
                     const dc = Math.sign(target.col - mover.col);
                     let cr = mover.row, cc = mover.col, rem = steps;
+                    let lastEmptyR = cr, lastEmptyC = cc;
                     while (rem > 0) {
                         const nr = cr+dr, nc = cc+dc;
                         if (nr<0||nr>=8||nc<0||nc>=8) break;
-                        if (this.board[nr][nc] && !(nr===target.row && nc===target.col)) { cr=nr; cc=nc; rem--; continue; }
                         if (nr===target.row && nc===target.col) break;
-                        cr=nr; cc=nc; rem--;
+                        rem--;
+                        if (this.board[nr][nc]) {
+                            cr=nr; cc=nc;
+                            continue;
+                        }
+                        cr=nr; cc=nc;
+                        lastEmptyR=cr; lastEmptyC=cc;
                     }
-                    if (cr!==mover.row || cc!==mover.col) {
-                        this.board[mover.row][mover.col] = null;
-                        mover.row=cr; mover.col=cc; this.board[cr][cc] = mover;
-                    }
+                    if (lastEmptyR===mover.row && lastEmptyC===mover.col) return;
+                    this.board[mover.row][mover.col] = null;
+                    mover.row=lastEmptyR; mover.col=lastEmptyC;
+                    this.board[lastEmptyR][lastEmptyC] = mover;
                 }
 
                 canGiveElectron(piece) {
@@ -1534,11 +1575,24 @@
                         .filter(n => n.color === piece.color && n.group === NONMETAL && !n.noble);
                 }
 
+                hasAvailableSteps(color) {
+                    const pieces = color === COLOR_WHITE ? this.whitePieces : this.blackPieces;
+                    for (const p of pieces) {
+                        if (p.stunned || p.totalElectrons <= 0) continue;
+                        if (this.getLegalMoves(p).length > 0) return true;
+                        if (p.group === METAL && p.totalElectrons > 0) {
+                            const neighbors = this.getAdjacentPieces(p.row, p.col);
+                            if (neighbors.some(n => n.color === p.color && n.group === NONMETAL && !n.noble)) return true;
+                        }
+                    }
+                    return false;
+                }
+
                 giveElectron(metal, nonmetal) {
                     metal.valence = Math.max(0, metal.valence - 1); metal.electronsGiven++;
-                    metal.charge++; metal.chargeRounds=6;
-                    nonmetal.charge--; nonmetal.chargeRounds=6;
-                    nonmetal.bonusElectrons+=1; nonmetal.bonusElectronRounds=6;
+                    metal.charge++; metal.chargeRounds=3;
+                    nonmetal.charge--; nonmetal.chargeRounds=3;
+                    nonmetal.bonusElectrons+=1; nonmetal.bonusElectronRounds=3;
                     this.addLog(`${metal.symbol} 给出1个电子给 ${nonmetal.symbol} → 阳离子/阴离子(3回合)`);
                 }
 
@@ -1577,7 +1631,7 @@
                                 const fromRow = piece.row, fromCol = piece.col;
                                 this.movePiece(piece, msg.toRow, msg.toCol, msg.isAttack, target);
                                 if(msg.animInfo){
-                                    this._animMovedInfo = {pieceId:piece.id,sdx:(fromCol-msg.toCol)*100+'%',sdy:(fromRow-msg.toRow)*100+'%'};
+                                    this._animMovedInfos = [{pieceId:piece.id,sdx:(fromCol-msg.toCol)*100+'%',sdy:(fromRow-msg.toRow)*100+'%'}];
                                 }
                                 if(this.gameOver){ this.updateUI(); this.showVictory(); break; }
                                 if(msg.endTurn) this.endTurn(true);
@@ -1877,8 +1931,8 @@
                                 if (this.tryFissionOnHit(target, 'β射线')) return;
                                 const change = Math.random() < 0.5 ? 1 : -1;
                                 target.bonusElectrons = Math.max(0, target.bonusElectrons + change);
-                                target.bonusElectronRounds = 6;
-                                this.addLog(`β射线击中${this.nuclideText(target.symbol,target.mass)}，额外电子${change > 0 ? '+1' : '-1'}(6回合)`);
+                                target.bonusElectronRounds = 3;
+                                this.addLog(`β射线击中${this.nuclideText(target.symbol,target.mass)}，额外电子${change > 0 ? '+1' : '-1'}(3回合)`);
                                 this.updateUI();
                             }, hitStep * 120 + 350);
                             break;
@@ -1971,19 +2025,43 @@
                     this.removeAllBondsFor(p);
                 }
 
-                endTurn(skipSend){
+                decrementTimers() {
                     for(const p of this.pieces){
                         if(p.bonusElectronRounds>0){ p.bonusElectronRounds--; if(p.bonusElectronRounds===0){ p.bonusElectrons=0; p.charge=0; p.chargeRounds=0; } }
                         if(p.chargeRounds>0){ p.chargeRounds--; if(p.chargeRounds===0){ p.charge=0; if(p.electronsGiven>0){ p.valence+=p.electronsGiven; p.electronsGiven=0; } } }
                         if(p.stunRounds>0){ p.stunRounds--; if(p.stunRounds===0) p.stunned=false; }
                     }
+                }
+
+                endTurn(skipSend){
                     this.updateAllBonds();
+                    // 重置刚完成执子的玩家无步计数
+                    if (this.currentTurn === COLOR_WHITE) this._whiteNoStepCount = 0;
+                    else this._blackNoStepCount = 0;
                     this.currentTurn=this.currentTurn===COLOR_WHITE?COLOR_BLACK:COLOR_WHITE;
-                    if(this.currentTurn===COLOR_WHITE) this.roundNumber++;
+                    if(this.currentTurn===COLOR_WHITE){ this.roundNumber++; this.decrementTimers(); }
                     this.selectedPiece=null; this.legalMoves=[];
                     this.resolveElectrostaticAttraction(); this.resolveRadioactiveDecay();
                     this.updateAllBonds();
                     this.updateUI();
+                    // 无步跳过循环
+                    while (!this.gameOver && !this.hasAvailableSteps(this.currentTurn)) {
+                        const colorName = this.currentTurn === COLOR_WHITE ? '白方' : '黑方';
+                        if (this.currentTurn === COLOR_WHITE) this._whiteNoStepCount++;
+                        else this._blackNoStepCount++;
+                        const cnt = this.currentTurn === COLOR_WHITE ? this._whiteNoStepCount : this._blackNoStepCount;
+                        this.addLog(`${colorName}无可用步骤，跳过执子(${cnt}/4)`);
+                        if (cnt >= 4) {
+                            this.gameOver = true; this.winner = 'draw';
+                            this.addLog(`${colorName}连续4次执子无可用步骤，和棋！`);
+                            this.updateUI(); break;
+                        }
+                        this.currentTurn = this.currentTurn === COLOR_WHITE ? COLOR_BLACK : COLOR_WHITE;
+                        if (this.currentTurn === COLOR_WHITE){ this.roundNumber++; this.decrementTimers(); }
+                        this.selectedPiece = null; this.legalMoves = [];
+                        this.updateAllBonds();
+                        this.updateUI();
+                    }
                     if(!skipSend && this.onlineMode && this.onlineManager && !this._skipNextEndTurnSend){
                         this.onlineManager.send({type:'endTurn'});
                     }
@@ -2012,11 +2090,11 @@
                             this.updateAllBonds();
                             this.selectedPiece=null; this.legalMoves=[];
                             this.addLog(`[DEBUG] 移动了${this.board[row][col].symbol}到(${row},${col})`);
-                            this._animMovedInfo = {
+                            this._animMovedInfos = [{
                                 pieceId: this.board[row][col].id,
                                 sdx: (fromCol2 - col) * 100 + '%',
                                 sdy: (fromRow2 - row) * 100 + '%'
-                            };
+                            }];
                             this.updateUI();
                         } else {
                             // 未选中：点任意棋子选中（不限颜色、不限眩晕）
@@ -2044,16 +2122,23 @@
                     setTimeout(() => { this._animating = false; }, 420);
                     const fromRow = piece.row, fromCol = piece.col;
                     const captured = move.isAttack ? move.targetPiece : null;
+                    // 快照移动前角标状态（移动后可能因吃子而获得电荷/额外电子）
+                    const prevBadges = {
+                        charge: piece.charge,
+                        bonusElectrons: piece.bonusElectrons,
+                        stunned: piece.stunned
+                    };
                     this.movePiece(piece,move.row,move.col,move.isAttack,captured);
-                    // 动画：记录位移矢量，供CSS translate 使用
-                    this._animMovedInfo = {
+                    // 动画：记录位移矢量和移动前状态，供CSS translate 使用
+                    this._animMovedInfos = [{
                         pieceId: piece.id,
                         sdx: (fromCol - move.col) * 100 + '%',
-                        sdy: (fromRow - move.row) * 100 + '%'
-                    };
+                        sdy: (fromRow - move.row) * 100 + '%',
+                        prevBadges: prevBadges
+                    }];
                     if(this.gameOver){ this.updateUI(); this.showVictory(); return; }
                     if(this.onlineMode && this.onlineManager) {
-                        this.onlineManager.send({type:'move',pieceId:piece.id,fromRow,fromCol,toRow:move.row,toCol:move.col,isAttack:move.isAttack,targetId:captured?captured.id:null,animInfo:this._animMovedInfo,endTurn:true});
+                        this.onlineManager.send({type:'move',pieceId:piece.id,fromRow,fromCol,toRow:move.row,toCol:move.col,isAttack:move.isAttack,targetId:captured?captured.id:null,animInfo:this._animMovedInfos[0],endTurn:true});
                         this._skipNextEndTurnSend = true;
                     }
                     // Li移动后到达底线 → 自动弹出升变面板 (debug模式跳过)
@@ -2305,7 +2390,7 @@
                 addLog(msg){ this.logEntries.push({msg,round:this.roundNumber}); if(this.logEntries.length>80) this.logEntries.shift(); }
 
                 // 动画状态标记
-                _animMovedInfo = null;
+                _animMovedInfos = [];
 
                 updateUI(){ this.renderBoard(); requestAnimationFrame(() => this.updateSidePanel()); }
 
@@ -2339,20 +2424,25 @@
                                 wrapper.appendChild(dot);
                             });
                             // 动画：wrapper整体平移（棋子+方向点+电荷标签一起运动）
-                            if (this._animMovedInfo && piece.id === this._animMovedInfo.pieceId) {
+                            const animEntry = (this._animMovedInfos).find(a => a.pieceId === piece.id);
+                            if (animEntry) {
                                 wrapper.classList.add('just-moved');
-                                wrapper.style.setProperty('--sdx', this._animMovedInfo.sdx);
-                                wrapper.style.setProperty('--sdy', this._animMovedInfo.sdy);
+                                wrapper.style.setProperty('--sdx', animEntry.sdx);
+                                wrapper.style.setProperty('--sdy', animEntry.sdy);
                             }
                             const pieceEl=document.createElement('div');
                             pieceEl.className='piece ' + (piece.color===COLOR_WHITE?'white-piece':'black-piece');
                             const massLabel = piece.mass ? `<sup style="font-size:0.5em;">${piece.mass}</sup>` : '';
                             pieceEl.innerHTML=`<span class="symbol">${massLabel}${piece.symbol}</span><span class="info-tiny">${piece.electroneg.toFixed(1)}</span>`;
-                            if(piece.charge>0){ const cm=document.createElement('span'); cm.className='charge-mark charge-cation'; cm.textContent=(piece.charge>1?piece.charge:'')+'+'; pieceEl.appendChild(cm); }
-                            else if(piece.charge<0){ const cm=document.createElement('span'); cm.className='charge-mark charge-anion'; cm.textContent=(piece.charge<-1?Math.abs(piece.charge):'')+'\u2212'; pieceEl.appendChild(cm); }
-                            if(piece.stunned){ const si=document.createElement('span'); si.className='stun-icon'; si.textContent='\u00D7'; pieceEl.appendChild(si); }
-                            if(piece.bonusElectrons>0){ const bo=document.createElement('span'); bo.style.cssText='position:absolute;bottom:-8px;right:-2px;font-size:0.62em;color:#b0908a;text-shadow:none;font-weight:700;'; bo.textContent='\u00D7'+Math.ceil(piece.bonusElectronRounds/2); pieceEl.appendChild(bo); }
-                            if(piece.charge>0){ const cr=document.createElement('span'); cr.className='charge-round-badge'; cr.textContent='\u00D7'+Math.ceil(piece.chargeRounds/2); pieceEl.appendChild(cr); }
+                            // 动画期间：使用移动前的角标状态，避免新获得的电荷/电子角标提前显示
+                            const badgeState = (animEntry && animEntry.prevBadges)
+                                ? animEntry.prevBadges
+                                : { charge: piece.charge, bonusElectrons: piece.bonusElectrons, stunned: piece.stunned };
+                            if(badgeState.charge>0){ const cm=document.createElement('span'); cm.className='charge-mark charge-cation'; cm.textContent=(badgeState.charge>1?badgeState.charge:'')+'+'; pieceEl.appendChild(cm); }
+                            else if(badgeState.charge<0){ const cm=document.createElement('span'); cm.className='charge-mark charge-anion'; cm.textContent=(badgeState.charge<-1?Math.abs(badgeState.charge):'')+'\u2212'; pieceEl.appendChild(cm); }
+                            if(badgeState.stunned){ const si=document.createElement('span'); si.className='stun-icon'; si.textContent='\u00D7'; pieceEl.appendChild(si); }
+                            if(badgeState.bonusElectrons>0){ const bo=document.createElement('span'); bo.className='bonus-electron-badge'; bo.style.cssText='position:absolute;bottom:-8px;right:-2px;font-size:0.62em;color:#b0908a;text-shadow:none;font-weight:700;'; bo.textContent='×'+piece.bonusElectronRounds; pieceEl.appendChild(bo); }
+                            if(badgeState.charge>0){ const cr=document.createElement('span'); cr.className='charge-round-badge'; cr.textContent='×'+piece.chargeRounds; pieceEl.appendChild(cr); }
                             if(piece.radioactive){ const ra=document.createElement('span'); ra.style.cssText='position:absolute;top:-10px;left:-8px;font-size:1.1em;font-weight:900;color:#b8a0c4;text-shadow:0 0 3px rgba(184,160,196,0.5);'; ra.textContent='\u2022'; pieceEl.appendChild(ra); }
                             wrapper.appendChild(pieceEl);
                             cell.appendChild(wrapper);
@@ -2361,7 +2451,7 @@
                     }
                     boardEl.replaceChildren(frag);
                     // 清除一次性动画标记
-                    this._animMovedInfo = null;
+                    this._animMovedInfos = [];
                 }
 
                 updateSidePanel(){
@@ -2370,7 +2460,7 @@
                         ti.textContent=this.winner==='draw'?'和棋':`${this.winner==='white'?'白方':'黑方'}获胜`;
                         ti.className='turn-indicator '+(this.winner==='white'?'turn-white':'turn-black');
                     } else {
-                        ti.textContent=this.currentTurn===COLOR_WHITE?'白方回合':'黑方回合';
+                        ti.textContent=this.currentTurn===COLOR_WHITE?'白方执子':'黑方执子';
                         ti.className='turn-indicator '+(this.currentTurn===COLOR_WHITE?'turn-white':'turn-black');
                     }
                     document.getElementById('roundCounter').textContent=`回合: ${this.roundNumber}`;
@@ -2378,7 +2468,7 @@
                     if(this.selectedPiece){
                         const p=this.selectedPiece;
                         const isotopeInfo = p.radioactive ? ` ${this.nuclideText(p.symbol,p.mass)}` : (p.isotopeName ? ` ${this.nuclideText(p.symbol,p.mass)}(${p.isotopeName})` : '');
-                        selInfo.innerHTML=`选中: <b>${p.symbol}</b> (${p.color==='white'?'白':'黑'}) Z=${p.Z}${isotopeInfo}<br>价:${p.valence} 总电子:${p.totalElectrons} EN:${p.electroneg.toFixed(2)}<br>方向:${p.effectiveMoveDirs} 步数:${p.effectiveMoveSteps}<br>电荷:${p.charge>0?'+'+p.charge:p.charge<0?p.charge:'0'}${p.charge!==0?'('+Math.ceil(p.chargeRounds/2)+'回合)':''} ${p.stunned?'[眩晕]':''}${p.noble?' [稀有气体]':''}<br>额外电子:${p.bonusElectrons}(${p.bonusElectrons>0?Math.ceil(p.bonusElectronRounds/2)+'回合':'0'})${p.radioactive?' ['+p.decayMode+'衰变 t½:'+p.halfLifeRounds+'r '+this.nuclideText(p.symbol,p.mass)+']':''}`;
+                        selInfo.innerHTML=`选中: <b>${p.symbol}</b> (${p.color==='white'?'白':'黑'}) Z=${p.Z}${isotopeInfo}<br>价:${p.valence} 总电子:${p.totalElectrons} EN:${p.electroneg.toFixed(2)}<br>方向:${p.effectiveMoveDirs} 步数:${p.effectiveMoveSteps}<br>电荷:${p.charge>0?'+'+p.charge:p.charge<0?p.charge:'0'}${p.charge!==0?'('+p.chargeRounds+'回合)':''} ${p.stunned?'[眩晕]':''}${p.noble?' [稀有气体]':''}<br>额外电子:${p.bonusElectrons}(${p.bonusElectrons>0?p.bonusElectronRounds+'回合':'0'})${p.radioactive?' ['+p.decayMode+'衰变 t½:'+p.halfLifeRounds+'r '+this.nuclideText(p.symbol,p.mass)+']':''}`;
                     } else selInfo.textContent='未选中棋子';
                     const bl=document.getElementById('bondList');
                     bl.innerHTML=this.bonds.length?this.bonds.map(b=>{
