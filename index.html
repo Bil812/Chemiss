@@ -2798,8 +2798,8 @@
                         if (members.length === 0) continue;
                         let totalFree = 0;
                         for (const p of members) totalFree += p.baseValence;
-                        // 均匀分配，上限3避免大集群过强
-                        const sharedPerMetal = Math.min(3, Math.max(1, Math.floor(totalFree / members.length)));
+                        // 均匀分配，上限8（八隅律）
+                        const sharedPerMetal = Math.min(8, Math.max(1, Math.floor(totalFree / members.length)));
                         for (const p of members) {
                             p.sharedElectrons = Math.max(p.sharedElectrons, sharedPerMetal);
                         }
@@ -4811,6 +4811,42 @@
             });
 
             // ========== 移动端：设置按钮复制到侧栏（直接绑定事件，不依赖原始按钮） ==========
+            // AI难度选择（桌面+移动端共用）
+            const aiDiffRowGlobal = document.getElementById('aiDiffRow');
+            const aiDiffChipsGlobal = document.getElementById('aiDiffChips');
+            let aiDifficultyGlobal = 4;
+            aiDiffChipsGlobal.addEventListener('click', (e) => {
+                const chip = e.target.closest('.ai-diff-chip');
+                if (!chip) return;
+                aiDifficultyGlobal = parseInt(chip.dataset.lv);
+                game._aiDifficulty = aiDifficultyGlobal;
+                aiDiffChipsGlobal.querySelectorAll('.ai-diff-chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                if (game.aiMode && game.ai) {
+                    game.ai = new ChemissAI(game, game.aiColor, aiDifficultyGlobal);
+                    game.addLog(`AI难度调整为 ${aiDifficultyGlobal}`);
+                }
+            });
+            const toggleAI = () => {
+                game.aiMode = !game.aiMode;
+                const btnAIEl = document.getElementById('btnAI');
+                if (btnAIEl) btnAIEl.classList.toggle('active', game.aiMode);
+                aiDiffRowGlobal.style.display = game.aiMode ? 'flex' : 'none';
+                if (game.aiMode) {
+                    game.aiColor = game.currentTurn === 'white' ? 'black' : 'white';
+                    game._aiDifficulty = aiDifficultyGlobal;
+                    game.ai = new ChemissAI(game, game.aiColor, aiDifficultyGlobal);
+                    game.addLog(`人机模式开启 — AI执${game.aiColor==='white'?'白':'黑'}方(难度:${aiDifficultyGlobal})`);
+                    if (game.currentTurn === game.aiColor) {
+                        setTimeout(() => game.triggerAIMove(), 600);
+                    }
+                } else {
+                    game.ai = null;
+                    game.addLog('人机模式关闭');
+                }
+                game.updateUI();
+            };
+
             (function initMobileSettings() {
                 const row = document.getElementById('settingsMobileRow');
                 const btnDefs = [
@@ -4822,8 +4858,8 @@
                     { id: 'btnCoords', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-grid"/></svg>', title: '显示坐标', handler: () => { showCoords = !showCoords; document.body.classList.toggle('show-coords', showCoords); btnCoords.classList.toggle('active', showCoords); } },
                     { id: 'btnClock', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-clock"/></svg>', title: '计时器', handler: () => { clockVisible = !clockVisible; timerSection.style.display = clockVisible ? 'block' : 'none'; btnClock.classList.toggle('active', clockVisible); } },
                     { id: 'btnNotation', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-notation"/></svg>', title: '棋谱', handler: () => { game._notationVisible = !game._notationVisible; notationSection.style.display = game._notationVisible ? 'block' : 'none'; btnNotation.classList.toggle('active', game._notationVisible); } },
-                    { id: 'btnAI', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-robot"/></svg>', title: '人机对战', handler: () => { game.aiMode = !game.aiMode; btnAI.classList.toggle('active', game.aiMode); if(game.aiMode){ game.aiColor = game.currentTurn==='white'?'black':'white'; game.ai = new ChemissAI(game, game.aiColor, game._aiDifficulty); game.addLog(`人机模式开启`); if(game.currentTurn===game.aiColor) setTimeout(()=>game.triggerAIMove(),600); } else { game.ai=null; game.addLog('人机模式关闭'); } game.updateUI(); } }
                 ];
+                btnDefs.push({ id: 'btnAI', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-robot"/></svg>', title: '人机对战', handler: () => toggleAI() });
                 btnDefs.forEach(def => {
                     const clone = document.createElement('button');
                     clone.className = 'settings-icon-btn';
@@ -5047,50 +5083,10 @@
 
             // ========== AI人机对战控制 ==========
             const btnAI = document.getElementById('btnAI');
-            const aiDiffRow = document.getElementById('aiDiffRow');
-            const aiDiffChips = document.getElementById('aiDiffChips');
-            let aiDifficulty = 4;
-
-            aiDiffChips.addEventListener('click', (e) => {
-                const chip = e.target.closest('.ai-diff-chip');
-                if (!chip) return;
-                aiDifficulty = parseInt(chip.dataset.lv);
-                game._aiDifficulty = aiDifficulty;
-                aiDiffChips.querySelectorAll('.ai-diff-chip').forEach(c => c.classList.remove('active'));
-                chip.classList.add('active');
-                if (game.aiMode && game.ai) {
-                    game.ai = new ChemissAI(game, game.aiColor, aiDifficulty);
-                    game.addLog(`AI难度调整为 ${aiDifficulty}`);
-                }
-            });
-
-            btnAI.addEventListener('click', () => {
-                game.aiMode = !game.aiMode;
-                btnAI.classList.toggle('active', game.aiMode);
-                aiDiffRow.style.display = game.aiMode ? 'flex' : 'none';
-                if (game.aiMode) {
-                    game.aiColor = game.currentTurn === 'white' ? 'black' : 'white';
-                    game._aiDifficulty = aiDifficulty;
-                    game.ai = new ChemissAI(game, game.aiColor, aiDifficulty);
-                    game.addLog(`人机模式开启 — AI执${game.aiColor==='white'?'白':'黑'}方(难度:${aiDifficulty})`);
-                    if (game.currentTurn === game.aiColor) {
-                        setTimeout(() => game.triggerAIMove(), 600);
-                    }
-                } else {
-                    game.ai = null;
-                    game.addLog('人机模式关闭');
-                }
-                game.updateUI();
-            });
-
+            btnAI.addEventListener('click', () => toggleAI());
             // AI复盘（双击）
-            btnAI.addEventListener('dblclick', () => {
-                game.openReview();
-            });
-            btnAI.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-                game.openReview();
-            });
+            btnAI.addEventListener('dblclick', () => { game.openReview(); });
+            btnAI.addEventListener('contextmenu', (e) => { e.preventDefault(); game.openReview(); });
 
             function showRulesModal() {
                 const modal = document.getElementById('rulesModal');
