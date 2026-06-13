@@ -1079,7 +1079,9 @@
         .review-move-entry .rm-notation { flex:1; }
         .review-move-entry .rm-icon { width:22px; text-align:center; flex-shrink:0; }
         .review-move-entry .rm-icon svg { width:16px; height:16px; display:inline-block; vertical-align:middle; }
-        .review-move-entry .rm-eval { font-size:0.82em; min-width:42px; text-align:right; }
+        .review-move-entry .rm-eval { font-size:0.82em; min-width:52px; text-align:right; }
+        .review-move-eval .rm-cp { font-weight:600; }
+        .review-move-eval .rm-diff { font-size:0.8em; }
         .review-footer {
             display:flex; gap:10px; justify-content:flex-end; padding:12px 20px;
             border-top:1px solid #e0d8d4; flex-shrink:0;
@@ -2411,10 +2413,10 @@
                     this._onComplete = null;
                 }
                 cancel() { this._canceled = true; }
-                _rawToCentipawns(raw) { return raw; }
+                _rawToCentipawns(raw) { return raw * 8; }
                 _winProbability(cp) {
-                    const clamped = Math.max(-1500, Math.min(1500, cp));
-                    return 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * clamped)) - 1);
+                    const clamped = Math.max(-2000, Math.min(2000, cp));
+                    return 50 + 50 * (2 / (1 + Math.exp(-0.0025 * clamped)) - 1);
                 }
                 analyze(onProgress, onComplete) {
                     this._onProgress = onProgress; this._onComplete = onComplete;
@@ -2476,22 +2478,28 @@
                     return ai.evaluate();
                 }
                 _classifyAllMoves(moves) {
+                    // 按材质总值校准阈值
+                    const maxMat = moves.length > 0 ? (() => {
+                        const lastMove = moves[moves.length-1];
+                        // 粗略估算：初始材质约 500cp，用此校准
+                        return 500;
+                    })() : 500;
                     for (let i=0;i<moves.length;i++) {
                         const move = moves[i];
-                        const cp = move.evalCentipawns;
                         if (i===0) {
-                            move.evalDiff = cp;
+                            const firstCp = move.evalCentipawns;
+                            move.evalDiff = move.color === 'white' ? firstCp : -firstCp;
                         } else {
                             const prevCp = moves[i-1].evalCentipawns;
-                            const rawDiff = cp - prevCp;
+                            const rawDiff = move.evalCentipawns - prevCp;
                             move.evalDiff = move.color === 'white' ? rawDiff : -rawDiff;
                         }
                         const ad = Math.abs(move.evalDiff);
-                        if (move.evalDiff < -300) { move.classification = 'blunder'; move.classificationIcon = '??'; }
-                        else if (move.evalDiff < -150) { move.classification = 'mistake'; move.classificationIcon = '?'; }
-                        else if (move.evalDiff < -50) { move.classification = 'inaccuracy'; move.classificationIcon = '?!'; }
-                        else if (move.evalDiff > 300) { move.classification = 'brilliant'; move.classificationIcon = '!!'; }
-                        else if (move.evalDiff > 150) { move.classification = 'great'; move.classificationIcon = '!'; }
+                        if (move.evalDiff < -250) { move.classification = 'blunder'; move.classificationIcon = '??'; }
+                        else if (move.evalDiff < -120) { move.classification = 'mistake'; move.classificationIcon = '?'; }
+                        else if (move.evalDiff < -40) { move.classification = 'inaccuracy'; move.classificationIcon = '?!'; }
+                        else if (move.evalDiff > 250) { move.classification = 'brilliant'; move.classificationIcon = '!!'; }
+                        else if (move.evalDiff > 120) { move.classification = 'great'; move.classificationIcon = '!'; }
                     }
                 }
                 _computeAccuracy(moves, color) {
@@ -2500,12 +2508,13 @@
                     let totalAcc = 0;
                     for (const move of playerMoves) {
                         if (move.evalDiff === null) { totalAcc += 50; continue; }
-                        if (move.classification === 'brilliant' || move.classification === 'great') totalAcc += 100;
-                        else if (move.classification === 'inaccuracy') totalAcc += 65;
-                        else if (move.classification === 'mistake') totalAcc += 30;
-                        else if (move.classification === 'blunder') totalAcc += 5;
-                        else if (move.evalDiff >= 0) totalAcc += 90;
-                        else totalAcc += 75;
+                        if (move.classification === 'brilliant') totalAcc += 100;
+                        else if (move.classification === 'great') totalAcc += 95;
+                        else if (move.classification === 'inaccuracy') totalAcc += 55;
+                        else if (move.classification === 'mistake') totalAcc += 20;
+                        else if (move.classification === 'blunder') totalAcc += 0;
+                        else if (move.evalDiff >= 0) totalAcc += 85;
+                        else totalAcc += 70;
                     }
                     return Math.round(totalAcc / playerMoves.length);
                 }
@@ -2670,9 +2679,11 @@
                             if (!already) results.push(p.id);
                             continue;
                         }
-                        // 共价键候选
+                        // 共价键候选：H 用 2 电子规则
                         if (selectedPiece.group === NONMETAL && p.group === NONMETAL) {
-                            const sharedE = Math.min(8 - selectedPiece.valence, 8 - p.valence);
+                            const needSel = selectedPiece.isHydrogenKing ? (2 - selectedPiece.valence) : (8 - selectedPiece.valence);
+                            const needP = p.isHydrogenKing ? (2 - p.valence) : (8 - p.valence);
+                            const sharedE = Math.min(Math.max(0, needSel), Math.max(0, needP));
                             if (sharedE > 0) results.push(p.id);
                         }
                     }
@@ -2726,8 +2737,10 @@
                                 // 金属键
                                 candidates.push({ p1: p.id, p2: n.id, type: 'metallic', shared: 1, enDiff });
                             } else if (bothNonMetal) {
-                                // 共价键
-                                const sharedE = Math.min(8 - p.valence, 8 - n.valence);
+                                // 共价键：H 用 2 电子规则，其他用 8 电子规则
+                                const needP = p.isHydrogenKing ? (2 - p.valence) : (8 - p.valence);
+                                const needN = n.isHydrogenKing ? (2 - n.valence) : (8 - n.valence);
+                                const sharedE = Math.min(Math.max(0, needP), Math.max(0, needN));
                                 if (sharedE > 0) {
                                     candidates.push({ p1: p.id, p2: n.id, type: 'covalent', shared: sharedE, enDiff });
                                 }
@@ -4655,8 +4668,10 @@
                         notEl.textContent = move.notation || `${move.pieceSymbol} ${String.fromCharCode(97+move.from[1])}${8-move.from[0]}-${String.fromCharCode(97+move.to[1])}${8-move.to[0]}`;
                         if (move.winProbability !== null) {
                             const cp = move.evalCentipawns;
-                            evalEl.textContent = (cp >= 0 ? '+' : '') + (cp !== null ? cp.toFixed(0) : '--');
-                            evalEl.className = 'review-move-eval ' + (cp > 30 ? 'eval-positive' : cp < -30 ? 'eval-negative' : 'eval-neutral');
+                            const wp = move.winProbability;
+                            evalEl.innerHTML = `<span class="rm-cp">${(cp>=0?'+':'')+cp.toFixed(0)}</span>` +
+                                (move.evalDiff !== null ? ` <span class="rm-diff" style="color:${move.evalDiff>0?'#6a9a6a':move.evalDiff<0?'#b87878':'#aaa'}">${move.evalDiff>0?'+':''}${move.evalDiff.toFixed(0)}</span>` : '');
+                            evalEl.className = 'review-move-eval ' + (cp > 50 ? 'eval-positive' : cp < -50 ? 'eval-negative' : 'eval-neutral');
                         } else {
                             evalEl.textContent = '分析中...';
                             evalEl.className = 'review-move-eval eval-neutral';
@@ -4714,9 +4729,11 @@
                             if (iconName) iconEl.innerHTML = `<svg viewBox="0 0 24 24"><use href="#${iconName}"/></svg>`;
                         }
                         if (move.winProbability !== null) {
-                            const cp = move.evalCentipawns;
-                            evalEl.textContent = (cp >= 0 ? '+' : '') + cp.toFixed(0);
-                            evalEl.style.color = cp > 50 ? '#6a9a6a' : cp < -50 ? '#b87878' : '#aaa';
+                            const wp = move.winProbability;
+                            const diff = move.evalDiff;
+                            evalEl.innerHTML = `<span style="font-size:0.85em">${wp.toFixed(0)}%</span>` +
+                                (diff !== null ? ` <span style="font-size:0.72em;color:${diff>0?'#6a9a6a':diff<0?'#b87878':'#aaa'}">${diff>0?'+':''}${diff.toFixed(0)}</span>` : '');
+                            evalEl.style.color = wp > 55 ? '#6a9a6a' : wp < 45 ? '#b87878' : '#aaa';
                         }
                     });
                 }
