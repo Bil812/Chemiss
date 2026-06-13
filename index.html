@@ -2288,11 +2288,13 @@
                     const moves = this.generateMoves();
                     if (moves.length === 0) return null;
                     this._orderMoves(moves);
+                    const timeLimits = [0, 800, 1500, 2500, 4000, 6000, 9000];
+                    const deadline = Date.now() + (timeLimits[this.MAX_DEPTH] || 2500);
                     let bestMove = null, bestScore = -Infinity;
-                    // Iterative deepening
                     for (let d = 1; d <= this.MAX_DEPTH; d++) {
                         let localBest = null, localScore = -Infinity;
                         for (const { piece, move } of moves) {
+                            if (Date.now() > deadline && d > 1) break; // 超时跳过剩余走法
                             const snapshot = this._snapshot();
                             this._executeTemp(piece, move);
                             const score = this.search(d - 1, -Infinity, Infinity, false, 0);
@@ -2302,9 +2304,12 @@
                                 localBest = { piece, move, evalScore: score };
                             }
                         }
+                        if (Date.now() > deadline && d > 1) {
+                            if (bestMove) break; // 超时且已有结果，停止加深
+                        }
                         bestScore = localScore;
                         bestMove = localBest;
-                        if (Math.abs(bestScore) >= 90000) break; // Found forced win, stop deepening
+                        if (Math.abs(bestScore) >= 90000) break;
                     }
                     return bestMove;
                 }
@@ -4463,13 +4468,30 @@
                 async triggerAIMove() {
                     if (!this.ai || this.gameOver || this.currentTurn !== this.aiColor) return;
                     if (this._animating) { setTimeout(() => this.triggerAIMove(), 200); return; }
+                    // 暂停计时器，UI显示"思考中"
+                    if (this.chessClock && this.chessClock.running) this.chessClock.pause();
+                    const ti = document.getElementById('turnIndicator');
+                    const origText = ti.textContent;
+                    ti.textContent = this.aiColor === 'white' ? '白方思考中...' : '黑方思考中...';
+                    ti.style.opacity = '0.7';
+                    this.updateUI();
+                    // yield to UI，让棋盘渲染完成
+                    await new Promise(r => setTimeout(r, 80));
                     const bestMove = this.ai.findBestMove();
+                    // 恢复计时器
+                    if (this.chessClock && this.chessClock.active && !this.chessClock.running) {
+                        this.chessClock.running = true;
+                        this.chessClock.lastTick = Date.now();
+                        this.chessClock._tick();
+                    }
+                    ti.textContent = origText;
+                    ti.style.opacity = '';
                     if (!bestMove) {
                         this.addLog('AI无可用移动，跳过执子');
                         this.endTurn();
                         return;
                     }
-                    await new Promise(r => setTimeout(r, 400));
+                    await new Promise(r => setTimeout(r, 350));
                     const p = bestMove.piece;
                     const m = bestMove.move;
                     const realPiece = this.getPieceById(p.id);
