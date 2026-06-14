@@ -782,6 +782,7 @@
         .cell.ray-alpha { color: #c4a484; }
         .cell.ray-beta  { color: #8fa4b0; }
         .cell.ray-gamma { color: #b8a0c4; }
+        .cell.ray-gamma.ray-impact { box-shadow: inset 0 0 8px #b8a0c4, 0 0 12px rgba(184,160,196,0.5); }
         /* 射线击中粒子的闪烁 */
         .piece.ray-hit-flash {
             animation: piece-hit 0.5s ease-out;
@@ -1436,7 +1437,7 @@
             <div class="victory-winner" id="victoryWinner"></div>
             <div class="victory-subtitle" id="victorySubtitle"></div>
             <button class="victory-btn review-card-btn" id="victoryReviewBtn" style="background:#b0a080;display:none;">复盘分析</button>
-            <button class="victory-btn" onclick="game.resetGame()">重新开始</button>
+            <button class="victory-btn" id="victoryNewGameBtn" onclick="game.resetGame()">重新开始</button>
         </div>
     </div>
 
@@ -1470,12 +1471,12 @@
                 <div class="review-side-col">
                     <div class="review-accuracy-row" id="reviewAccuracy">
                         <div class="review-acc-bar">
-                            <span class="review-acc-label">白方</span>
+                            <span class="review-acc-label" id="reviewAccWhiteLabel">白方</span>
                             <div class="review-acc-track"><div class="review-acc-fill review-acc-white" id="reviewAccWhiteFill" style="width:0%"></div></div>
                             <span class="review-acc-value" id="reviewAccWhiteVal">--%</span>
                         </div>
                         <div class="review-acc-bar">
-                            <span class="review-acc-label">黑方</span>
+                            <span class="review-acc-label" id="reviewAccBlackLabel">黑方</span>
                             <div class="review-acc-track"><div class="review-acc-fill review-acc-black" id="reviewAccBlackFill" style="width:0%"></div></div>
                             <span class="review-acc-value" id="reviewAccBlackVal">--%</span>
                         </div>
@@ -1491,7 +1492,7 @@
                             <path id="reviewChartPath" fill="none" stroke="#b0908a" stroke-width="2" d=""/>
                             <path id="reviewChartArea" fill="rgba(176,144,138,0.12)" d=""/>
                         </svg>
-                        <div class="review-chart-label">白方胜率</div>
+                        <div class="review-chart-label" id="reviewChartLabel">白方胜率</div>
                     </div>
                     <div class="review-class-summary" id="reviewClassSummary">
                         <span class="review-class-chip chip-brilliant">!! <span id="countBrilliant">0</span></span>
@@ -2934,15 +2935,39 @@
                     piece.row = toRow; piece.col = toCol;
                     this.board[toRow][toCol] = piece;
                     this.updateAllBonds();
-                    if (wasIonic && piece.totalElectrons > 8 && !this._remoteProcessing) {
-                        // 溢出电子越多，射线越多：每溢出2个电子发1条射线
-                        const excess = piece.totalElectrons - 8;
-                        const numRays = Math.max(1, Math.ceil(excess / 2));
-                        for (let ri = 0; ri < numRays; ri++) {
-                            setTimeout(() => {
-                                if (piece.totalElectrons > 8) this.emitBetaRay(piece, ri);
-                            }, ri * 180);
-                        }
+                    // 离子键溢出射线：等落子动画完成后从新位置发射
+                    if (wasIonic && !this._remoteProcessing && piece._overflowRays) {
+                        const numRays = piece._overflowRays;
+                        delete piece._overflowRays;
+                        setTimeout(() => {
+                            const centerIdx = Math.floor(Math.random() * 8);
+                            for (let fi = 0; fi < numRays; fi++) {
+                                const offset = Math.round((fi - (numRays - 1) / 2) * 2);
+                                const dirIdx = ((centerIdx + offset) % 8 + 8) % 8;
+                                const fdir = ALL_DIRS[dirIdx];
+                                this.animateRay(piece.row, piece.col, fdir, 4, 'beta');
+                                let hit = false;
+                                for (let s = 1; s <= 4 && !hit; s++) {
+                                    const nr = piece.row + fdir[0] * s, nc = piece.col + fdir[1] * s;
+                                    if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && this.board[nr][nc]) {
+                                        const tgt = this.board[nr][nc];
+                                        if (!tgt || !this.pieces.includes(tgt)) continue;
+                                        this.animateImpact(nr, nc, 'beta');
+                                        hit = true;
+                                        const d = s * 100 + fi * 80 + 200;
+                                        setTimeout(() => {
+                                            if (tgt && this.pieces.includes(tgt) && !this.tryFissionOnHit(tgt, 'β射线')) {
+                                                const ch = Math.random() < 0.5 ? 1 : -1;
+                                                tgt.bonusElectrons = Math.max(0, tgt.bonusElectrons + ch);
+                                                if (tgt.isHydrogenKing) tgt.bonusElectrons = Math.min(tgt.bonusElectrons, Math.max(0, 2 - tgt.valence - tgt.sharedElectrons));
+                                                tgt.bonusElectronRounds = 3;
+                                            }
+                                            this.updateUI();
+                                        }, d);
+                                    }
+                                }
+                            }
+                        }, 420);
                     }
                 }
 
@@ -2958,17 +2983,17 @@
                         this.removePiece(defender); return false;
                     }
                     if (isIonic) {
-                        // H最多容纳2个电子（1s轨道上限）
-                        if (attacker.isHydrogenKing) {
-                            const maxBonus = Math.max(0, 2 - attacker.valence - attacker.sharedElectrons);
-                            const actualGain = Math.min(defender.valence, maxBonus);
-                            attacker.bonusElectrons += actualGain;
-                            attacker.bonusElectronRounds = 3;
-                            this.addLog(`离子键捕获: H获得+${actualGain}电子(H上限2个,3回合)，电荷${attacker.charge>0?'+':''}${attacker.charge}`);
+                        // 八隅律上限：攻击方能接受的电子数不能超过其八隅体缺口
+                        const maxOctet = attacker.isHydrogenKing ? Math.max(0, 2 - attacker.valence - attacker.sharedElectrons) : Math.max(0, 8 - attacker.valence - attacker.sharedElectrons);
+                        const actualGain = Math.min(defender.valence, maxOctet);
+                        attacker.bonusElectrons += actualGain;
+                        attacker.bonusElectronRounds = 3;
+                        const overflow = defender.valence - actualGain;
+                        if (overflow > 0) {
+                            attacker._overflowRays = Math.min(overflow, 8);
+                            this.addLog(`离子键捕获: ${attacker.symbol}获得+${actualGain}电子(上限)，溢出${overflow}电子 → 扇形β射线×${attacker._overflowRays}`);
                         } else {
-                            attacker.bonusElectrons += defender.valence;
-                            attacker.bonusElectronRounds = 3;
-                            this.addLog(`离子键捕获: ${attacker.symbol}获得+${defender.valence}电子(3回合)，电荷${attacker.charge>0?'+':''}${attacker.charge}`);
+                            this.addLog(`离子键捕获: ${attacker.symbol}获得+${actualGain}电子(3回合)`);
                         }
                     } else {
                         this.addLog(`共价/金属键吃子，不获得额外电子`);
@@ -2995,7 +3020,6 @@
                                 if (this.tryFissionOnHit(t, 'β射线')) return;
                                 const change = Math.random() < 0.5 ? 1 : -1;
                                 t.bonusElectrons = Math.max(0, t.bonusElectrons + change);
-                                // H电子数上限2
                                 if (t.isHydrogenKing) {
                                     const maxBonus = Math.max(0, 2 - t.valence - t.sharedElectrons);
                                     t.bonusElectrons = Math.min(t.bonusElectrons, maxBonus);
@@ -3162,14 +3186,14 @@
                                 break;
                             }
                             case 'draw':{
-                                if(confirm('对手请求和棋，同意吗？')){
-                                    this.gameOver=true; this.winner='draw'; this.addLog('双方同意和棋'); this.updateUI(); this.showVictory();
+                                if(confirm(I18N.lang==='en'?'Opponent offers a draw — accept?':'对手请求和棋，同意吗？')){
+                                    this.gameOver=true; this.winner='draw'; this.addLog(I18N.lang==='en'?'Draw by agreement':'双方同意和棋'); this.updateUI(); this.showVictory();
                                     if(this.onlineManager) this.onlineManager.send({type:'drawAccept'});
                                 }
                                 break;
                             }
                             case 'drawAccept':{
-                                this.gameOver=true; this.winner='draw'; this.addLog('双方同意和棋'); this.updateUI(); this.showVictory();
+                                this.gameOver=true; this.winner='draw'; this.addLog(I18N.lang==='en'?'Draw by agreement':'双方同意和棋'); this.updateUI(); this.showVictory();
                                 break;
                             }
                             case 'endTurn':{
@@ -3298,7 +3322,9 @@
                     np.chargeRounds = piece.chargeRounds;
                     np.stunned = piece.stunned; np.stunRounds = piece.stunRounds;
                     np.bonusElectrons = piece.bonusElectrons; np.bonusElectronRounds = piece.bonusElectronRounds;
-                    np.electronsGiven = piece.electronsGiven; np.valence = piece.valence;
+                    np.electronsGiven = piece.electronsGiven;
+                    // valence 使用新元素的默认值（Piece 构造函数已正确设置）
+                    // 不调整 electronsGiven：嬗变增加的是核电荷数，不是电子得失
                     this.board[piece.row][piece.col] = np;
                     const idx = this.pieces.indexOf(piece); if (idx >= 0) this.pieces[idx] = np;
                     const arr = piece.color === COLOR_WHITE ? this.whitePieces : this.blackPieces;
@@ -3326,6 +3352,12 @@
                     const rayType = mode === 'alpha' ? 'alpha' : mode === 'beta' ? 'beta' : 'gamma';
                     const range = mode === 'alpha' ? 2 : mode === 'beta' ? 4 : 8;
                     this.animateRay(piece.row, piece.col, dir, range, rayType);
+                    // 伴随gamma射线：α/β衰变有概率同时发射gamma
+                    const emitGamma = (mode === 'alpha' || mode === 'beta') && Math.random() < 0.5;
+                    const gammaDir = emitGamma ? ALL_DIRS[Math.floor(Math.random() * 8)] : null;
+                    if (emitGamma) {
+                        setTimeout(() => this.animateRay(piece.row, piece.col, gammaDir, 8, 'gamma'), 300);
+                    }
                     const delay = Math.max(400, range * 120);
                     const pieceId = piece.id, oldSym = piece.symbol, oldMass = piece.mass;
                     setTimeout(() => {
@@ -3337,8 +3369,9 @@
                             if (newKey) {
                                 const np = this.transformPiece(p, newKey);
                                 if (!np) return;
-                                this.addLog(`${this.nuclideText(oldSym,oldMass)} →α衰变→ ${np.symbol} + α射线`);
+                                this.addLog(`${this.nuclideText(oldSym,oldMass)} →α衰变→ ${np.symbol} + α射线${emitGamma?' + γ射线':''}`);
                                 this.alphaRayEffect(np, dir);
+                                if (emitGamma && gammaDir) setTimeout(() => this.gammaRayEffect(p, gammaDir), delay + 200);
                             } else {
                                 this.addLog(`${this.nuclideText(oldSym,oldMass)} α衰变，无对应产物，眩晕1回合`);
                                 p.stunned = true; p.stunRounds = 1;
@@ -3349,8 +3382,9 @@
                             if (newKey) {
                                 const np = this.transformPiece(p, newKey);
                                 if (!np) return;
-                                this.addLog(`${this.nuclideText(oldSym,oldMass)} →β⁻衰变→ ${np.symbol} + β射线`);
+                                this.addLog(`${this.nuclideText(oldSym,oldMass)} →β⁻衰变→ ${np.symbol} + β射线${emitGamma?' + γ射线':''}`);
                                 this.betaRayEffect(np, dir);
+                                if (emitGamma && gammaDir) setTimeout(() => this.gammaRayEffect(p, gammaDir), delay + 200);
                             } else {
                                 this.addLog(`${this.nuclideText(oldSym,oldMass)} β衰变，无对应产物，眩晕1回合`);
                                 p.stunned = true; p.stunRounds = 1;
@@ -3404,14 +3438,10 @@
                                     const targetMass = target.mass + 4;
                                     const iso = this.findClosestIsotope(newKey, targetMass);
                                     if (iso) {
-                                        const spec = iso.stable ?
-                                            {mass:iso.mass, radio:false, halfLife:0, decay:null, name:iso.name||null} :
-                                            {mass:iso.mass, radio:true, halfLife:iso.halfLife||3, decay:iso.decay||'alpha', name:iso.name||null};
+                                        const spec = iso.stable ? {mass:iso.mass, radio:false, halfLife:0, decay:null, name:iso.name||null} : {mass:iso.mass, radio:true, halfLife:iso.halfLife||3, decay:iso.decay||'alpha', name:iso.name||null};
                                         const np = this.transformPiece(target, newKey);
                                         if (!np) return;
-                                        np.mass = spec.mass; np.radioactive = spec.radio;
-                                        np.halfLifeRounds = spec.halfLife; np.decayMode = spec.decay;
-                                        np.isotopeName = spec.name;
+                                        np.mass = spec.mass; np.radioactive = spec.radio; np.halfLifeRounds = spec.halfLife; np.decayMode = spec.decay; np.isotopeName = spec.name;
                                         np.stunned = true; np.stunRounds = 1;
                                         const isoLabel = np.radioactive ? `[${this.nuclideText(np.symbol,np.mass)}]` : this.nuclideText(np.symbol,np.mass);
                                         this.addLog(`α粒子击中${this.nuclideText(oldSym,oldMass)} → 吸收嬗变为${isoLabel}`);
@@ -3444,7 +3474,6 @@
                                 if (this.tryFissionOnHit(target, 'β射线')) return;
                                 const change = Math.random() < 0.5 ? 1 : -1;
                                 target.bonusElectrons = Math.max(0, target.bonusElectrons + change);
-                                // H电子数上限2
                                 if (target.isHydrogenKing) {
                                     const maxBonus = Math.max(0, 2 - target.valence - target.sharedElectrons);
                                     target.bonusElectrons = Math.min(target.bonusElectrons, maxBonus);
@@ -3586,14 +3615,15 @@
                     }
                     // 无步跳过循环
                     while (!this.gameOver && !this.hasAvailableSteps(this.currentTurn)) {
-                        const colorName = this.currentTurn === COLOR_WHITE ? '白方' : '黑方';
+                        const colorName = this.currentTurn === COLOR_WHITE ? (I18N.lang==='en'?'White':'白方') : (I18N.lang==='en'?'Black':'黑方');
                         if (this.currentTurn === COLOR_WHITE) this._whiteNoStepCount++;
                         else this._blackNoStepCount++;
                         const cnt = this.currentTurn === COLOR_WHITE ? this._whiteNoStepCount : this._blackNoStepCount;
                         this.addLog(`${colorName}无可用步骤，跳过执子(${cnt}/4)`);
                         if (cnt >= 4) {
                             this.gameOver = true; this.winner = 'draw';
-                            this.addLog(`${colorName}连续4次执子无可用步骤，和棋！`);
+                            const drawMsg = I18N.lang === 'en' ? `${colorName} had no moves for 4 consecutive turns — draw!` : `${colorName}连续4次执子无可用步骤，和棋！`;
+                            this.addLog(drawMsg);
                             this.updateUI(); break;
                         }
                         this.currentTurn = this.currentTurn === COLOR_WHITE ? COLOR_BLACK : COLOR_WHITE;
@@ -3825,7 +3855,7 @@
                         this.addLog('已发送和棋请求');
                         return;
                     }
-                    if(confirm('双方同意和棋吗？')){ this.gameOver=true; this.winner='draw'; this.addLog('双方同意和棋'); this.updateUI(); this.showVictory(); }
+                    if(confirm(I18N.lang==='en'?'Both players agree to a draw?':'双方同意和棋吗？')){ this.gameOver=true; this.winner='draw'; this.addLog(I18N.lang==='en'?'Draw by agreement':'双方同意和棋'); this.updateUI(); this.showVictory(); }
                 }
 
                 triggerGiveElectron(){
@@ -4688,7 +4718,7 @@
                     this._dom.reviewOverlay.classList.add('active');
                     const r = record.result;
                     const L = I18N.data[I18N.lang];
-                    this._dom.reviewResult.textContent = r === 'draw' ? L['drawResult'] : r === 'white' ? (L['aiWhite'] + ' ' + (I18N.lang==='en'?'Wins':'胜')) : r === 'black' ? (L['aiBlack'] + ' ' + (I18N.lang==='en'?'Wins':'胜')) : '';
+                    this._dom.reviewResult.textContent = r === 'draw' ? L['drawResult'] : r === 'white' ? L['whiteWins'] : r === 'black' ? L['blackWins'] : '';
                     this._totalMoves = record.moves.length;
                     this._dom.reviewSlider.max = this._totalMoves;
                     this._dom.reviewSlider.value = this._totalMoves;
@@ -4757,13 +4787,13 @@
                     const evalEl = this._dom.reviewMoveEval;
                     const L = I18N.data[I18N.lang];
                     if (this._currentIdx === 0) {
-                        numEl.textContent = L['initialPos'];
-                        notEl.textContent = L['noMoves'];
+                        numEl.textContent = (I18N.lang === 'en' ? 'Start' : '初始');
+                        notEl.textContent = (I18N.lang === 'en' ? 'Initial position' : '开局局面');
                         evalEl.textContent = '';
                         evalEl.className = 'review-move-eval';
                     } else {
                         const move = this.game._gameRecord.moves[this._currentIdx - 1];
-                        numEl.textContent = `第${move.moveIndex}步`;
+                        numEl.textContent = (I18N.lang === 'en' ? 'Move ' : '第') + move.moveIndex + (I18N.lang === 'en' ? '' : '步');
                         notEl.textContent = move.notation || `${move.pieceSymbol} ${String.fromCharCode(97+move.from[1])}${8-move.from[0]}-${String.fromCharCode(97+move.to[1])}${8-move.to[0]}`;
                         if (move.winProbability !== null) {
                             const cp = move.evalCentipawns;
@@ -4975,6 +5005,9 @@
                         whiteAcc: '白方',
                         blackAcc: '黑方',
                         whiteWinRate: '白方胜率',
+                        reviewInitial: '初始',
+                        reviewMove: '第',
+                        reviewMoveStep: '步',
                         closeReview: '关闭复盘',
                         initialPos: '初始局面',
                         prevMove: '上一步',
@@ -5048,6 +5081,9 @@
                         whiteAcc: 'White',
                         blackAcc: 'Black',
                         whiteWinRate: 'White win rate',
+                        reviewInitial: 'Initial',
+                        reviewMove: 'Move ',
+                        reviewMoveStep: '',
                         closeReview: 'Close',
                         initialPos: 'Start',
                         prevMove: 'Prev',
@@ -5124,6 +5160,10 @@
                 set('reviewBtnClose', 'closeReview');
                 set('reviewBtnNewGame', 'newGame');
                 set('victoryReviewBtn', 'reviewBtn');
+                set('victoryNewGameBtn', 'newGame');
+                set('reviewAccWhiteLabel', 'whiteAcc');
+                set('reviewAccBlackLabel', 'blackAcc');
+                set('reviewChartLabel', 'whiteWinRate');
                 setTitle('btnSettingsToggle', 'settings');
                 setTitle('btnDarkMode', 'darkMode');
                 setTitle('btnDebug', 'debugMode');
