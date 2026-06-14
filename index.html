@@ -823,6 +823,24 @@
         }
         body.dark-mode .settings-icon-btn { border-color: #555; color: #c4a48a; }
         body.dark-mode .settings-icon-btn.active { background: #8a7068; border-color: #8a7068; color: #fff; }
+        .lang-popup {
+            position: absolute; top: 100%; right: 0; margin-top: 6px;
+            background: rgba(255,255,255,0.94); backdrop-filter: blur(12px);
+            border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            overflow: hidden; z-index: 310; min-width: 100px;
+            animation: modal-fade-in 0.2s ease-out;
+        }
+        body.dark-mode .lang-popup { background: rgba(40,40,40,0.94); }
+        .lang-option {
+            padding: 8px 18px; cursor: pointer; font-size: 0.85em;
+            font-weight: 500; color: #555; transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .lang-option:hover { background: #f5f0ec; color: #b0908a; }
+        .lang-option.active { color: #b0908a; font-weight: 700; }
+        body.dark-mode .lang-option { color: #aaa; }
+        body.dark-mode .lang-option:hover { background: #3a3a3a; color: #c4a48a; }
+        body.dark-mode .lang-option.active { color: #c4a48a; }
         .settings-icon-btn .icon-label {
             font-size: 0.85em; line-height: 1;
         }
@@ -1214,6 +1232,15 @@
                 <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
                 <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
             </g>
+            <g id="icon-lang">
+                <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                <line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="1.5"/>
+                <ellipse cx="12" cy="12" rx="3.5" ry="8" fill="none" stroke="currentColor" stroke-width="1.3"/>
+                <path d="M7 7c1 2.5 1.5 5 1.5 5s-0.5 2.5-1.5 5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                <path d="M17 7c-1 2.5-1.5 5-1.5 5s0.5 2.5 1.5 5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+            </g>
+            <g id="icon-lang-zh"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><text x="12" y="12" text-anchor="middle" dy=".35em" font-size="11" font-weight="700" fill="currentColor">中</text></g>
+            <g id="icon-lang-en"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><text x="12" y="12" text-anchor="middle" dy=".35em" font-size="9" font-weight="700" fill="currentColor">EN</text></g>
             <g id="icon-review">
                 <rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/>
                 <path d="M8 12l3 3 5-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1267,6 +1294,11 @@
             <button class="settings-icon-btn" id="btnClock" title="计时器"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-clock"/></svg></button>
             <button class="settings-icon-btn" id="btnNotation" title="棋谱"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-notation"/></svg></button>
             <button class="settings-icon-btn" id="btnCoords" title="显示坐标"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-grid"/></svg></button>
+            <button class="settings-icon-btn" id="btnLang" title="Language"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-lang"/></svg></button>
+            <div class="lang-popup" id="langPopup" style="display:none;">
+                <div class="lang-option active" data-lang="zh">中文</div>
+                <div class="lang-option" data-lang="en">English</div>
+            </div>
         </div>
     </div>
 
@@ -1281,7 +1313,7 @@
             </div>
         </div>
         <div class="side-panel" id="sidePanel">
-            <h2>化学棋 Chemiss</h2>
+            <h2 id="sidePanelTitle">化学棋 Chemiss</h2>
             <div class="settings-mobile-row" id="settingsMobileRow"></div>
             <div class="turn-indicator turn-white" id="turnIndicator">白方执子</div>
                 <!-- 计时器区域 -->
@@ -1320,7 +1352,7 @@
                 </div>
                 <!-- 棋谱区域 -->
                 <div class="info-section collapsible" id="notationSection" style="display:none;">
-                    <h3 class="collapsible-header" data-target="notationContent">棋谱 <span class="collapse-arrow">▼</span></h3>
+                    <h3 class="collapsible-header" data-target="notationContent" id="headerNotation">棋谱 <span class="collapse-arrow">▼</span></h3>
                     <div class="collapsible-content" id="notationContent">
                         <div class="notation-list" id="notationList"></div>
                     </div>
@@ -1345,9 +1377,9 @@
                     </div>
                 </div>
                 <button class="btn-undo" id="btnUndo" onclick="game.undo()" style="background:#c0b0a0;color:#fff;width:100%;">回退</button>
-                <button class="btn-reset" onclick="game.resetGame()">重置游戏</button>
+                <button class="btn-reset" id="btnReset" onclick="game.resetGame()">重置游戏</button>
                 <div class="ai-diff-row" id="aiDiffRow" style="display:none;">
-                    <span class="ai-diff-label">AI难度</span>
+                    <span class="ai-diff-label" id="aiDiffLabel">AI难度</span>
                     <div class="ai-diff-chips" id="aiDiffChips">
                         <span class="ai-diff-chip" data-lv="1">1</span>
                         <span class="ai-diff-chip" data-lv="2">2</span>
@@ -1357,7 +1389,7 @@
                         <span class="ai-diff-chip" data-lv="6">6</span>
                     </div>
                 </div>
-                <button class="btn-draw" onclick="game.proposeDraw()">和棋</button>
+                <button class="btn-draw" id="btnDraw" onclick="game.proposeDraw()">和棋</button>
                 <button class="btn-give-electron" id="btnGiveElectron" style="display:none;" onclick="game.triggerGiveElectron()">金属给电子</button>
                 <button class="btn-nuclear" id="btnNuclear" style="display:none;" onclick="game.triggerNuclearTransform()">Li核变</button>
         </div>
@@ -1372,17 +1404,17 @@
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js" async></script>
     <div class="modal-overlay online-modal" id="onlineModal">
         <div class="modal">
-            <h3 style="margin:0 0 8px;color:#b0908a;">联机对战</h3>
+            <h3 style="margin:0 0 8px;color:#b0908a;" id="onlineModalTitle">联机对战</h3>
             <div class="online-status-bar" id="onlineStatusBar">
                 <span class="online-dot off" id="onlineDot"></span>
                 <span id="onlineStatusText">未连接</span>
             </div>
             <div class="online-tab-bar" id="onlineTabBar">
-                <button class="online-tab active" data-tab="host">创建对局</button>
-                <button class="online-tab" data-tab="join">加入对局</button>
+                <button class="online-tab active" data-tab="host" id="onlineTabHost">创建对局</button>
+                <button class="online-tab" data-tab="join" id="onlineTabJoin">加入对局</button>
             </div>
             <div class="online-panel active" id="onlinePanelHost">
-                <p class="online-label">创建对局，将房间码发送给对手</p>
+                <p class="online-label" id="onlineHostLabel">创建对局，将房间码发送给对手</p>
                 <button id="btnCreateGame" style="width:100%;">生成房间码</button>
                 <div style="display:flex;align-items:center;gap:8px;margin-top:10px;">
                     <span class="online-room-code" id="hostRoomCode">----</span>
@@ -1390,7 +1422,7 @@
                 </div>
             </div>
             <div class="online-panel" id="onlinePanelJoin">
-                <p class="online-label">输入房间码加入对局</p>
+                <p class="online-label" id="onlineJoinLabel">输入房间码加入对局</p>
                 <input type="text" class="online-room-input" id="joinRoomInput" placeholder="输入6位房间码" maxlength="6" autocomplete="off">
                 <button id="btnJoinGame" style="width:100%;margin-top:10px;">加入对局</button>
             </div>
@@ -1412,7 +1444,7 @@
     <div class="review-overlay" id="reviewOverlay">
         <div class="review-container">
             <div class="review-header">
-                <h3 class="review-title">对局复盘</h3>
+                <h3 class="review-title" id="reviewTitle">对局复盘</h3>
                 <span class="review-result" id="reviewResult"></span>
                 <button class="review-close-btn" id="reviewCloseBtn">&times;</button>
             </div>
@@ -3169,17 +3201,19 @@
                     const dot = document.getElementById('onlineDot');
                     const statusText = document.getElementById('onlineStatusText');
                     const btnDisconnect = document.getElementById('btnDisconnect');
+                    const en2 = I18N.lang === 'en';
                     if(this.onlineManager && this.onlineManager.connected){
                         dot.className = 'online-dot on';
-                        statusText.textContent = `已连接 · 你执${this.onlineMyColor==='white'?'白':'黑'}方 · 房间 ${this.onlineManager.roomCode}`;
+                        const sideName = this.onlineMyColor === 'white' ? (en2 ? 'White' : '白') : (en2 ? 'Black' : '黑');
+                        statusText.textContent = `${en2 ? 'Connected - You play ' : '已连接 · 你执'}${sideName}${en2 ? ' - Room ' : '方 · 房间 '}${this.onlineManager.roomCode}`;
                         if(btnDisconnect) btnDisconnect.style.display = 'block';
                     } else if(this.onlineManager){
                         dot.className = 'online-dot connecting';
-                        statusText.textContent = '连接中…(通过MQTT服务器)';
+                        statusText.textContent = en2 ? 'Connecting... (via MQTT)' : '连接中…(通过MQTT服务器)';
                         if(btnDisconnect) btnDisconnect.style.display = 'none';
                     } else {
                         dot.className = 'online-dot off';
-                        statusText.textContent = '未连接';
+                        statusText.textContent = en2 ? 'Not connected' : '未连接';
                         if(btnDisconnect) btnDisconnect.style.display = 'none';
                     }
                 }
@@ -3829,14 +3863,15 @@
                 showNuclearChoices(piece){
                     const modal=document.getElementById('nuclearModal'), content=document.getElementById('nuclearModalContent');
                     const isDebugAdd = !piece;
+                    const en = I18N.lang === 'en';
                     if (isDebugAdd) {
-                        content.innerHTML = `<h3 style="margin:0 0 8px;">DEBUG: 添加棋子 → 选择核素
+                        content.innerHTML = `<h3 style="margin:0 0 8px;">${en ? 'DEBUG: Add Piece — Select Nuclide' : 'DEBUG: 添加棋子 — 选择核素'}
                             <span style="font-size:0.7em;display:inline-flex;gap:6px;margin-left:8px;">
-                                <button class="choice-btn" id="dbgColorWhite" style="padding:2px 8px;font-size:0.85em;${this._debugAddColor===COLOR_WHITE?'background:#b0908a;color:#fff;':''}">白方</button>
-                                <button class="choice-btn" id="dbgColorBlack" style="padding:2px 8px;font-size:0.85em;${this._debugAddColor===COLOR_BLACK?'background:#333;color:#fff;':''}">黑方</button>
+                                <button class="choice-btn" id="dbgColorWhite" style="padding:2px 8px;font-size:0.85em;${this._debugAddColor===COLOR_WHITE?'background:#b0908a;color:#fff;':''}">${en?'White':'白方'}</button>
+                                <button class="choice-btn" id="dbgColorBlack" style="padding:2px 8px;font-size:0.85em;${this._debugAddColor===COLOR_BLACK?'background:#333;color:#fff;':''}">${en?'Black':'黑方'}</button>
                             </span></h3>`;
                     } else {
-                        content.innerHTML='<h3 style="margin:0 0 8px;">Li核变 — 选择目标核素</h3>';
+                        content.innerHTML = '<h3 style="margin:0 0 8px;">' + (en ? 'Li Transmutation — Select Target Nuclide' : 'Li核变 — 选择目标核素') + '</h3>';
                     }
                     // Debug模式：颜色切换按钮事件
                     if (isDebugAdd) {
@@ -3864,7 +3899,9 @@
                     container.className='pt-grid';
 
                     // 行标签
-                    const rowLabels=['','1','2','3','4','5','6','7','镧系','锕系'];
+                    const rowLabels = I18N.lang === 'en'
+                        ? ['','1','2','3','4','5','6','7','Lanthanides','Actinides']
+                        : ['','1','2','3','4','5','6','7','镧系','锕系'];
                     const maxRows=9, maxCols=18;
 
                     for(let row=1; row<=maxRows; row++){
@@ -3882,12 +3919,13 @@
                                 if(d.isHK){
                                     // H显示但不可选
                                     cell.className='pt-cell pt-hk';
-                                    cell.title='H — 不可升变';
+                                    cell.title = I18N.lang === 'en' ? 'H - Cannot transmute' : 'H — 不可升变';
                                     cell.innerHTML=`<span class="pt-sym">H</span><span class="pt-z">1</span>`;
                                 } else {
                                     const cls=d.group===METAL?'pt-metal':(d.noble?'pt-noble':'pt-nonmetal');
                                     cell.className=`pt-cell ${cls}`;
-                                    cell.title=`${d.symbol} Z=${d.Z} 价:${d.valence} EN:${d.en}${d.radio?' [放射]':''}${d.noble?' 稀有气体':''}`;
+                                    const enPT = I18N.lang === 'en';
+                                    cell.title = `${d.symbol} Z=${d.Z} Val:${d.valence} EN:${d.en}${d.radio ? (enPT ? ' [Radioactive]' : ' [放射]') : ''}${d.noble ? (enPT ? ' Noble Gas' : ' 稀有气体') : ''}`;
                                     cell.innerHTML=`<span class="pt-sym">${d.symbol}</span><span class="pt-z">${d.Z}</span>${d.radio?'<span class="pt-rad">&bull;</span>':''}`;
                                     cell.onclick=()=>{
                                         this.showIsotopeChoices(piece, key);
@@ -3895,7 +3933,7 @@
                                     // Debug模式：H也可选（氢王在debug下可添加）
                                     if (isDebugAdd && d.isHK) {
                                         cell.className = 'pt-cell pt-metal';
-                                        cell.title = 'H Z=1 价:1 EN:2.20';
+                                        cell.title = 'H Z=1 Val:1 EN:2.20';
                                         cell.onclick = () => { this.showIsotopeChoices(null, key); };
                                     }
                                 }
@@ -3912,12 +3950,13 @@
                     // 图例
                     const legend=document.createElement('div');
                     legend.style.cssText='margin-top:10px;font-size:0.7em;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;';
+                    const enLegend = I18N.lang === 'en';
                     legend.innerHTML=`
-                        <span style="display:flex;align-items:center;gap:3px;"><span style="display:inline-block;width:14px;height:14px;background:#fff3e0;border:1px solid #ffcc80;border-radius:2px;"></span>金属</span>
-                        <span style="display:flex;align-items:center;gap:3px;"><span style="display:inline-block;width:14px;height:14px;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:2px;"></span>非金属</span>
-                        <span style="display:flex;align-items:center;gap:3px;"><span style="display:inline-block;width:14px;height:14px;background:#f3e5f5;border:1px solid #ce93d8;border-radius:2px;"></span>稀有气体</span>
-                        <span style="display:flex;align-items:center;gap:3px;">&bull; 放射性</span>
-                        <span style="display:flex;align-items:center;gap:3px;"><span style="display:inline-block;width:14px;height:14px;background:#ffebee;border:1px solid #ef9a9a;border-radius:2px;"></span>H(不可选)</span>
+                        <span style="display:flex;align-items:center;gap:3px;"><span style="display:inline-block;width:14px;height:14px;background:#fff3e0;border:1px solid #ffcc80;border-radius:2px;"></span>${enLegend?'Metal':'金属'}</span>
+                        <span style="display:flex;align-items:center;gap:3px;"><span style="display:inline-block;width:14px;height:14px;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:2px;"></span>${enLegend?'Nonmetal':'非金属'}</span>
+                        <span style="display:flex;align-items:center;gap:3px;"><span style="display:inline-block;width:14px;height:14px;background:#f3e5f5;border:1px solid #ce93d8;border-radius:2px;"></span>${enLegend?'Noble Gas':'稀有气体'}</span>
+                        <span style="display:flex;align-items:center;gap:3px;">&bull; ${enLegend?'Radioactive':'放射性'}</span>
+                        <span style="display:flex;align-items:center;gap:3px;"><span style="display:inline-block;width:14px;height:14px;background:#ffebee;border:1px solid #ef9a9a;border-radius:2px;"></span>H (${enLegend?'Locked':'不可选'})</span>
                     `;
                     content.appendChild(legend);
 
@@ -3950,7 +3989,7 @@
                         <div class="iso-popup-meta">${metaParts.join(' · ')}</div>
                         <div class="iso-cards" id="isoCardsContainer"></div>
                         <div class="iso-popup-actions">
-                            <button class="choice-btn" id="isoBackBtn">返回周期表</button>
+                            <button class="choice-btn" id="isoBackBtn">${I18N.lang==='en'?'Back to Table':'返回周期表'}</button>
                         </div>
                     `;
                     overlay.appendChild(popup);
@@ -3966,7 +4005,7 @@
                             : `<sup>${iso.mass}</sup>${d.symbol}`;
                         card.innerHTML=`
                             <div class="iso-nuclide">${symHTML}</div>
-                            <div class="iso-detail">${isStable?'稳定':(iso.decay||'?')+'衰变'}</div>
+                            <div class="iso-detail">${isStable ? (I18N.lang==='en'?'Stable':'稳定') : (iso.decay||'?') + (I18N.lang==='en'?' decay':'衰变')}</div>
                             ${!isStable?`<div class="iso-detail">t½:${iso.halfLife||'?'}r</div>`:''}
                             <div class="iso-mass-badge">A=${iso.mass}</div>
                         `;
@@ -3995,21 +4034,22 @@
                     const title = document.getElementById('victoryTitle');
                     const winner = document.getElementById('victoryWinner');
                     const subtitle = document.getElementById('victorySubtitle');
-                    const roundInfo = `第 ${this.roundNumber} 回合`;
+                    const L = I18N.data[I18N.lang];
+                    const roundInfo = (I18N.lang === 'en' ? 'Round ' : '第 ') + this.roundNumber + (I18N.lang === 'en' ? '' : ' 回合');
                     if(this.winner==='draw'){
                         icon.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-draw"/></svg>';
-                        title.textContent = '对局结束';
-                        winner.textContent = '和棋';
+                        title.textContent = L['victoryTitle'];
+                        winner.textContent = L['drawResult'];
                         winner.className = 'victory-winner win-draw';
-                        subtitle.textContent = `双方握手言和 · ${roundInfo}`;
+                        subtitle.textContent = L['drawHandshake'] + ' · ' + roundInfo;
                     } else {
                         const isWhite = this.winner==='white';
                         icon.innerHTML = isWhite ? '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-white-win"/></svg>' : '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-black-win"/></svg>';
-                        title.textContent = '对局结束';
-                        winner.textContent = isWhite ? '白方获胜' : '黑方获胜';
+                        title.textContent = L['victoryTitle'];
+                        winner.textContent = isWhite ? L['whiteWins'] : L['blackWins'];
                         winner.className = 'victory-winner ' + (isWhite ? 'win-white' : 'win-black');
-                        const reasonText = this.winReason === 'timeout' ? `${isWhite ? '黑方' : '白方'}超时判负` : '氢王(H)被吃';
-                        subtitle.textContent = `${reasonText} · ${roundInfo}`;
+                        const reasonText = this.winReason === 'timeout' ? (isWhite ? L['timeoutBlack'] : L['timeoutWhite']) : L['hCaptured'];
+                        subtitle.textContent = reasonText + ' · ' + roundInfo;
                     }
                     this._gameRecord.result = this.winner === 'draw' ? 'draw' : this.winner;
                     document.getElementById('victoryOverlay').classList.add('active');
@@ -4057,7 +4097,46 @@
                     this._reviewController.open();
                 }
 
-                addLog(msg){ this.logEntries.push({msg,round:this.roundNumber}); if(this.logEntries.length>80) this.logEntries.shift(); }
+                addLog(msg){
+                    if (typeof I18N !== 'undefined' && I18N.lang === 'en') {
+                        const map = {
+                            '游戏开始！白方先行。': 'Game started! White goes first.',
+                            '游戏已重置！白方先行。': 'Game reset! White goes first.',
+                            '离子键可直接吃子；共价/金属键需目标已键合且攻击者非键合伙伴。': 'Ionic bond: direct capture. Covalent/metallic: target must be bonded, attacker not a bond partner.',
+                            '白方获胜': 'White wins',
+                            '黑方获胜': 'Black wins',
+                            '双方握手言和': 'Draw by agreement',
+                            '双方同意和棋': 'Draw by agreement',
+                            '人机模式开启': 'AI mode ON',
+                            '人机模式关闭': 'AI mode OFF',
+                            'AI无可用移动，跳过执子': 'AI has no legal moves, skipping turn',
+                            'AI难度调整为': 'AI difficulty set to',
+                            '氢王(H)被吃，': 'Hydrogen King captured, ',
+                            '超时，': ' lost on time, ',
+                            '超时判负': 'lost on time',
+                            'Debug模式开启': 'Debug mode ON',
+                            'Debug模式关闭': 'Debug mode OFF',
+                            '对局已结束，无法悔棋': 'Game over, cannot undo',
+                            '离子键吃子': 'Ionic capture',
+                            '共价键': 'Covalent bond',
+                            '金属键': 'Metallic bond',
+                            '键合形成': 'Bond formed',
+                            '键合解除': 'Bond broken',
+                            'α粒子': 'alpha particle',
+                            'β射线': 'beta ray',
+                            'γ射线': 'gamma ray',
+                            '裂变': 'fission',
+                            '嬗变': 'transmutation',
+                            '眩晕': 'stun',
+                            '回合': 'Round',
+                            '挥发': 'volatilized',
+                        };
+                        for (const [cn, en] of Object.entries(map)) {
+                            msg = msg.replace(new RegExp(cn.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), en);
+                        }
+                    }
+                    this.logEntries.push({msg,round:this.roundNumber}); if(this.logEntries.length>80) this.logEntries.shift();
+                }
 
                 // 动画状态标记
                 _animMovedInfos = [];
@@ -4388,26 +4467,43 @@
 
                 updateSidePanel(){
                     const ti=document.getElementById('turnIndicator');
+                    const L = typeof I18N !== 'undefined' ? I18N.data[I18N.lang] : null;
                     if(this.gameOver){
-                        ti.textContent=this.winner==='draw'?'和棋':`${this.winner==='white'?'白方':'黑方'}获胜`;
+                        const txt = this.winner==='draw' ? (L?L['drawResult']:'和棋') : (this.winner==='white' ? (L?L['whiteWins']:'白方获胜') : (L?L['blackWins']:'黑方获胜'));
+                        ti.textContent = txt;
                         ti.className='turn-indicator '+(this.winner==='white'?'turn-white':'turn-black');
                     } else {
-                        ti.textContent=this.currentTurn===COLOR_WHITE?'白方执子':'黑方执子';
+                        ti.textContent = this.currentTurn===COLOR_WHITE ? (L?L['whiteTurn']:'白方执子') : (L?L['blackTurn']:'黑方执子');
                         ti.className='turn-indicator '+(this.currentTurn===COLOR_WHITE?'turn-white':'turn-black');
                     }
-                    document.getElementById('roundCounter').textContent=`回合: ${this.roundNumber}`;
+                    document.getElementById('roundCounter').textContent = (I18N.lang==='en'?'Round: ':'回合: ') + this.roundNumber;
                     const selInfo=document.getElementById('selectedInfo');
                     if(this.selectedPiece){
                         const p=this.selectedPiece;
+                        const en = I18N.lang === 'en';
                         const isotopeInfo = p.radioactive ? ` ${this.nuclideText(p.symbol,p.mass)}` : (p.isotopeName ? ` ${this.nuclideText(p.symbol,p.mass)}(${p.isotopeName})` : '');
-                        selInfo.innerHTML=`选中: <b>${p.symbol}</b> (${p.color==='white'?'白':'黑'}) Z=${p.Z}${isotopeInfo}<br>价:${p.valence} 总电子:${p.totalElectrons} EN:${p.electroneg.toFixed(2)}<br>方向:${p.effectiveMoveDirs} 步数:${p.effectiveMoveSteps}<br>电荷:${p.charge>0?'+'+p.charge:p.charge<0?p.charge:'0'}${p.charge!==0?'('+p.chargeRounds+'回合)':''} ${p.stunned?'[眩晕]':''}${p.noble?' [稀有气体]':''}<br>额外电子:${p.bonusElectrons}(${p.bonusElectrons>0?p.bonusElectronRounds+'回合':'0'})${p.radioactive?' ['+p.decayMode+'衰变 t½:'+p.halfLifeRounds+'r '+this.nuclideText(p.symbol,p.mass)+']':''}`;
-                    } else selInfo.textContent='未选中棋子';
+                        const colorName = p.color === 'white' ? (en ? 'White' : '白') : (en ? 'Black' : '黑');
+                        selInfo.innerHTML = (en ? 'Selected: ' : '选中: ') + `<b>${p.symbol}</b> (${colorName}) Z=${p.Z}${isotopeInfo}<br>` +
+                            (en ? 'Val: ' : '价:') + p.valence + (en ? ' Tot e⁻: ' : ' 总电子:') + p.totalElectrons + ' EN:' + p.electroneg.toFixed(2) + '<br>' +
+                            (en ? 'Dirs: ' : '方向:') + p.effectiveMoveDirs + (en ? ' Steps: ' : ' 步数:') + p.effectiveMoveSteps + '<br>' +
+                            (en ? 'Charge: ' : '电荷:') + (p.charge > 0 ? '+' + p.charge : p.charge < 0 ? String(p.charge) : '0') +
+                            (p.charge !== 0 ? (en ? '(' + p.chargeRounds + 'r)' : '(' + p.chargeRounds + '回合)') : '') +
+                            (p.stunned ? (en ? ' [Stun]' : ' [眩晕]') : '') +
+                            (p.noble ? (en ? ' [Noble]' : ' [稀有气体]') : '') + '<br>' +
+                            (en ? 'Bonus e⁻: ' : '额外电子:') + p.bonusElectrons +
+                            (p.bonusElectrons > 0 ? (en ? '(' + p.bonusElectronRounds + 'r)' : '(' + p.bonusElectronRounds + '回合)') : '(0)') +
+                            (p.radioactive ? ' [' + p.decayMode + (en ? 'decay t½:' : '衰变 t½:') + p.halfLifeRounds + 'r ' + this.nuclideText(p.symbol, p.mass) + ']' : '');
+                    } else selInfo.textContent = I18N.lang==='en' ? 'No piece selected' : '未选中棋子';
                     const bl=document.getElementById('bondList');
+                    const enBond = I18N.lang === 'en';
                     bl.innerHTML=this.bonds.length?this.bonds.map(b=>{
                         const p1=this.getPieceById(b.p1), p2=this.getPieceById(b.p2);
                         if(!p1||!p2)return'';
-                        return `<div class="bond-item">${b.type==='metallic'?'金属键':'共价键'}: ${p1.symbol}(${p1.color==='white'?'白':'黑'})↔${p2.symbol}(${p2.color==='white'?'白':'黑'}) [+${b.shared}e⁻]</div>`;
-                    }).filter(s=>s).join(''):'暂无键合';
+                        const typeName = b.type==='metallic' ? (enBond ? 'Metallic' : '金属键') : (enBond ? 'Covalent' : '共价键');
+                        const c1 = p1.color==='white' ? (enBond ? 'W' : '白') : (enBond ? 'B' : '黑');
+                        const c2 = p2.color==='white' ? (enBond ? 'W' : '白') : (enBond ? 'B' : '黑');
+                        return `<div class="bond-item">${typeName}: ${p1.symbol}(${c1})↔${p2.symbol}(${c2}) [+${b.shared}e⁻]</div>`;
+                    }).filter(s=>s).join('') : (enBond ? 'No bonds' : '暂无键合');
                     const lp=document.getElementById('logPanel');
                     lp.innerHTML=this.logEntries.slice(-25).map(l=>`<div class="log-entry">[R${l.round}] ${l.msg}</div>`).join('');
                     lp.scrollTop=lp.scrollHeight;
@@ -4485,7 +4581,8 @@
                     if (this.chessClock && this.chessClock.running) this.chessClock.pause();
                     const ti = document.getElementById('turnIndicator');
                     const origText = ti.textContent;
-                    ti.textContent = this.aiColor === 'white' ? '白方思考中...' : '黑方思考中...';
+                    const thinkingText = I18N && I18N.lang === 'en' ? 'Thinking...' : (this.aiColor === 'white' ? '白方思考中...' : '黑方思考中...');
+                    ti.textContent = thinkingText;
                     ti.style.opacity = '0.7';
                     this.updateUI();
                     // yield to UI，让棋盘渲染完成
@@ -4590,7 +4687,8 @@
                     this._bind();
                     this._dom.reviewOverlay.classList.add('active');
                     const r = record.result;
-                    this._dom.reviewResult.textContent = r === 'draw' ? '和棋' : r === 'white' ? '白方胜' : r === 'black' ? '黑方胜' : '';
+                    const L = I18N.data[I18N.lang];
+                    this._dom.reviewResult.textContent = r === 'draw' ? L['drawResult'] : r === 'white' ? (L['aiWhite'] + ' ' + (I18N.lang==='en'?'Wins':'胜')) : r === 'black' ? (L['aiBlack'] + ' ' + (I18N.lang==='en'?'Wins':'胜')) : '';
                     this._totalMoves = record.moves.length;
                     this._dom.reviewSlider.max = this._totalMoves;
                     this._dom.reviewSlider.value = this._totalMoves;
@@ -4657,9 +4755,10 @@
                     const numEl = this._dom.reviewMoveNum;
                     const notEl = this._dom.reviewMoveNotation;
                     const evalEl = this._dom.reviewMoveEval;
+                    const L = I18N.data[I18N.lang];
                     if (this._currentIdx === 0) {
-                        numEl.textContent = '初始';
-                        notEl.textContent = '开局局面';
+                        numEl.textContent = L['initialPos'];
+                        notEl.textContent = L['noMoves'];
                         evalEl.textContent = '';
                         evalEl.className = 'review-move-eval';
                     } else {
@@ -4814,6 +4913,274 @@
                 }
             }
 
+            // ========== i18n 国际化 ==========
+            const I18N = {
+                lang: 'zh',
+                data: {
+                    zh: {
+                        gameTitle: '化学棋 Chemiss',
+                        whiteTurn: '白方执子',
+                        blackTurn: '黑方执子',
+                        reset: '重置游戏',
+                        draw: '和棋',
+                        currentInfo: '当前信息',
+                        noSelection: '未选中棋子',
+                        bondList: '键合关系',
+                        noBonds: '暂无键合',
+                        eventLog: '事件日志',
+                        round: '回合',
+                        giveElectron: '金属给电子',
+                        nuclearTransform: 'Li核变',
+                        undo: '回退',
+                        victoryTitle: '对局结束',
+                        whiteWins: '白方获胜',
+                        blackWins: '黑方获胜',
+                        drawResult: '和棋',
+                        drawHandshake: '双方握手言和',
+                        newGame: '重新开始',
+                        reviewBtn: '复盘分析',
+                        timeoutWhite: '白方超时判负',
+                        timeoutBlack: '黑方超时判负',
+                        hCaptured: '氢王(H)被吃',
+                        gameStart: '游戏开始！白方先行。',
+                        gameReset: '游戏已重置！白方先行。',
+                        ionBondTip: '离子键可直接吃子；共价/金属键需目标已键合且攻击者非键合伙伴。',
+                        settings: '设置',
+                        darkMode: '夜间模式',
+                        debugMode: 'Debug模式',
+                        gameRules: '游戏规则',
+                        onlineBattle: '联机对战',
+                        onlineTitle: '联机对战',
+                        flipBoard: '翻转棋盘',
+                        aiBattle: '人机对战',
+                        timer: '计时器',
+                        notation: '棋谱',
+                        coords: '显示坐标',
+                        reviewTitle: '对局复盘',
+                        aiDifficulty: 'AI难度',
+                        aiWhite: '白方',
+                        aiBlack: '黑方',
+                        eachTime: '每人时间',
+                        minutes: '分钟',
+                        perMoveInc: '每步加时',
+                        seconds: '秒',
+                        preset: '设置',
+                        start: '开始',
+                        pause: '暂停',
+                        bullet: 'Bullet',
+                        blitz: 'Blitz',
+                        rapid: 'Rapid',
+                        classical: 'Classical',
+                        unlimited: '无限制',
+                        whiteAcc: '白方',
+                        blackAcc: '黑方',
+                        whiteWinRate: '白方胜率',
+                        closeReview: '关闭复盘',
+                        initialPos: '初始局面',
+                        prevMove: '上一步',
+                        nextMove: '下一步',
+                        finalPos: '最终局面',
+                        noMoves: '开局局面',
+                        analyzing: '分析中...',
+                        aiThinking: '思考中...',
+                        aiOn: '人机模式开启',
+                        aiOff: '人机模式关闭',
+                        aiDiffChanged: 'AI难度调整为',
+                        aiNoMoves: 'AI无可用移动，跳过执子',
+                        debugOn: 'Debug模式开启',
+                        debugOff: 'Debug模式关闭',
+                    },
+                    en: {
+                        gameTitle: 'Chemiss',
+                        whiteTurn: 'White\'s Turn',
+                        blackTurn: 'Black\'s Turn',
+                        reset: 'Reset',
+                        draw: 'Draw',
+                        currentInfo: 'Info',
+                        noSelection: 'No piece selected',
+                        bondList: 'Bonds',
+                        noBonds: 'No bonds',
+                        eventLog: 'Event Log',
+                        round: 'Round',
+                        giveElectron: 'Give Electron',
+                        nuclearTransform: 'Li Transmutation',
+                        undo: 'Undo',
+                        victoryTitle: 'Game Over',
+                        whiteWins: 'White Wins',
+                        blackWins: 'Black Wins',
+                        drawResult: 'Draw',
+                        drawHandshake: 'Draw by agreement',
+                        newGame: 'New Game',
+                        reviewBtn: 'Review',
+                        timeoutWhite: 'White lost on time',
+                        timeoutBlack: 'Black lost on time',
+                        hCaptured: 'Hydrogen King captured',
+                        gameStart: 'Game started! White goes first.',
+                        gameReset: 'Game reset! White goes first.',
+                        ionBondTip: 'Ionic bond: direct capture. Covalent/metallic: target must be bonded, attacker not a bond partner.',
+                        settings: 'Settings',
+                        darkMode: 'Dark Mode',
+                        debugMode: 'Debug',
+                        gameRules: 'Rules',
+                        onlineBattle: 'Online',
+                        onlineTitle: 'Online Battle',
+                        flipBoard: 'Flip',
+                        aiBattle: 'vs AI',
+                        timer: 'Clock',
+                        notation: 'Notation',
+                        coords: 'Coords',
+                        reviewTitle: 'Game Review',
+                        aiDifficulty: 'AI Level',
+                        aiWhite: 'White',
+                        aiBlack: 'Black',
+                        eachTime: 'Time per side',
+                        minutes: 'min',
+                        perMoveInc: 'Increment',
+                        seconds: 'sec',
+                        preset: 'Set',
+                        start: 'Start',
+                        pause: 'Pause',
+                        bullet: 'Bullet',
+                        blitz: 'Blitz',
+                        rapid: 'Rapid',
+                        classical: 'Classical',
+                        unlimited: 'Unlimited',
+                        whiteAcc: 'White',
+                        blackAcc: 'Black',
+                        whiteWinRate: 'White win rate',
+                        closeReview: 'Close',
+                        initialPos: 'Start',
+                        prevMove: 'Prev',
+                        nextMove: 'Next',
+                        finalPos: 'End',
+                        noMoves: 'Initial position',
+                        analyzing: 'Analyzing...',
+                        aiThinking: 'Thinking...',
+                        aiOn: 'AI mode ON',
+                        aiOff: 'AI mode OFF',
+                        aiDiffChanged: 'AI difficulty set to',
+                        aiNoMoves: 'AI has no legal moves, skipping turn',
+                        debugOn: 'Debug mode ON',
+                        debugOff: 'Debug mode OFF',
+                    }
+                },
+                t(key) { return this.data[this.lang][key] || this.data['zh'][key] || key; },
+                switchLang(lang) {
+                    this.lang = lang; applyI18n(); localStorage.setItem('chemisLang', lang);
+                    game.updateUI();
+                    // Clock button
+                    const ctb = document.getElementById('btnClockToggle');
+                    if (ctb && ctb.textContent !== '∞') {
+                        ctb.textContent = lang === 'en' ? (game.chessClock && game.chessClock.active ? 'Pause' : 'Start') : (game.chessClock && game.chessClock.active ? '暂停' : '开始');
+                    }
+                    const csb = document.getElementById('btnClockSet');
+                    if (csb) csb.textContent = lang === 'en' ? 'Set' : '设置';
+                    // Online modal text
+                    const en2 = lang === 'en';
+                    const onlineMap = {
+                        onlineTabHost: ['Host','创建对局'], onlineTabJoin: ['Join','加入对局'],
+                        onlineHostLabel: ['Create a room and share the code','创建对局，将房间码发送给对手'],
+                        onlineJoinLabel: ['Enter room code to join','输入房间码加入对局'],
+                        btnCreateGame: ['Create Room','生成房间码'], btnJoinGame: ['Join Game','加入对局'],
+                        btnCopyRoom: ['Copy','复制'], btnDisconnect: ['Disconnect','断开连接']
+                    };
+                    for (const [id, txts] of Object.entries(onlineMap)) {
+                        const el = document.getElementById(id);
+                        if (el) el.textContent = en2 ? txts[0] : txts[1];
+                    }
+                    const jri = document.getElementById('joinRoomInput');
+                    if (jri) jri.placeholder = en2 ? 'Enter 6-digit room code' : '输入6位房间码';
+                    // Re-render open modals
+                    const rulesModal = document.getElementById('rulesModal');
+                    if (rulesModal && rulesModal.classList.contains('active')) {
+                        rulesModal.classList.remove('active');
+                        setTimeout(() => { showRulesModal(); rulesModal.classList.add('active'); }, 10);
+                    }
+                    const nuclearModal = document.getElementById('nuclearModal');
+                    if (nuclearModal && nuclearModal.classList.contains('active')) {
+                        nuclearModal.classList.remove('active');
+                        if (game.selectedPiece && typeof game.canNuclearTransform === 'function' && game.canNuclearTransform(game.selectedPiece)) {
+                            setTimeout(() => game.showNuclearChoices(game.selectedPiece), 20);
+                        } else if (game._debugAddTarget) {
+                            setTimeout(() => game.showNuclearChoices(null), 20);
+                        }
+                    }
+                }
+            };
+            const t = (key) => I18N.t(key);
+
+            function applyI18n() {
+                const L = I18N.lang === 'en' ? I18N.data.en : I18N.data.zh;
+                const set = (id, key) => { const el = document.getElementById(id); if (el && L[key]) el.textContent = L[key]; };
+                const setTitle = (id, key) => { const el = document.getElementById(id); if (el && L[key]) el.title = L[key]; };
+                set('sidePanelTitle', 'gameTitle');
+                set('btnReset', 'reset');
+                set('btnDraw', 'draw');
+                set('btnUndo', 'undo');
+                set('btnGiveElectron', 'giveElectron');
+                set('btnNuclear', 'nuclearTransform');
+                set('reviewTitle', 'reviewTitle');
+                set('onlineModalTitle', 'onlineTitle');
+                set('reviewBtnClose', 'closeReview');
+                set('reviewBtnNewGame', 'newGame');
+                set('victoryReviewBtn', 'reviewBtn');
+                setTitle('btnSettingsToggle', 'settings');
+                setTitle('btnDarkMode', 'darkMode');
+                setTitle('btnDebug', 'debugMode');
+                setTitle('btnRules', 'gameRules');
+                setTitle('btnOnline', 'onlineBattle');
+                setTitle('btnFlip', 'flipBoard');
+                setTitle('btnAI', 'aiBattle');
+                setTitle('btnClock', 'timer');
+                setTitle('btnNotation', 'notation');
+                setTitle('btnCoords', 'coords');
+                setTitle('btnReview', 'reviewTitle');
+                setTitle('btnLang', 'language');
+                set('aiDiffLabel', 'aiDifficulty');
+                // Clock labels (always update for both directions)
+                const clockLabels = document.querySelectorAll('.clock-label');
+                if (clockLabels[0]) clockLabels[0].textContent = L['eachTime'];
+                if (clockLabels[1]) clockLabels[1].textContent = L['perMoveInc'];
+                const clockUnits = document.querySelectorAll('.clock-unit');
+                if (clockUnits[0]) clockUnits[0].textContent = L['minutes'];
+                if (clockUnits[1]) clockUnits[1].textContent = L['seconds'];
+                const clockSetBtn = document.getElementById('btnClockSet');
+                if (clockSetBtn) clockSetBtn.textContent = L['preset'];
+                // Clock preset chips
+                const clockPresetChips = document.getElementById('clockPresetChips');
+                if (clockPresetChips) {
+                    const chips = clockPresetChips.querySelectorAll('.clock-preset-chip');
+                    chips.forEach(c => {
+                        const min = c.dataset.min;
+                        const inc = c.dataset.inc || '0';
+                        if (min === '0') { c.textContent = L['unlimited']; return; }
+                        const nameKey = {'1':'bullet','3':'blitz','5':'blitz','10':'rapid','30':'classical'};
+                        c.textContent = (L[nameKey[min]]||min) + ' ' + min + '+' + inc;
+                    });
+                }
+                // Turn indicator
+                const ti = document.getElementById('turnIndicator');
+                if (ti && !ti.textContent.includes(L['aiThinking'])) {
+                    if (ti.classList.contains('turn-white')) ti.textContent = L['whiteTurn'];
+                    else if (ti.classList.contains('turn-black')) ti.textContent = L['blackTurn'];
+                }
+                // Section headers
+                const headerNotation = document.getElementById('headerNotation');
+                if (headerNotation) headerNotation.childNodes[0].textContent = L['notation'] + ' ';
+                // Other 3 headers: currentInfo, bondList, eventLog — use their data-target to identify
+                document.querySelectorAll('.info-section h3').forEach(h => {
+                    const target = h.getAttribute('data-target');
+                    if (!target) return;
+                    if (target === 'selectedInfoContent') h.childNodes[0].textContent = L['currentInfo'] + ' ';
+                    if (target === 'bondListContent') h.childNodes[0].textContent = L['bondList'] + ' ';
+                    if (target === 'logContent') h.childNodes[0].textContent = L['eventLog'] + ' ';
+                });
+            }
+
+            // Load saved language
+            const savedLang = localStorage.getItem('chemisLang') || 'zh';
+            I18N.lang = savedLang;
+
             const game = new ChemissGame();
             window.game = game;
 
@@ -4863,7 +5230,8 @@
                 chip.classList.add('active');
                 if (game.aiMode && game.ai) {
                     game.ai = new ChemissAI(game, game.aiColor, aiDifficultyGlobal);
-                    game.addLog(`AI难度调整为 ${aiDifficultyGlobal}`);
+                    const L = I18N.data[I18N.lang];
+                    game.addLog(`${L['aiDiffChanged']} ${aiDifficultyGlobal}`);
                 }
             });
             const toggleAI = () => {
@@ -4871,17 +5239,18 @@
                 const btnAIEl = document.getElementById('btnAI');
                 if (btnAIEl) btnAIEl.classList.toggle('active', game.aiMode);
                 aiDiffRowGlobal.style.display = game.aiMode ? 'flex' : 'none';
+                const L = I18N.data[I18N.lang];
                 if (game.aiMode) {
                     game.aiColor = game.currentTurn === 'white' ? 'black' : 'white';
                     game._aiDifficulty = aiDifficultyGlobal;
                     game.ai = new ChemissAI(game, game.aiColor, aiDifficultyGlobal);
-                    game.addLog(`人机模式开启 — AI执${game.aiColor==='white'?'白':'黑'}方(难度:${aiDifficultyGlobal})`);
+                    game.addLog(`${L['aiOn']} — AI ${game.aiColor==='white'?L['aiWhite']:L['aiBlack']} (${I18N.lang==='en'?'Level':'难度'}:${aiDifficultyGlobal})`);
                     if (game.currentTurn === game.aiColor) {
                         setTimeout(() => game.triggerAIMove(), 600);
                     }
                 } else {
                     game.ai = null;
-                    game.addLog('人机模式关闭');
+                    game.addLog(L['aiOff']);
                 }
                 game.updateUI();
             };
@@ -4899,6 +5268,7 @@
                     { id: 'btnNotation', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-notation"/></svg>', title: '棋谱', handler: () => { game._notationVisible = !game._notationVisible; notationSection.style.display = game._notationVisible ? 'block' : 'none'; btnNotation.classList.toggle('active', game._notationVisible); } },
                 ];
                 btnDefs.push({ id: 'btnAI', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-robot"/></svg>', title: '人机对战', handler: () => toggleAI() });
+                btnDefs.push({ id: 'btnLang', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-lang-zh"/></svg>', title: 'Language', handler: () => { const next = I18N.lang === 'zh' ? 'en' : 'zh'; I18N.switchLang(next); updateLangIcon(); updateLangPopupActive(); } });
                 btnDefs.forEach(def => {
                     const clone = document.createElement('button');
                     clone.className = 'settings-icon-btn';
@@ -4978,6 +5348,60 @@
                 showCoords = !showCoords;
                 document.body.classList.toggle('show-coords', showCoords);
                 btnCoords.classList.toggle('active', showCoords);
+            });
+            // ========== 语言切换 ==========
+            const btnLang = document.getElementById('btnLang');
+            const langPopup = document.getElementById('langPopup');
+            function updateLangIcon() {
+                const icon = btnLang.querySelector('use');
+                if (icon) icon.setAttribute('href', I18N.lang === 'en' ? '#icon-lang-en' : '#icon-lang-zh');
+                // 移动端克隆按钮
+                const clone = document.getElementById('btnLangClone');
+                if (clone) {
+                    const cloneIcon = clone.querySelector('use');
+                    if (cloneIcon) cloneIcon.setAttribute('href', I18N.lang === 'en' ? '#icon-lang-en' : '#icon-lang-zh');
+                }
+            }
+            function updateLangPopupActive() {
+                langPopup.querySelectorAll('.lang-option').forEach(o => {
+                    o.classList.toggle('active', o.dataset.lang === I18N.lang);
+                });
+            }
+            updateLangIcon();
+            updateLangPopupActive();
+            btnLang.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const visible = langPopup.style.display !== 'none';
+                langPopup.style.display = visible ? 'none' : 'block';
+                if (!visible) updateLangPopupActive();
+            });
+            langPopup.addEventListener('click', (e) => {
+                const opt = e.target.closest('.lang-option');
+                if (!opt) return;
+                I18N.switchLang(opt.dataset.lang);
+                langPopup.style.display = 'none';
+                updateLangIcon();
+                updateLangPopupActive();
+                const langBtn = document.getElementById('btnLang');
+                const langBtnMobile = document.getElementById('btnLangClone');
+                const ctb = document.getElementById('btnClockToggle');
+                if (ctb && ctb.textContent !== '∞') {
+                    ctb.textContent = I18N.lang === 'en' ? (game.chessClock && game.chessClock.active ? 'Pause' : 'Start') : (game.chessClock && game.chessClock.active ? '暂停' : '开始');
+                }
+                // Update online modal
+                const en = I18N.lang === 'en';
+                ['onlineTabHost','onlineTabJoin','onlineHostLabel','onlineJoinLabel','btnCreateGame','btnJoinGame','btnCopyRoom','btnDisconnect'].forEach((id, i) => {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    const txts = [['Host','创建对局'],['Join','加入对局'],['Create a room and share the code','创建对局，将房间码发送给对手'],['Enter room code to join','输入房间码加入对局'],['Create Room','生成房间码'],['Join Game','加入对局'],['Copy','复制'],['Disconnect','断开连接']];
+                    if (el.tagName === 'INPUT') el.placeholder = en ? 'Enter 6-digit room code' : '输入6位房间码';
+                    else el.textContent = en ? txts[i][0] : txts[i][1];
+                });
+            });
+            document.addEventListener('click', (e) => {
+                if (!langPopup.contains(e.target) && e.target !== btnLang && e.target.closest('#btnLangClone') === null) {
+                    langPopup.style.display = 'none';
+                }
             });
             // ========== 计时器控制 ==========
             const btnClock = document.getElementById('btnClock');
@@ -5129,41 +5553,57 @@
 
             function showRulesModal() {
                 const modal = document.getElementById('rulesModal');
-                // 已打开则关闭（二次点击切换）
-                if (modal.classList.contains('active')) {
-                    closeModal(modal);
-                    return;
-                }
+                if (modal.classList.contains('active')) { closeModal(modal); return; }
                 const content = document.getElementById('rulesModalContent');
-                content.innerHTML = `<h3>化学棋 Chemiss 规则</h3>
+                const en = I18N.lang === 'en';
+                content.innerHTML = en ? `<h3>Chemiss Rules</h3>
+<div style="text-align:left;font-size:0.82em;line-height:1.7;max-height:70vh;overflow-y:auto;padding-right:4px;">
+<h4 style="color:#b0908a;margin:10px 0 4px;">I. Objective</h4>
+<p>Capture the opponent's <b>Hydrogen King (H)</b> to win. Draw by mutual agreement.</p>
+<h4 style="color:#b0908a;margin:10px 0 4px;">II. Board & Pieces</h4>
+<p>8x8 board. White (bottom) moves first. Each side starts with 16 pieces: Hx1, Cx1, Nx1, Ox1, Fx1, Six1, Px1, Sx1, Lix4, Nax4.</p>
+<h4 style="color:#b0908a;margin:10px 0 4px;">III. Movement</h4>
+<p>Move 1 piece per turn. Direction count = total electrons (max 8). Step count = total electrons. Directions depend on period parity, column, and side.</p>
+<p>Dots around a piece show its move directions.</p>
+<h4 style="color:#b0908a;margin:10px 0 4px;">IV. Bonds & Captures</h4>
+<p><b>Ionic capture</b>: Metal vs nonmetal with EN diff > 1.6. Attacker gains all defender valence electrons (3 turns). If total > 8, emits beta ray.</p>
+<p><b>Covalent/Metallic capture</b>: Target must be bonded, attacker is not the bond partner. Adjacent opposite-color pieces auto-bond. Covalent: 1 bond per atom max. Metallic: multi-atom clusters allowed.</p>
+<p><b>Noble gases</b>: No bonds, cannot capture or be captured.</p>
+<h4 style="color:#b0908a;margin:10px 0 4px;">V. Special Abilities</h4>
+<p><b>Electrostatic attraction</b>: At turn start, opposite-charge pieces move toward each other.</p>
+<p><b>Metal electron donation</b>: Metal gives 1 electron to adjacent friendly nonmetal -> cation/anion (3 turns).</p>
+<p><b>Li transmutation</b>: Li reaching opponent's back rank can become any periodic table element (choose isotope).</p>
+<p><b>Radioactive decay</b>: Radioactive isotopes trigger alpha/beta/gamma decay by half-life probability, emitting rays.</p>
+<h4 style="color:#b0908a;margin:10px 0 4px;">VI. Ray Effects</h4>
+<p>Alpha (range 2): Target Z+2 absorption transmutation, or valence -1. Heavy nuclei (Z>=90) may fission.</p>
+<p>Beta (range 4): Target valence =/- 1 (3 turns). Heavy nuclei may fission.</p>
+<p>Gamma (range 8): Target stunned 1 turn. Heavy nuclei may fission.</p>
+<p>Fission: Z>=90 element disappears, 2 fission products (Z 30-60) spawn in adjacent empty cells.</p>
+<h4 style="color:#b0908a;margin:10px 0 4px;">VII. Interface</h4>
+<p>Piece labels: symbol, mass number, electronegativity. Dots = directions. Bond highlight border, stun pink glow, cation/anion badges, radioactive marker.</p>
+</div>` : `<h3>化学棋 Chemiss 规则</h3>
 <div style="text-align:left;font-size:0.82em;line-height:1.7;max-height:70vh;overflow-y:auto;padding-right:4px;">
 <h4 style="color:#b0908a;margin:10px 0 4px;">一、游戏目标</h4>
 <p>吃掉对方的<b>氢王(H)</b>棋子即获胜。双方可协商和棋。</p>
-
 <h4 style="color:#b0908a;margin:10px 0 4px;">二、棋盘与棋子</h4>
-<p>8×8棋盘。白方（下方）先行。初始各16枚棋子：H×1, C×1, N×1, O×1, F×1, Si×1, P×1, S×1, Li×4, Na×4。</p>
-
+<p>8x8棋盘。白方（下方）先行。初始各16枚棋子：Hx1, Cx1, Nx1, Ox1, Fx1, Six1, Px1, Sx1, Lix4, Nax4。</p>
 <h4 style="color:#b0908a;margin:10px 0 4px;">三、移动规则</h4>
 <p>每回合移动己方1枚棋子。移动方向数=当前总电子数(上限8)，移动格数=总电子数。方向受周期奇偶、列位置、阵营影响。</p>
 <p>棋子周围圆点表示当前可移动方向。</p>
-
 <h4 style="color:#b0908a;margin:10px 0 4px;">四、成键与吃子</h4>
-<p><b>离子键吃子</b>：金属-非金属且电负性差>1.6，直接吃，攻击方获得防御方全部价电子(3回合)。溢出>8电子发射β射线。</p>
+<p><b>离子键吃子</b>：金属-非金属且电负性差>1.6，直接吃，攻击方获得防御方全部价电子(3回合)。溢出>8电子发射beta射线。</p>
 <p><b>共价/金属键吃子</b>：目标必须已键合，攻击者不能是键合伙伴。相邻异色棋子自动成键。共价键每原子限1根，金属键可形成多原子簇。</p>
 <p><b>稀有气体</b>：不参与任何键合，不能吃子也不能被吃。</p>
-
 <h4 style="color:#b0908a;margin:10px 0 4px;">五、特殊能力</h4>
 <p><b>电性吸引</b>：每回合开始，异号电荷棋子自动互相靠近。</p>
-<p><b>金属给电子</b>：金属给相邻己方非金属1个电子→阳离子/阴离子(3回合)。</p>
+<p><b>金属给电子</b>：金属给相邻己方非金属1个电子->阳离子/阴离子(3回合)。</p>
 <p><b>Li核变</b>：Li到达对方底线可变为周期表任意元素(选同位素)。</p>
-<p><b>放射性衰变</b>：放射性同位素按半衰期概率触发α/β/γ衰变，发射射线。</p>
-
+<p><b>放射性衰变</b>：放射性同位素按半衰期概率触发alpha/beta/gamma衰变，发射射线。</p>
 <h4 style="color:#b0908a;margin:10px 0 4px;">六、射线效果</h4>
-<p>α射线(射程2)：目标Z+2吸收嬗变，或价电子-1；重核(Z≥90)可裂变。</p>
-<p>β射线(射程4)：目标价电子随机±1(3回合)；重核可裂变。</p>
-<p>γ射线(射程8)：目标眩晕1回合；重核可裂变。</p>
-<p>裂变：Z≥90元素消失，相邻空格生成2个Z30-60的裂变产物。</p>
-
+<p>alpha射线(射程2)：目标Z+2吸收嬗变，或价电子-1；重核(Z>=90)可裂变。</p>
+<p>beta射线(射程4)：目标价电子随机+/-1(3回合)；重核可裂变。</p>
+<p>gamma射线(射程8)：目标眩晕1回合；重核可裂变。</p>
+<p>裂变：Z>=90元素消失，相邻空格生成2个Z30-60的裂变产物。</p>
 <h4 style="color:#b0908a;margin:10px 0 4px;">七、界面说明</h4>
 <p>棋子标注：符号、质量数、电负性。周围圆点=移动方向。键合高亮边框、眩晕粉红光晕、阳离子/阴离子角标、放射性标识。</p>
 </div>`;
@@ -5193,7 +5633,7 @@
             btnDisconnect.addEventListener('click', () => {
                 if (game.onlineManager) { game.onlineManager.disconnect(); game.onlineManager = null; }
                 game.onlineMode = false; game.onlineMyColor = null;
-                game.addLog('已断开联机');
+                game.addLog(I18N.lang === 'en' ? 'Disconnected' : '已断开联机');
                 game.updateUI(); game._refreshOnlineUI();
             });
 
@@ -5220,17 +5660,20 @@
 
             document.getElementById('btnCopyRoom').addEventListener('click', () => {
                 const code = document.getElementById('hostRoomCode').textContent;
-                if (!code || code === '----') { alert('请先创建对局'); return; }
-                navigator.clipboard.writeText(code).then(() => alert('房间码已复制！\n"' + code + '"\n发送给对手即可。')).catch(() => alert('房间码: ' + code + '\n请手动复制发送给对手。'));
+                if (!code || code === '----') { alert(I18N.lang === 'en' ? 'Please create a room first' : '请先创建对局'); return; }
+                const copyMsg = I18N.lang === 'en'
+                    ? ('Room code copied!\n"' + code + '"\nShare it with your opponent.')
+                    : ('房间码已复制！\n"' + code + '"\n发送给对手即可。');
+                navigator.clipboard.writeText(code).then(() => alert(copyMsg)).catch(() => alert(I18N.lang === 'en' ? 'Room code: ' + code + '\nPlease copy manually.' : '房间码: ' + code + '\n请手动复制发送给对手。'));
             });
 
             // 加入对局 - 客机
             document.getElementById('btnJoinGame').addEventListener('click', () => {
                 const code = document.getElementById('joinRoomInput').value.trim().toUpperCase();
-                if (!code || code.length !== 6) { alert('请输入6位房间码'); return; }
+                if (!code || code.length !== 6) { alert(I18N.lang === 'en' ? 'Please enter a 6-digit room code' : '请输入6位房间码'); return; }
                 if (game.onlineManager) game.onlineManager.disconnect();
                 game.onlineManager = new OnlineManager(game);
-                if (!game.onlineManager.joinGame(code)) { alert('房间码格式错误'); game.onlineManager = null; return; }
+                if (!game.onlineManager.joinGame(code)) { alert(I18N.lang === 'en' ? 'Invalid room code format' : '房间码格式错误'); game.onlineManager = null; return; }
                 game.addLog('正在加入房间 ' + code + '…');
                 game._refreshOnlineUI();
             });
@@ -5244,7 +5687,7 @@
                 this.placeholder = '';
             });
             joinRoomInput.addEventListener('blur', function() {
-                this.placeholder = '输入6位房间码';
+                this.placeholder = I18N.lang === 'en' ? 'Enter 6-digit room code' : '输入6位房间码';
             });
 
             // ========== 可折叠面板切换 ==========
@@ -5267,7 +5710,8 @@
                 }
             });
 
-            console.log(' 化学棋 Chemiss 已就绪！');
+            applyI18n();
+            console.log('Chemiss ready.');
         })();
     </script>
 </body>
