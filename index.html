@@ -1614,13 +1614,16 @@
         <div class="modal" id="nuclearModalContent"></div>
     </div>
     <!-- 联机弹窗 -->
-    <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js" async crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js" async crossorigin="anonymous" onload="window._mqttLoaded=true" onerror="window._mqttError=true;console.error('mqtt.js 加载失败')"></script>
     <div class="modal-overlay online-modal" id="onlineModal">
         <div class="modal">
             <h3 style="margin:0 0 8px;color:#b0908a;" id="onlineModalTitle">联机对战</h3>
             <div class="online-status-bar" id="onlineStatusBar">
                 <span class="online-dot off" id="onlineDot"></span>
                 <span id="onlineStatusText">未连接</span>
+                <span style="flex:1;"></span>
+                <span class="online-dot off" id="peerDot" style="display:none;"></span>
+                <span id="peerStatusText" style="display:none;"></span>
             </div>
             <div class="online-tab-bar" id="onlineTabBar">
                 <button class="online-tab active" data-tab="host" id="onlineTabHost">创建对局</button>
@@ -2121,10 +2124,19 @@
                     this.localColor = null;
                     this.roomCode = null;
                     this._myId = 'p' + Math.random().toString(36).slice(2, 10);
+                    this._peerOnline = false;
+                    this._peerWasOnline = false;
+                    this._presenceTimer = null;
+                    this._presenceSeq = 0;
+                    this._lastPeerPresence = 0;
                 }
-                _brokerUrl() {
-                    // 国内可用免费 MQTT broker
-                    return 'wss://broker.emqx.io:8084/mqtt';
+                _brokerUrls() {
+                    // 多个可用免费 MQTT broker（国内优先）
+                    return [
+                        'wss://broker.emqx.io:8084/mqtt',
+                        'wss://broker-cn.emqx.io:8084/mqtt',
+                        'wss://test.mosquitto.org:8081/mqtt',
+                    ];
                 }
                 _genRoomCode() {
                     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -2133,72 +2145,202 @@
                     return s;
                 }
                 _topic() { return 'chemis/' + this.roomCode; }
+                _waitForMqtt(callback, timeoutMs) {
+                    if (typeof mqtt !== 'undefined') { callback(); return; }
+                    if (window._mqttError) {
+                        this.game.addLog('MQTT库加载失败，请检查网络后刷新页面重试');
+                        this.game._refreshOnlineUI();
+                        return;
+                    }
+                    const start = Date.now();
+                    const check = () => {
+                        if (typeof mqtt !== 'undefined') { callback(); return; }
+                        if (window._mqttError) {
+                            this.game.addLog('MQTT库加载失败，请检查网络后刷新页面重试');
+                            this.game._refreshOnlineUI();
+                            return;
+                        }
+                        if (Date.now() - start > timeoutMs) {
+                            this.game.addLog('MQTT库加载超时，请刷新页面重试');
+                            this.game._refreshOnlineUI();
+                            return;
+                        }
+                        setTimeout(check, 300);
+                    };
+                    setTimeout(check, 100);
+                }
                 hostGame() {
                     this.isHost = true; this.localColor = COLOR_WHITE;
                     this.roomCode = this._genRoomCode();
-                    this._connect();
+                    this._waitForMqtt(() => this._connect(), 15000);
                     return this.roomCode;
                 }
                 joinGame(roomCode) {
                     this.isHost = false; this.localColor = COLOR_BLACK;
                     this.roomCode = roomCode.toUpperCase().replace(/[^A-Z0-9]/g, '');
                     if (this.roomCode.length !== 6) return false;
-                    this._connect();
+                    this._waitForMqtt(() => this._connect(), 15000);
                     return true;
                 }
-                _connect() {
+                _connect(brokerIdx) {
+                    if (brokerIdx === undefined) brokerIdx = 0;
+                    const urls = this._brokerUrls();
+                    if (brokerIdx >= urls.length) {
+                        this.game.addLog('所有MQTT服务器连接失败，请检查网络');
+                        this.game._refreshOnlineUI();
+                        return;
+                    }
                     if (typeof mqtt === 'undefined') {
-                        console.error('[MQTT] mqtt.js 未加载，请检查网络');
-                        this.game.addLog('联机模块加载失败，请刷新重试');
+                        this.game.addLog('MQTT库未就绪，请稍后重试');
+                        this.game._refreshOnlineUI();
                         return;
                     }
                     const topic = this._topic();
-                    this.client = mqtt.connect(this._brokerUrl(), {
-                        clientId: 'chemis_' + this._myId,
+                    const brokerUrl = urls[brokerIdx];
+                    console.log('[MQTT] 尝试连接: ' + brokerUrl);
+                    this.client = mqtt.connect(brokerUrl, {
+                        clientId: 'chemis_' + this._myId + '_' + Date.now().toString(36),
                         clean: true,
-                        connectTimeout: 10000,
-                        reconnectPeriod: 3000
+                        connectTimeout: 8000,
+                        reconnectPeriod: 5000,
+                        keepalive: 60,
                     });
+                    let settled = false;
+                    const settle = (ok) => {
+                        if (settled) return;
+                        settled = true;
+                        if (!ok) {
+                            // 尝试下一个 broker
+                            console.log('[MQTT] 切换备用服务器...');
+                            if (this.client) { try { this.client.end(true); } catch (_) {} this.client = null; }
+                            this._connect(brokerIdx + 1);
+                        }
+                    };
+                    const timeoutId = setTimeout(() => {
+                        this.game.addLog(`MQTT连接超时(${brokerUrl})，尝试备用服务器…`);
+                        settle(false);
+                    }, 10000);
                     this.client.on('connect', () => {
-                        console.log('[MQTT] 已连接 broker');
+                        clearTimeout(timeoutId);
+                        if (settled) return;
+                        console.log('[MQTT] 已连接 broker: ' + brokerUrl);
+                        this.game.addLog(`已连接服务器，加入房间 ${this.roomCode}…`);
                         this.client.subscribe(topic, (err) => {
-                            if (err) { console.error('[MQTT] 订阅失败', err); return; }
+                            if (err) {
+                                console.error('[MQTT] 订阅失败', err);
+                                settle(false);
+                                return;
+                            }
                             if (!this.connected) {
                                 this.connected = true;
                                 this.game._onOnlineConnected();
+                                // 发送在线通知（让对等方知道你来了）
+                                this._sendPresence();
+                                this._startPresenceTimer();
                             }
+                            settle(true);
                         });
                     });
                     this.client.on('message', (tpc, payload) => {
                         try {
                             const msg = JSON.parse(payload.toString());
-                            // 忽略自己发的消息
                             if (msg._sender === this._myId) return;
+                            // 处理在线通知
+                            if (msg.type === 'presence') {
+                                this._peerOnline = true;
+                                this._lastPeerPresence = Date.now();
+                                if (!this._peerWasOnline) {
+                                    this._peerWasOnline = true;
+                                    this.game.addLog(this.game._t('peerJoined'));
+                                }
+                                this.game._refreshOnlineUI();
+                                return;
+                            }
+                            if (msg.type === 'presenceAck') {
+                                this._peerOnline = true;
+                                this._lastPeerPresence = Date.now();
+                                this.game._refreshOnlineUI();
+                                return;
+                            }
                             this.game._onRemoteMessage(msg);
                         } catch (_) {}
                     });
                     this.client.on('error', (e) => {
                         console.error('[MQTT] 连接错误', e);
+                        if (!settled) {
+                            this.game.addLog(`连接错误: ${e.message || '未知错误'}`);
+                        }
                     });
                     this.client.on('close', () => {
                         console.log('[MQTT] 连接关闭');
+                        clearTimeout(timeoutId);
+                        this._stopPresenceTimer();
                         if (this.connected) {
                             this.connected = false;
+                            this._peerOnline = false;
+                            this._peerWasOnline = false;
                             this.game._onOnlineDisconnected();
                         }
                     });
+                    this.client.on('offline', () => {
+                        console.log('[MQTT] 离线');
+                    });
+                    this.client.on('reconnect', () => {
+                        console.log('[MQTT] 重连中...');
+                    });
+                    this.client.on('disconnect', () => {
+                        console.log('[MQTT] 断开连接');
+                    });
+                }
+                _startPresenceTimer() {
+                    this._stopPresenceTimer();
+                    this._presenceTimer = setInterval(() => {
+                        if (!this.client || !this.client.connected) return;
+                        this._sendPresence();
+                        // 检测对等方是否超时断线（超过20秒没有收到presence）
+                        if (this._peerOnline && Date.now() - this._lastPeerPresence > 25000) {
+                            this._peerOnline = false;
+                            this._peerWasOnline = false;
+                            this.game.addLog(this.game._t('peerLeft'));
+                            this.game._refreshOnlineUI();
+                        }
+                    }, 8000);
+                }
+                _stopPresenceTimer() {
+                    if (this._presenceTimer) { clearInterval(this._presenceTimer); this._presenceTimer = null; }
+                }
+                _sendPresence() {
+                    if (!this.client || !this.client.connected) return;
+                    this._presenceSeq++;
+                    this.send({
+                        type: 'presence',
+                        seq: this._presenceSeq,
+                        color: this.localColor,
+                    });
                 }
                 send(msg) {
-                    if (!this.client || !this.client.connected) return;
+                    if (!this.client || !this.client.connected) return false;
                     msg._sender = this._myId;
-                    this.client.publish(this._topic(), JSON.stringify(msg));
+                    try {
+                        this.client.publish(this._topic(), JSON.stringify(msg));
+                        return true;
+                    } catch(e) {
+                        console.error('[MQTT] 发送失败', e);
+                        return false;
+                    }
                 }
                 disconnect() {
+                    this._stopPresenceTimer();
                     if (this.client) {
-                        try { this.client.end(true); } catch (_) {}
+                        try {
+                            this.send({ type: 'goodbye' });
+                            this.client.end(true);
+                        } catch (_) {}
                         this.client = null;
                     }
                     this.connected = false;
+                    this._peerOnline = false;
+                    this._peerWasOnline = false;
                 }
             }
 
@@ -2445,41 +2587,55 @@
                     score += (myDirs - oppDirs) * 2;
                     score += (mySteps - oppSteps) * 1;
 
-                    // === 7. H SAFETY (完全对称：双方H使用相同权重) ===
+                    // === 7. H SAFETY (对称，适度权重避免局部最优) ===
                     if (myH && myH.row>=0) {
                         const n = this.game.getAdjacentPieces(myH.row, myH.col);
                         const friends = n.filter(x=>x.color===this.color).length;
                         const foes = n.filter(x=>x.color!==this.color).length;
-                        score += friends * 15;
-                        score -= foes * 20;
-                        if (myMat < oppMat) { score += friends * 5; score -= foes * 8; }
+                        score += friends * 16;
+                        score -= foes * 25;
+                        if (myMat < oppMat) { score += friends * 6; score -= foes * 10; }
+                        if (friends === 0 && foes > 0) score -= 30;
                     }
                     if (oppH && oppH.row>=0) {
                         const n = this.game.getAdjacentPieces(oppH.row, oppH.col);
                         const oppColor = this.color === 'white' ? 'black' : 'white';
                         const oppFriends = n.filter(x => x.color === oppColor).length;
                         const oppFoes = n.filter(x => x.color === this.color).length;
-                        score -= oppFriends * 15;  // 对方H的护卫（对方颜色）= 对我方不利
-                        score += oppFoes * 20;     // 对方H旁边的我方棋子 = 威胁对方H
-                        if (oppMat < myMat) { score -= oppFriends * 5; score += oppFoes * 8; }
+                        score -= oppFriends * 16;
+                        score += oppFoes * 25;
+                        if (oppMat < myMat) { score -= oppFriends * 6; score += oppFoes * 10; }
+                        if (oppFriends === 0 && oppFoes > 0) score += 35;
                     }
 
-                    // === 8. KING SAFETY (完全对称) ===
+                    // === 8. KING SAFETY (对称，可吃H时给予显著但不极端的奖励) ===
                     for (const p of myPieces) {
                         if (p.row<0||p.col<0||!oppH||oppH.row<0) continue;
                         const distToHK = Math.abs(p.row - oppH.row) + Math.abs(p.col - oppH.col);
-                        if (distToHK <= Math.min(p.totalElectrons, 3)) {
-                            score += this._pieceValue(p) * 0.10;
+                        const canReach = distToHK <= Math.min(p.totalElectrons, 3);
+                        if (canReach) {
+                            const lineClear = this._isLineClear(p.row, p.col, oppH.row, oppH.col);
+                            if (lineClear && this.game.canCapture(p, oppH)) {
+                                score += 4000;  // 可直接吃H — 显著奖励
+                            }
+                            score += this._pieceValue(p) * 0.12;
                         }
-                        if (distToHK <= 1) score += 15;
+                        if (distToHK <= 1) score += 20;
+                        if (distToHK <= 3) score += (4 - distToHK) * 4;
                     }
                     for (const p of oppPieces) {
                         if (p.row<0||p.col<0||!myH||myH.row<0) continue;
                         const distToHK = Math.abs(p.row - myH.row) + Math.abs(p.col - myH.col);
-                        if (distToHK <= Math.min(p.totalElectrons, 3)) {
-                            score -= this._pieceValue(p) * 0.10;
+                        const canReach = distToHK <= Math.min(p.totalElectrons, 3);
+                        if (canReach) {
+                            const lineClear = this._isLineClear(p.row, p.col, myH.row, myH.col);
+                            if (lineClear && this.game.canCapture(p, myH)) {
+                                score -= 4000;  // 对方可直接吃我方H — 严重警告
+                            }
+                            score -= this._pieceValue(p) * 0.12;
                         }
-                        if (distToHK <= 1) score -= 15;
+                        if (distToHK <= 1) score -= 20;
+                        if (distToHK <= 3) score -= (4 - distToHK) * 4;
                     }
 
                     // === 9. ADVANCEMENT ===
@@ -2629,6 +2785,20 @@
                     return v;
                 }
 
+                // 检查两点之间直线是否无阻挡（用于判断是否可以直线到达对方H）
+                _isLineClear(r1, c1, r2, c2) {
+                    const dr = Math.sign(r2 - r1);
+                    const dc = Math.sign(c2 - c1);
+                    if (dr === 0 && dc === 0) return true;
+                    let cr = r1 + dr, cc = c1 + dc;
+                    while (cr !== r2 || cc !== c2) {
+                        if (cr < 0 || cr >= 8 || cc < 0 || cc >= 8) return false;
+                        if (this.game.board[cr][cc]) return false;
+                        cr += dr; cc += dc;
+                    }
+                    return true;
+                }
+
                 generateMoves() {
                     const moves = [];
                     const pieces = this.color === 'white' ? this.game.whitePieces : this.game.blackPieces;
@@ -2658,13 +2828,17 @@
                         }
                         score += 5000;
                     }
-                    // Check bonus: proximity to enemy Hydrogen King
+                    // H targeting: bonus for approaching enemy Hydrogen King
                     const oppPieces = piece.color === 'white' ? this.game.blackPieces : this.game.whitePieces;
                     const enemyHK = oppPieces.find(p => p.isHydrogenKing);
-                    if (enemyHK) {
-                        const hkDist = Math.abs(move.row - enemyHK.row) + Math.abs(move.col - enemyHK.col);
-                        if (hkDist <= 1) score += 8000;
-                        else if (hkDist <= 2) score += 2000;
+                    if (enemyHK && enemyHK.row >= 0) {
+                        const oldDist = Math.abs(piece.row - enemyHK.row) + Math.abs(piece.col - enemyHK.col);
+                        const newDist = Math.abs(move.row - enemyHK.row) + Math.abs(move.col - enemyHK.col);
+                        if (newDist <= 1) score += 12000;        // 贴脸威胁H
+                        else if (newDist <= 2) score += 4000;    // 逼近到两步内
+                        // 奖励缩短距离（权重适中，避免忽略吃子机会）
+                        const distReduction = oldDist - newDist;
+                        if (distReduction > 0) score += distReduction * 1500;
                     }
                     // Center-ward bonus: prefer moves toward center of 8x8 board
                     score += (7 - Math.abs(move.col - 3.5) - Math.abs(move.row - 3.5)) * 10;
@@ -3629,13 +3803,23 @@
                 judgeBondType(metalPiece, nonmetalPiece) {
                     // 1. 【最高优先级】硬编码例外表（覆盖一切理论）
                     const exceptions = {
-                        'Li-H': 'ionic',    // 反例：电负性差 1.2，却是离子
-                        'Be-H': 'covalent', // 反例：电负性差 1.3，却是共价聚合物
-                        'Al-Cl': 'covalent',// 反例：差 1.5，却是共价
-                        'Fe-Cl': 'covalent',// 过渡金属强极化，典型共价
+                        'Li-H': 'ionic',    // 碱金属氢化物全部离子型
+                        'Na-H': 'ionic',
+                        'K-H': 'ionic',
+                        'Rb-H': 'ionic',
+                        'Cs-H': 'ionic',
+                        'Fr-H': 'ionic',
+                        'Ca-H': 'ionic',    // CaH₂/SrH₂/BaH₂/RaH₂ 盐型离子氢化物
+                        'Sr-H': 'ionic',
+                        'Ba-H': 'ionic',
+                        'Ra-H': 'ionic',
+                        'Be-H': 'covalent', // BeH₂ 共价聚合物
+                        'Mg-H': 'covalent', // MgH₂ 共价聚合物
+                        'Na-P': 'covalent',
+                        'Al-Cl': 'covalent',// AlCl₃ 分子共价
+                        'Fe-Cl': 'covalent',// 过渡金属氯化物，典型共价
                         'Cu-Cl': 'covalent',
                         'Ag-I': 'covalent',
-                        'Na-P': 'covalent'
                     };
                     const key = metalPiece.symbol + '-' + nonmetalPiece.symbol;
                     if (exceptions[key]) return exceptions[key];
@@ -3645,8 +3829,8 @@
                     const metalPeriod = metalPiece.period;
 
                     // 2. 【快速通道】极大/极小差值直接判
-                    if (enDiff > 2.0) return 'ionic';   // 如 NaCl
-                    if (enDiff < 0.8) return 'covalent';// 如 SiC
+                    if (enDiff > 2.0) return 'ionic';   // 如 NaCl、MgO
+                    if (enDiff < 0.8) return 'covalent';// 如 SiC、BeH
 
                     // 3. 【核心】法扬斯规则量化（极化力 vs 变形性）
                     const polarizingPower = metalValence / metalPeriod;
@@ -3657,9 +3841,17 @@
                         return 'covalent';
                     }
 
-                    // 如果阳离子极化力强，但阴离子是极硬的（如 F⁻、H⁻），
+                    // 如果阳离子极化力强，但阴离子是极硬的（如 F⁻、O²⁻），
                     // 阴离子拒绝变形，强行维持离子性
                     if (polarizingPower > 0.6 && anionSoftness <= 2) {
+                        return 'ionic';
+                    }
+
+                    // 3.5 【弱极化力阳离子额外判定】
+                    // 碱金属及 Ca/Sr/Ba/Ra 等阳离子极化力很低（pp ≤ 0.5），
+                    // 几乎不能使阴离子变形，因此即使 EN 差中等也形成离子键。
+                    // Be（pp=1.0）和 Mg（pp≈0.67）已被步骤 3 或例外表覆盖。
+                    if (polarizingPower <= 0.5 && enDiff > 1.0) {
                         return 'ionic';
                     }
 
@@ -3981,15 +4173,39 @@
                 _onRemoteMessage(msg){
                     if (!this.onlineMode || !this.onlineManager) return; // 断开后忽略残余消息
                     if (!msg || typeof msg.type !== 'string') return;
+                    // presence/goodbye 消息不记入 _remoteProcessing
+                    if (msg.type === 'presence') {
+                        this.onlineManager._peerOnline = true;
+                        this.onlineManager._lastPeerPresence = Date.now();
+                        this._refreshOnlineUI();
+                        // 主机回复 presenceAck
+                        if (this.onlineManager.isHost) {
+                            this.onlineManager.send({ type: 'presenceAck', color: this.onlineManager.localColor });
+                        }
+                        return;
+                    }
+                    if (msg.type === 'presenceAck') {
+                        this.onlineManager._peerOnline = true;
+                        this.onlineManager._lastPeerPresence = Date.now();
+                        this._refreshOnlineUI();
+                        return;
+                    }
+                    if (msg.type === 'goodbye') {
+                        this.onlineManager._peerOnline = false;
+                        this.onlineManager._peerWasOnline = false;
+                        this.addLog(this._t('peerLeft'));
+                        this._refreshOnlineUI();
+                        return;
+                    }
                     this._remoteProcessing = true;
                     try {
                         switch(msg.type){
                             case 'move':{
                                 const piece = this.getPieceById(msg.pieceId);
                                 if(!piece) break;
-                                // 验证：不能移动对手的棋子
-                                if (piece.color !== this.onlineMyColor) {
-                                    this.addLog('[安全] 拒绝非法移动（非己方棋子）'); break;
+                                // 验证：对手不能移动我方棋子（远程消息中的棋子应是对手颜色）
+                                if (piece.color === this.onlineMyColor) {
+                                    this.addLog('[安全] 拒绝非法移动（对方操控了你的棋子）'); break;
                                 }
                                 // 验证：目标坐标在棋盘内
                                 if (typeof msg.toRow !== 'number' || typeof msg.toCol !== 'number' ||
@@ -3997,12 +4213,32 @@
                                     this.addLog('[安全] 拒绝非法移动（坐标越界）'); break;
                                 }
                                 const target = msg.isAttack && msg.targetId ? this.getPieceById(msg.targetId) : null;
-                                // 验证：吃子目标必须是对方棋子
+                                // 验证：不能吃同色棋子（自己吃自己）
                                 if (target && target.color === piece.color) {
                                     this.addLog('[安全] 拒绝非法移动（不能吃己方棋子）'); break;
                                 }
                                 const fromRow = piece.row, fromCol = piece.col;
                                 this.movePiece(piece, msg.toRow, msg.toCol, msg.isAttack, target);
+                                // 记录棋谱和复盘数据（同步远程走法）
+                                const capSym = target ? target.symbol : null;
+                                this.recordMove(piece, fromRow, fromCol, msg.toRow, msg.toCol, msg.isAttack, capSym);
+                                const nStr = this._notationMoves.length > 0
+                                    ? (this._notationMoves[this._notationMoves.length-1].black || this._notationMoves[this._notationMoves.length-1].white) : '';
+                                this._gameRecord.moves.push({
+                                    moveIndex: this._gameRecord.moves.length + 1,
+                                    roundNumber: this.roundNumber,
+                                    color: piece.color,
+                                    pieceSymbol: piece.symbol,
+                                    pieceId: piece.id,
+                                    from: [fromRow, fromCol],
+                                    to: [msg.toRow, msg.toCol],
+                                    isCapture: msg.isAttack,
+                                    targetSymbol: capSym,
+                                    notation: nStr,
+                                    boardState: this.serializeBoard(),
+                                    evalRaw: null, evalCentipawns: null, winProbability: null,
+                                    bestMoveScore: null, classification: null, classificationIcon: null, evalDiff: null
+                                });
                                 if(msg.animInfo){
                                     this._animMovedInfos = [{pieceId:piece.id,sdx:(fromCol-msg.toCol)*100+'%',sdy:(fromRow-msg.toRow)*100+'%'}];
                                 }
@@ -4012,10 +4248,10 @@
                             }
                             case 'giveElectron':{
                                 const metal = this.getPieceById(msg.metalId), nonmetal = this.getPieceById(msg.nonmetalId);
-                                // 验证：两个棋子必须存在且金属属于对手（对手视角的己方）
+                                // 验证：对手不能操控我方棋子给电子
                                 if (!metal || !nonmetal) break;
-                                if (metal.color !== this.onlineManager.localColor) {
-                                    this.addLog('[安全] 拒绝非法给电子'); break;
+                                if (metal.color === this.onlineMyColor) {
+                                    this.addLog('[安全] 拒绝非法给电子（对方操控了你的棋子）'); break;
                                 }
                                 // 验证：两者相邻
                                 const dr2 = Math.abs(metal.row - nonmetal.row);
@@ -4030,9 +4266,9 @@
                             case 'nuclearTransform':{
                                 const piece = this.getPieceById(msg.pieceId);
                                 if(!piece) break;
-                                // 验证：必须是己方Li且在底线
-                                if (piece.color !== this.onlineManager.localColor || piece.symbol !== 'Li') {
-                                    this.addLog('[安全] 拒绝非法核变'); break;
+                                // 验证：对手不能操控我方Li进行核变
+                                if (piece.color === this.onlineMyColor || piece.symbol !== 'Li') {
+                                    this.addLog('[安全] 拒绝非法核变（对方操控了你的棋子）'); break;
                                 }
                                 if (!this.canNuclearTransform(piece)) {
                                     this.addLog('[安全] 拒绝非法核变（不在底线）'); break;
@@ -4081,21 +4317,40 @@
                 _refreshOnlineUI(){
                     const dot = document.getElementById('onlineDot');
                     const statusText = document.getElementById('onlineStatusText');
+                    const peerDot = document.getElementById('peerDot');
+                    const peerText = document.getElementById('peerStatusText');
                     const btnDisconnect = document.getElementById('btnDisconnect');
                     const en2 = I18N.lang === 'en';
                     if(this.onlineManager && this.onlineManager.connected){
                         dot.className = 'online-dot on';
                         const sideName = this.onlineMyColor === 'white' ? (en2 ? 'White' : '白') : (en2 ? 'Black' : '黑');
-                        statusText.textContent = `${en2 ? 'Connected - You play ' : '已连接 · 你执'}${sideName}${en2 ? ' - Room ' : '方 · 房间 '}${this.onlineManager.roomCode}`;
+                        statusText.textContent = `${en2 ? 'Connected · ' : '已连接 · '}${sideName}${en2 ? ' · Room ' : '方 · 房间 '}${this.onlineManager.roomCode}`;
                         if(btnDisconnect) btnDisconnect.style.display = 'block';
+                        // 对等方状态
+                        if (peerDot && peerText) {
+                            peerDot.style.display = 'inline-block';
+                            peerText.style.display = 'inline';
+                            if (this.onlineManager._peerOnline) {
+                                peerDot.className = 'online-dot on';
+                                const peerColor = this.onlineMyColor === 'white' ? (en2 ? 'Black' : '黑') : (en2 ? 'White' : '白');
+                                peerText.textContent = `${en2 ? 'Opponent: ' : '对方: '}${peerColor}${en2 ? ' online' : ' 在线'}`;
+                            } else {
+                                peerDot.className = 'online-dot off';
+                                peerText.textContent = en2 ? 'Waiting for opponent…' : '等待对手加入…';
+                            }
+                        }
                     } else if(this.onlineManager){
                         dot.className = 'online-dot connecting';
-                        statusText.textContent = en2 ? 'Connecting... (via MQTT)' : '连接中…(通过MQTT服务器)';
+                        statusText.textContent = en2 ? 'Connecting…' : '连接中…';
                         if(btnDisconnect) btnDisconnect.style.display = 'none';
+                        if (peerDot) peerDot.style.display = 'none';
+                        if (peerText) peerText.style.display = 'none';
                     } else {
                         dot.className = 'online-dot off';
                         statusText.textContent = en2 ? 'Not connected' : '未连接';
                         if(btnDisconnect) btnDisconnect.style.display = 'none';
+                        if (peerDot) peerDot.style.display = 'none';
+                        if (peerText) peerText.style.display = 'none';
                     }
                 }
 
@@ -6327,6 +6582,10 @@
                         aiNoMoves: 'AI无可用移动，跳过执子',
                         debugOn: 'Debug模式开启',
                         debugOff: 'Debug模式关闭',
+                        peerJoined: '对手已加入房间！',
+                        peerLeft: '对手已离开房间',
+                        logMQTTTimeout: 'MQTT连接超时，请检查网络',
+                        logMQTTFailed: '所有MQTT服务器连接失败，请检查网络',
                     },
                     en: {
                         gameTitle: 'Chemiss',
@@ -6474,6 +6733,10 @@
                         aiNoMoves: 'AI has no legal moves, skipping turn',
                         debugOn: 'Debug mode ON',
                         debugOff: 'Debug mode OFF',
+                        peerJoined: 'Opponent has joined!',
+                        peerLeft: 'Opponent has left',
+                        logMQTTTimeout: 'MQTT connection timeout, check network',
+                        logMQTTFailed: 'All MQTT brokers failed, check network',
                     }
                 },
                 t(key) { return this.data[this.lang][key] || this.data['zh'][key] || key; },
@@ -7134,7 +7397,7 @@
 
             btnOnline.addEventListener('click', () => {
                 if (onlineModal.classList.contains('active')) { closeModal(onlineModal); return; }
-                document.getElementById('hostRoomCode').textContent = '----';
+                document.getElementById('hostRoomCode').textContent = '------';
                 document.getElementById('joinRoomInput').value = '';
                 switchOnlineTab('host');
                 game._refreshOnlineUI();
