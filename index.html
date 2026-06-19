@@ -2384,14 +2384,14 @@
                             }
                         }
                     }
-                    score += myMobility * 0.6;
+                    score += myMobility * 0.55;
                     this.game.currentTurn = this.color==='white'?'black':'white';
                     let oppMobility = 0;
                     for (const p of oppPieces) {
                         if (p.row<0||p.col<0||p.stunned||p.totalElectrons<=0) continue;
                         oppMobility += this.game.getLegalMoves(p).length;
                     }
-                    score -= oppMobility * 0.5;
+                    score -= oppMobility * 0.55;
                     this.game.currentTurn = savedTurn;
 
                     // === 4. BOND NETWORK ===
@@ -2400,7 +2400,7 @@
                     for (const p of myPieces) {
                         if (p.bondedWith&&p.bondedWith.length>0) {
                             myBonded.add(p.id);
-                            score += 7;
+                            score += 5.5;
                             const bond = this.game.bonds.find(b=>(b.p1===p.id||b.p2===p.id)&&b.type==='metallic');
                             if (bond) score += 2;
                         }
@@ -2408,10 +2408,13 @@
                     for (const p of oppPieces) {
                         if (p.bondedWith&&p.bondedWith.length>0) {
                             oppBonded.add(p.id);
-                            score -= 4;
+                            score -= 5.5;
+                            const bond = this.game.bonds.find(b=>(b.p1===p.id||b.p2===p.id)&&b.type==='metallic');
+                            if (bond) score -= 2;
                         }
                     }
                     if (myBonded.size > oppBonded.size) score += 3;
+                    else if (oppBonded.size > myBonded.size) score -= 3;
 
                     // === 5. ELECTRONEGATIVITY ADVANTAGE ===
                     let myAvgEN = 0, oppAvgEN = 0;
@@ -2440,7 +2443,7 @@
                     score += (myDirs - oppDirs) * 2;
                     score += (mySteps - oppSteps) * 1;
 
-                    // === 7. H SAFETY ===
+                    // === 7. H SAFETY (完全对称：双方H使用相同权重) ===
                     if (myH && myH.row>=0) {
                         const n = this.game.getAdjacentPieces(myH.row, myH.col);
                         const friends = n.filter(x=>x.color===this.color).length;
@@ -2451,12 +2454,15 @@
                     }
                     if (oppH && oppH.row>=0) {
                         const n = this.game.getAdjacentPieces(oppH.row, oppH.col);
-                        const foes = n.filter(x=>x.color!==this.color).length;
-                        score += foes * 8;
-                        if (myMat < oppMat) score += foes * 6;
+                        const oppColor = this.color === 'white' ? 'black' : 'white';
+                        const oppFriends = n.filter(x => x.color === oppColor).length;
+                        const oppFoes = n.filter(x => x.color === this.color).length;
+                        score -= oppFriends * 15;  // 对方H的护卫（对方颜色）= 对我方不利
+                        score += oppFoes * 20;     // 对方H旁边的我方棋子 = 威胁对方H
+                        if (oppMat < myMat) { score -= oppFriends * 5; score += oppFoes * 8; }
                     }
 
-                    // === 8. KING SAFETY ===
+                    // === 8. KING SAFETY (完全对称) ===
                     for (const p of myPieces) {
                         if (p.row<0||p.col<0||!oppH||oppH.row<0) continue;
                         const distToHK = Math.abs(p.row - oppH.row) + Math.abs(p.col - oppH.col);
@@ -2469,9 +2475,9 @@
                         if (p.row<0||p.col<0||!myH||myH.row<0) continue;
                         const distToHK = Math.abs(p.row - myH.row) + Math.abs(p.col - myH.col);
                         if (distToHK <= Math.min(p.totalElectrons, 3)) {
-                            score -= this._pieceValue(p) * 0.08;
+                            score -= this._pieceValue(p) * 0.10;
                         }
-                        if (distToHK <= 1) score -= 10;
+                        if (distToHK <= 1) score -= 15;
                     }
 
                     // === 9. ADVANCEMENT ===
@@ -2486,27 +2492,28 @@
                         score -= Math.pow(adv, 1.3) * 1.2;
                     }
 
-                    // === 10. CHARGE ===
+                    // === 10. CHARGE (完全对称) ===
                     for (const p of myPieces) {
                         if (p.row<0) continue;
-                        if (p.charge > 0) score += 4;
-                        if (p.charge < 0) score += 2;
+                        if (p.charge > 0) score += 3;
+                        if (p.charge < 0) score += 3;
                     }
                     for (const p of oppPieces) {
                         if (p.row<0) continue;
-                        if (p.charge > 0) score -= 2;
-                        if (p.charge < 0) score -= 4;
+                        if (p.charge > 0) score -= 3;
+                        if (p.charge < 0) score -= 3;
                     }
 
-                    // === 11. STUN PENALTY ===
+                    // === 11. STUN PENALTY (完全对称) ===
                     for (const p of myPieces) {
-                        if (p.stunned && p.row>=0) score -= 12;
+                        if (p.stunned && p.row>=0) score -= 10;
                     }
                     for (const p of oppPieces) {
-                        if (p.stunned && p.row>=0) score += 8;
+                        if (p.stunned && p.row>=0) score += 10;
                     }
 
-                    // === 12. RADIOACTIVE THREAT ===
+                    // === 12. RADIOACTIVE THREAT (完全对称) ===
+                    const oppColor = this.color === 'white' ? 'black' : 'white';
                     for (const p of myPieces) {
                         if (p.radioactive && p.row>=0) {
                             const n = this.game.getAdjacentPieces(p.row, p.col);
@@ -2519,17 +2526,20 @@
                     for (const p of oppPieces) {
                         if (p.radioactive && p.row>=0) {
                             const n = this.game.getAdjacentPieces(p.row, p.col);
-                            if (n.some(x=>x.color===this.color)) score -= 4;
+                            const nearFoe = n.some(x => x.color === this.color);
+                            const nearFriend = n.some(x => x.color === oppColor);
+                            if (nearFoe) score -= 3;
+                            if (nearFriend) score += 2;
                         }
                     }
 
-                    // === 13. BOND COMPLETENESS ===
+                    // === 13. BOND COMPLETENESS (完全对称) ===
                     for (const p of myPieces) {
                         if (p.row<0||p.col<0) continue;
                         const octet = p.isHydrogenKing ? 2 : 8;
                         const currentElectrons = p.valence + (p.sharedElectrons||0) + (p.bonusElectrons||0);
                         const completion = Math.min(currentElectrons / octet, 1.5);
-                        score += completion * 8;
+                        score += completion * 6.5;
                         if (p.totalElectrons > octet + 2) score -= (p.totalElectrons - octet - 2) * 3;
                     }
                     for (const p of oppPieces) {
@@ -2537,10 +2547,11 @@
                         const octet = p.isHydrogenKing ? 2 : 8;
                         const currentElectrons = p.valence + (p.sharedElectrons||0) + (p.bonusElectrons||0);
                         const completion = Math.min(currentElectrons / octet, 1.5);
-                        score -= completion * 5;
+                        score -= completion * 6.5;
+                        if (p.totalElectrons > octet + 2) score += (p.totalElectrons - octet - 2) * 3;
                     }
 
-                    // === 14. IONIC THREAT ===
+                    // === 14. IONIC THREAT (完全对称) ===
                     for (const p of myPieces) {
                         if (p.row<0||p.col<0) continue;
                         const adj = this.game.getAdjacentPieces(p.row, p.col);
@@ -2548,7 +2559,7 @@
                             if (n.color === this.color) continue;
                             const enDiff = Math.abs(p.electroneg - n.electroneg);
                             if (enDiff > 1.6 && ((p.group === METAL && n.group === NONMETAL) || (p.group === NONMETAL && n.group === METAL))) {
-                                score += this._pieceValue(n) * 0.2;
+                                score += this._pieceValue(n) * 0.18;
                             }
                         }
                     }
@@ -2559,12 +2570,12 @@
                             if (n.color !== this.color) continue;
                             const enDiff = Math.abs(p.electroneg - n.electroneg);
                             if (enDiff > 1.6 && ((p.group === METAL && n.group === NONMETAL) || (p.group === NONMETAL && n.group === METAL))) {
-                                score -= this._pieceValue(n) * 0.15;
+                                score -= this._pieceValue(n) * 0.18;
                             }
                         }
                     }
 
-                    // === 15. ENDGAME ===
+                    // === 15. ENDGAME (完全对称) ===
                     const totalPieces = myPieces.filter(p=>p.row>=0).length + oppPieces.filter(p=>p.row>=0).length;
                     if (totalPieces < 16) {
                         if (oppH && oppH.row>=0) {
@@ -2572,14 +2583,25 @@
                                 .filter(x=>x.color===this.color).length;
                             score += foesNearOppH * 12;
                         }
+                        if (myH && myH.row>=0) {
+                            const foesNearMyH = this.game.getAdjacentPieces(myH.row, myH.col)
+                                .filter(x=>x.color!==this.color).length;
+                            score -= foesNearMyH * 12;
+                        }
                     }
 
-                    // === 16. GIVE ELECTRON POTENTIAL ===
+                    // === 16. GIVE ELECTRON POTENTIAL (完全对称) ===
                     for (const p of myPieces) {
                         if (p.row<0||p.group!==METAL||p.totalElectrons<=0) continue;
                         const canGive = this.game.getAdjacentPieces(p.row, p.col)
                             .some(n => n.color===this.color && n.group===NONMETAL && !n.noble && n.totalElectrons<(n.isHydrogenKing?2:8));
                         if (canGive) score += 5;
+                    }
+                    for (const p of oppPieces) {
+                        if (p.row<0||p.group!==METAL||p.totalElectrons<=0) continue;
+                        const canGive = this.game.getAdjacentPieces(p.row, p.col)
+                            .some(n => n.color===oppColor && n.group===NONMETAL && !n.noble && n.totalElectrons<(n.isHydrogenKing?2:8));
+                        if (canGive) score -= 5;
                     }
 
                     return Math.round(score);
@@ -2981,8 +3003,10 @@
                             this.game.winner = piece.color;
                         }
                         const enDiff = Math.abs(piece.electroneg - captured.electroneg);
-                        if (enDiff > 1.6 && ((piece.group === METAL && captured.group === NONMETAL) ||
-                            (piece.group === NONMETAL && captured.group === METAL))) {
+                        const hkMetalTmp = (piece.isHydrogenKing && captured.group === METAL) ||
+                                           (captured.isHydrogenKing && piece.group === METAL);
+                        if (hkMetalTmp || (enDiff > 1.6 && ((piece.group === METAL && captured.group === NONMETAL) ||
+                            (piece.group === NONMETAL && captured.group === METAL)))) {
                             const maxOctet = piece.isHydrogenKing ? Math.max(0, 2 - piece.valence - piece.sharedElectrons - piece.bonusElectrons) : Math.max(0, 8 - piece.valence - piece.sharedElectrons - piece.bonusElectrons);
                             const actualGain = Math.min(captured.valence, maxOctet);
                             piece.bonusElectrons += actualGain;
