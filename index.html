@@ -118,6 +118,7 @@
             opacity: 0.35;
             animation: bond-indicator-pulse 1.5s ease-in-out infinite;
             transform-origin: center center;
+            transition: opacity 0.28s cubic-bezier(0.34, 1.3, 0.64, 1);
         }
         @keyframes bond-indicator-pulse {
             0%, 100% { opacity: 0.25; border-color: #999; }
@@ -156,6 +157,7 @@
             pointer-events: none;
             opacity: 0.45;
             transform-origin: center center;
+            transition: opacity 0.28s cubic-bezier(0.34, 1.3, 0.64, 1);
         }
         .cell.stunned-cell {
             box-shadow: inset 0 0 0 5px #c4a0a0, 0 0 14px rgba(180,140,140,0.6);
@@ -2557,9 +2559,13 @@
                         const adj = this.game.getAdjacentPieces(p.row, p.col);
                         for (const n of adj) {
                             if (n.color === this.color) continue;
-                            const enDiff = Math.abs(p.electroneg - n.electroneg);
-                            if (enDiff > 1.6 && ((p.group === METAL && n.group === NONMETAL) || (p.group === NONMETAL && n.group === METAL))) {
-                                score += this._pieceValue(n) * 0.18;
+                            if ((p.group === METAL && n.group === NONMETAL) ||
+                                (p.group === NONMETAL && n.group === METAL)) {
+                                const metal = p.group === METAL ? p : n;
+                                const nonmetal = p.group === NONMETAL ? p : n;
+                                if (this.game.judgeBondType(metal, nonmetal) === 'ionic') {
+                                    score += this._pieceValue(n) * 0.18;
+                                }
                             }
                         }
                     }
@@ -2568,9 +2574,13 @@
                         const adj = this.game.getAdjacentPieces(p.row, p.col);
                         for (const n of adj) {
                             if (n.color !== this.color) continue;
-                            const enDiff = Math.abs(p.electroneg - n.electroneg);
-                            if (enDiff > 1.6 && ((p.group === METAL && n.group === NONMETAL) || (p.group === NONMETAL && n.group === METAL))) {
-                                score -= this._pieceValue(n) * 0.18;
+                            if ((p.group === METAL && n.group === NONMETAL) ||
+                                (p.group === NONMETAL && n.group === METAL)) {
+                                const metal = p.group === METAL ? p : n;
+                                const nonmetal = p.group === NONMETAL ? p : n;
+                                if (this.game.judgeBondType(metal, nonmetal) === 'ionic') {
+                                    score -= this._pieceValue(n) * 0.18;
+                                }
                             }
                         }
                     }
@@ -2877,7 +2887,74 @@
                     this._killerMoves = [null, null];
                     this._historyTable = {};
                     const moves = this.generateMoves();
-                    if (moves.length === 0) return null;
+
+                    // === Li核变评估（搜索前） ===
+                    let bestNuclear = null, bestNuclearScore = -Infinity;
+                    const myPieces = this.color === 'white' ? this.game.whitePieces : this.game.blackPieces;
+                    const liPiece = myPieces.find(p => p.symbol === 'Li' && p.row >= 0 &&
+                        (p.color === 'white' ? p.row === 0 : p.row === 7));
+                    if (liPiece && !liPiece.stunned) {
+                        const AI_NUCLEAR_TARGETS = [
+                            'He','Ne','Ar','Kr','Xe','Rn',  // 稀有气体：免疫吃子，8方向8格
+                            'F','O','N','C',                 // 强非金属
+                            'U','Th','Pu',                    // 可裂变重核
+                            'Fe','Cu','Ag'                    // 过渡金属
+                        ];
+                        const liRow = liPiece.row, liCol = liPiece.col, liId = liPiece.id;
+                        // 保存Li棋子完整数据（snapshot不保存defKey等核心属性）
+                        const liSaved = {
+                            defKey: liPiece.defKey, symbol: liPiece.symbol, Z: liPiece.Z,
+                            valence: liPiece.valence, electroneg: liPiece.electroneg,
+                            group: liPiece.group, period: liPiece.period, noble: liPiece.noble,
+                            isHydrogenKing: liPiece.isHydrogenKing, mass: liPiece.mass,
+                            radioactive: liPiece.radioactive, decayMode: liPiece.decayMode,
+                            halfLifeRounds: liPiece.halfLifeRounds, decayCounter: liPiece.decayCounter,
+                            isotopeName: liPiece.isotopeName
+                        };
+                        for (const elemKey of AI_NUCLEAR_TARGETS) {
+                            if (!PIECE_DEFS[elemKey] || elemKey === 'H') continue;
+                            const isos = ISOTOPES[elemKey] || [];
+                            const stableIso = isos.find(iso => iso.stable) || isos[0];
+                            if (!stableIso) continue;
+                            const spec = stableIso.stable
+                                ? { mass: stableIso.mass, radio: false, halfLife: 0, decay: null, name: stableIso.name || null }
+                                : { mass: stableIso.mass, radio: true, halfLife: stableIso.halfLife || 3, decay: stableIso.decay || 'alpha', name: stableIso.name || null };
+                            // 模拟核变
+                            const snapshot = this._snapshot();
+                            const np = new Piece(elemKey, liPiece.color, liId, spec);
+                            np.row = liRow; np.col = liCol;
+                            np.sharedElectrons = 0; np.bondedWith = null;
+                            this.game.board[liRow][liCol] = np;
+                            const arrIdx = this.game.pieces.indexOf(liPiece);
+                            if (arrIdx >= 0) this.game.pieces[arrIdx] = np;
+                            const colorArr = liPiece.color === 'white' ? this.game.whitePieces : this.game.blackPieces;
+                            const cai = colorArr.indexOf(liPiece);
+                            if (cai >= 0) colorArr[cai] = np;
+                            this.game.updateAllBonds();
+                            this.game.currentTurn = this.game.currentTurn === 'white' ? 'black' : 'white';
+                            const score = this.evaluate();
+                            // 恢复（snapshot恢复后还需恢复Li棋子核心属性）
+                            this._restore(snapshot);
+                            const restoredLi = this.game.getPieceById(liId);
+                            if (restoredLi && restoredLi.defKey !== 'Li') {
+                                Object.assign(restoredLi, liSaved);
+                                restoredLi.sharedElectrons = 0;
+                                restoredLi.bondedWith = null;
+                                restoredLi.bonusElectrons = 0;
+                                restoredLi.charge = 0;
+                            }
+                            this.game.board[liRow][liCol] = restoredLi;
+                            if (score > bestNuclearScore) {
+                                bestNuclearScore = score;
+                                bestNuclear = { piece: liPiece, action: 'nuclear', elementKey: elemKey, isotopeSpec: spec, evalScore: score };
+                            }
+                        }
+                    }
+
+                    if (moves.length === 0) {
+                        if (bestNuclear) return bestNuclear;
+                        return null;
+                    }
                     this._orderMoves(moves);
                     const timeLimits = [0, 300, 600, 1000, 1800, 3000, 5000];
                     const deadline = Date.now() + (timeLimits[this.MAX_DEPTH] || 1500);
@@ -2920,6 +2997,10 @@
                         bestMove = localBest;
                         prevScore = localScore;
                         if (Math.abs(bestScore) >= 50000) break;
+                    }
+                    // 核变优于常规走法时选用核变
+                    if (bestNuclear && bestNuclearScore > bestScore) {
+                        return bestNuclear;
                     }
                     return bestMove;
                 }
@@ -3002,11 +3083,15 @@
                             this.game.gameOver = true;
                             this.game.winner = piece.color;
                         }
-                        const enDiff = Math.abs(piece.electroneg - captured.electroneg);
-                        const hkMetalTmp = (piece.isHydrogenKing && captured.group === METAL) ||
-                                           (captured.isHydrogenKing && piece.group === METAL);
-                        if (hkMetalTmp || (enDiff > 1.6 && ((piece.group === METAL && captured.group === NONMETAL) ||
-                            (piece.group === NONMETAL && captured.group === METAL)))) {
+                        const isMetalNonmetal = (piece.group === METAL && captured.group === NONMETAL) ||
+                                                (captured.group === METAL && piece.group === NONMETAL);
+                        let isIonicTmp = false;
+                        if (isMetalNonmetal) {
+                            const metal = piece.group === METAL ? piece : captured;
+                            const nonmetal = piece.group === NONMETAL ? piece : captured;
+                            isIonicTmp = this.game.judgeBondType(metal, nonmetal) === 'ionic';
+                        }
+                        if (isIonicTmp) {
                             const maxOctet = piece.isHydrogenKing ? Math.max(0, 2 - piece.valence - piece.sharedElectrons - piece.bonusElectrons) : Math.max(0, 8 - piece.valence - piece.sharedElectrons - piece.bonusElectrons);
                             const actualGain = Math.min(captured.valence, maxOctet);
                             piece.bonusElectrons += actualGain;
@@ -3285,6 +3370,10 @@
                 }
 
                 deserializeBoard(stateStr) {
+                    if (!stateStr || stateStr.length < 8 * 8 * 3) {
+                        console.error('[deserializeBoard] 状态字符串长度不足, 期望≥192, 实际=' + (stateStr ? stateStr.length : 0));
+                        return Array.from({length:8},()=>Array(8).fill(null));
+                    }
                     const board = Array.from({length:8},()=>Array(8).fill(null));
                     for (let r=0;r<8;r++) for (let c=0;c<8;c++){
                         const idx=(r*8+c)*3;
@@ -3322,13 +3411,17 @@
                         const dr = Math.abs(p.row - atRow);
                         const dc = Math.abs(p.col - atCol);
                         if (dr > 1 || dc > 1 || (dr === 0 && dc === 0)) continue;
-                        // 金属-非金属：高电负性差走离子吃子(不显示)；H(isHK)与金属走离子吃子(不显示)；低电负性差形成共价键候选
+                        // 金属-非金属：用judgeBondType判定；离子键→直接吃子(不显示为成键候选)；共价键→显示候选
+                        // 已达八隅体稳定结构的棋子不再成共价键
                         if ((selectedPiece.group === METAL && p.group === NONMETAL) ||
                             (selectedPiece.group === NONMETAL && p.group === METAL)) {
-                            const enDiff = Math.abs(selectedPiece.electroneg - p.electroneg);
-                            if (enDiff > 1.6 || selectedPiece.isHydrogenKing || p.isHydrogenKing) continue;
-                            const needSel = 8 - selectedPiece.valence;
-                            const needP = 8 - p.valence;
+                            const metal = selectedPiece.group === METAL ? selectedPiece : p;
+                            const nonmetal = selectedPiece.group === NONMETAL ? selectedPiece : p;
+                            if (this.judgeBondType(metal, nonmetal) === 'ionic') continue;
+                            const octetSel = selectedPiece.isHydrogenKing ? 2 : 8;
+                            const octetP = p.isHydrogenKing ? 2 : 8;
+                            const needSel = octetSel - selectedPiece.totalElectrons;
+                            const needP = octetP - p.totalElectrons;
                             const sharedE = Math.min(Math.max(0, needSel), Math.max(0, needP));
                             if (sharedE > 0) results.push(p.id);
                             continue;
@@ -3339,10 +3432,12 @@
                             if (!already) results.push(p.id);
                             continue;
                         }
-                        // 共价键候选：H 用 2 电子规则
+                        // 共价键候选：H 用 2 电子规则（已达稳定结构的不再成键）
                         if (selectedPiece.group === NONMETAL && p.group === NONMETAL) {
-                            const needSel = selectedPiece.isHydrogenKing ? (2 - selectedPiece.valence) : (8 - selectedPiece.valence);
-                            const needP = p.isHydrogenKing ? (2 - p.valence) : (8 - p.valence);
+                            const octetSel = selectedPiece.isHydrogenKing ? 2 : 8;
+                            const octetP = p.isHydrogenKing ? 2 : 8;
+                            const needSel = octetSel - selectedPiece.totalElectrons;
+                            const needP = octetP - p.totalElectrons;
                             const sharedE = Math.min(Math.max(0, needSel), Math.max(0, needP));
                             if (sharedE > 0) results.push(p.id);
                         }
@@ -3392,14 +3487,17 @@
                             const bothNonMetal = p.group === NONMETAL && n.group === NONMETAL;
                             const bothMetal = p.group === METAL && n.group === METAL;
                             const isMetalNonmetal = !bothNonMetal && !bothMetal;
-                            // 金属-非金属：高电负性差(>1.6)走离子键吃子，不形成持久键合；
-                        // H(isHK)与金属始终走离子键吃子（LiH等离子氢化物）；
-                        // 低电负性差金属-非金属形成共价键(如AlCl₃)
+                            // 金属-非金属：用judgeBondType判定；
+                            // 离子键→直接吃子，不形成持久键合；
+                            // 共价键→形成共价键候选(如AlCl₃)
                             if (isMetalNonmetal) {
-                                if (enDiff > 1.6 || p.isHydrogenKing || n.isHydrogenKing) continue;
-                                // 低电负性差金属-非金属形成共价键（H已在上面跳过，此处无需duet规则）
-                                const needP = 8 - p.valence;
-                                const needN = 8 - n.valence;
+                                const metal = p.group === METAL ? p : n;
+                                const nonmetal = p.group === NONMETAL ? p : n;
+                                if (this.judgeBondType(metal, nonmetal) === 'ionic') continue;
+                                // 判为共价键 → 形成低电负性差金属-非金属共价键
+                                // 已达八隅体稳定结构的棋子不再成键
+                                const needP = 8 - p.totalElectrons;
+                                const needN = 8 - n.totalElectrons;
                                 const sharedE = Math.min(Math.max(0, needP), Math.max(0, needN));
                                 if (sharedE > 0) {
                                     candidates.push({ p1: p.id, p2: n.id, type: 'covalent', shared: sharedE, enDiff });
@@ -3410,9 +3508,11 @@
                                 // 金属键
                                 candidates.push({ p1: p.id, p2: n.id, type: 'metallic', shared: 1, enDiff });
                             } else if (bothNonMetal) {
-                                // 共价键：H 用 2 电子规则，其他用 8 电子规则
-                                const needP = p.isHydrogenKing ? (2 - p.valence) : (8 - p.valence);
-                                const needN = n.isHydrogenKing ? (2 - n.valence) : (8 - n.valence);
+                                // 共价键：H 用 2 电子规则，其他用 8 电子规则（已达稳定结构的不再成键）
+                                const octetP = p.isHydrogenKing ? 2 : 8;
+                                const octetN = n.isHydrogenKing ? 2 : 8;
+                                const needP = octetP - p.totalElectrons;
+                                const needN = octetN - n.totalElectrons;
                                 const sharedE = Math.min(Math.max(0, needP), Math.max(0, needN));
                                 if (sharedE > 0) {
                                     candidates.push({ p1: p.id, p2: n.id, type: 'covalent', shared: sharedE, enDiff });
@@ -3523,32 +3623,73 @@
 
                 updateAllBonds() { this.rebuildAllBonds(); }
 
+                // 键型判定：基于例外表 + 法扬斯规则 + 电负性差阈值
+                // 参数：metalPiece=金属棋子, nonmetalPiece=非金属棋子
+                // 返回：'ionic' | 'covalent'
+                judgeBondType(metalPiece, nonmetalPiece) {
+                    // 1. 【最高优先级】硬编码例外表（覆盖一切理论）
+                    const exceptions = {
+                        'Li-H': 'ionic',    // 反例：电负性差 1.2，却是离子
+                        'Be-H': 'covalent', // 反例：电负性差 1.3，却是共价聚合物
+                        'Al-Cl': 'covalent',// 反例：差 1.5，却是共价
+                        'Fe-Cl': 'covalent',// 过渡金属强极化，典型共价
+                        'Cu-Cl': 'covalent',
+                        'Ag-I': 'covalent',
+                        'Na-P': 'covalent'
+                    };
+                    const key = metalPiece.symbol + '-' + nonmetalPiece.symbol;
+                    if (exceptions[key]) return exceptions[key];
+
+                    const enDiff = Math.abs(metalPiece.electroneg - nonmetalPiece.electroneg);
+                    const metalValence = metalPiece.valence;
+                    const metalPeriod = metalPiece.period;
+
+                    // 2. 【快速通道】极大/极小差值直接判
+                    if (enDiff > 2.0) return 'ionic';   // 如 NaCl
+                    if (enDiff < 0.8) return 'covalent';// 如 SiC
+
+                    // 3. 【核心】法扬斯规则量化（极化力 vs 变形性）
+                    const polarizingPower = metalValence / metalPeriod;
+                    const anionSoftness = nonmetalPiece.period;
+
+                    // 如果阳离子极化力强，且阴离子够软，判为共价
+                    if (polarizingPower > 0.6 && anionSoftness >= 3) {
+                        return 'covalent';
+                    }
+
+                    // 如果阳离子极化力强，但阴离子是极硬的（如 F⁻、H⁻），
+                    // 阴离子拒绝变形，强行维持离子性
+                    if (polarizingPower > 0.6 && anionSoftness <= 2) {
+                        return 'ionic';
+                    }
+
+                    // 4. 【最后兜底】使用标准阈值
+                    return enDiff > 1.7 ? 'ionic' : 'covalent';
+                }
+
                 canCapture(attacker, defender) {
                     if (attacker.color === defender.color) return false;
                     if (attacker.noble || defender.noble) return false; // 稀有气体不参与吃子
-                    const enDiff = Math.abs(attacker.electroneg - defender.electroneg);
-                    // H(isHK)与金属→离子键吃子（如LiH等离子氢化物）
-                    if ((attacker.group === METAL && defender.isHydrogenKing) ||
-                        (defender.group === METAL && attacker.isHydrogenKing)) return true;
-                    // 离子键：仅金属-非金属可无条件直接吃子
-                    if (enDiff > 1.6) {
-                        if ((attacker.group === METAL && defender.group === NONMETAL) ||
-                            (attacker.group === NONMETAL && defender.group === METAL)) {
-                            return true;
-                        }
-                        // 非金属-非金属高电负性差不能形成离子键，继续走共价键机制
-                        if (attacker.group !== NONMETAL || defender.group !== NONMETAL) {
-                            return false;
-                        }
+                    // 金属-非金属：用judgeBondType判定离子键（直接吃）还是共价键（需键合）
+                    const isMetalNonmetal = (attacker.group === METAL && defender.group === NONMETAL) ||
+                                            (attacker.group === NONMETAL && defender.group === METAL);
+                    if (isMetalNonmetal) {
+                        const metal = attacker.group === METAL ? attacker : defender;
+                        const nonmetal = attacker.group === NONMETAL ? attacker : defender;
+                        if (this.judgeBondType(metal, nonmetal) === 'ionic') return true;
+                        // 判为共价键 → 需目标已键合，且攻击者不是键合伙伴
+                        if (!defender.bondedWith || defender.bondedWith.length === 0) return false;
+                        if (attacker.bondedWith && attacker.bondedWith.includes(defender.id)) return false;
+                        return !defender.bondedWith.includes(attacker.id);
                     }
-                    // 共价键/金属键机制：需目标已键合，且攻击者不是键合伙伴
+                    // 非金属-非金属：共价键机制；金属-金属：金属键机制
                     if (!defender.bondedWith || defender.bondedWith.length === 0) return false;
                     if (attacker.bondedWith && attacker.bondedWith.includes(defender.id)) return false;
                     return !defender.bondedWith.includes(attacker.id);
                 }
 
                 getLegalMoves(piece) {
-                    if (!piece || piece.stunned) return [];
+                    if (!piece || piece.row < 0 || piece.col < 0 || piece.stunned) return [];
                     const moves = [];
                     const dirs = piece.getPriorityDirections();
                     const maxSteps = piece.effectiveMoveSteps;
@@ -3577,6 +3718,9 @@
                     this.board[fromRow][fromCol] = null;
                     let wasIonic = false;
                     if (isAttack && target) {
+                        // 移动已破坏旧键合：先清除攻击方的共享电子，避免溢出计算基于过时状态
+                        piece.sharedElectrons = 0;
+                        piece.bondedWith = null;
                         wasIonic = this.handleCapture(piece, target);
                     } else if (this.board[toRow][toCol]) {
                         // 安全保护：非吃子移动时目标格已有棋子，回滚并跳过
@@ -3623,19 +3767,20 @@
                                     }
                                 }
                             }
-                        }, 420);
+                        }, 360);
                     }
                     return true;
                 }
 
                 handleCapture(attacker, defender) {
-                    const enDiff = Math.abs(attacker.electroneg - defender.electroneg);
-                    // H(isHK)+金属始终为离子键，无论电负性差大小
-                    const hkMetalPair = (attacker.isHydrogenKing && defender.group === METAL) ||
-                                        (defender.isHydrogenKing && attacker.group === METAL);
-                    const isIonic = hkMetalPair || (enDiff > 1.6 &&
-                        ((attacker.group === METAL && defender.group === NONMETAL) ||
-                         (attacker.group === NONMETAL && defender.group === METAL)));
+                    // 用judgeBondType判定金属-非金属间的键型（离子/共价）
+                    let isIonic = false;
+                    if ((attacker.group === METAL && defender.group === NONMETAL) ||
+                        (attacker.group === NONMETAL && defender.group === METAL)) {
+                        const metal = attacker.group === METAL ? attacker : defender;
+                        const nonmetal = attacker.group === NONMETAL ? attacker : defender;
+                        isIonic = this.judgeBondType(metal, nonmetal) === 'ionic';
+                    }
                     this.addLog(`${attacker.symbol}(${this._colorName(attacker.color)}) ${this._t('logCaptured')} ${defender.symbol}(${this._colorName(defender.color)})`);
                     if (defender.isHydrogenKing) {
                         this.gameOver = true; this.winner = attacker.color;
@@ -3694,7 +3839,7 @@
                 }
 
                 resolveElectrostaticAttraction() {
-                    const charged = this.pieces.filter(p => p.charge !== 0);
+                    const charged = this.pieces.filter(p => p.charge !== 0 && p.row >= 0 && p.col >= 0);
                     if (charged.length < 2) return;
                     // 收集所有异号电荷对
                     const pairs = [];
@@ -3755,6 +3900,7 @@
                         if (nr<0||nr>=8||nc<0||nc>=8) break;
                         if (nr===target.row && nc===target.col) break;
                         rem--;
+                        // 电性吸引可跳过其他棋子，但不可吃子（lastEmptyR/C不更新保证了不会停在棋子格上）
                         if (this.board[nr][nc]) {
                             cr=nr; cc=nc;
                             continue;
@@ -3769,20 +3915,21 @@
                 }
 
                 canGiveElectron(piece) {
-                    if (!piece || piece.group !== METAL || piece.color !== this.currentTurn || piece.totalElectrons <= 0) return null;
+                    if (!piece || piece.row < 0 || piece.col < 0 || piece.group !== METAL || piece.color !== this.currentTurn || piece.totalElectrons <= 0) return null;
                     return this.getAdjacentPieces(piece.row, piece.col)
-                        .filter(n => n.color === piece.color && n.group === NONMETAL && !n.noble)
+                        .filter(n => n.row >= 0 && n.col >= 0 && n.color === piece.color && n.group === NONMETAL && !n.noble)
                         .filter(n => n.isHydrogenKing ? n.totalElectrons < 2 : n.totalElectrons < 8);
                 }
 
                 hasAvailableSteps(color) {
                     const pieces = color === COLOR_WHITE ? this.whitePieces : this.blackPieces;
                     for (const p of pieces) {
+                        if (p.row < 0 || p.col < 0) continue;
                         if (p.stunned || p.totalElectrons <= 0) continue;
                         if (this.getLegalMoves(p).length > 0) return true;
                         if (p.group === METAL && p.totalElectrons > 0) {
                             const neighbors = this.getAdjacentPieces(p.row, p.col);
-                            if (neighbors.some(n => n.color === p.color && n.group === NONMETAL && !n.noble
+                            if (neighbors.some(n => n.row >= 0 && n.col >= 0 && n.color === p.color && n.group === NONMETAL && !n.noble
                                 && (n.isHydrogenKing ? n.totalElectrons < 2 : n.totalElectrons < 8))) return true;
                         }
                     }
@@ -3833,13 +3980,27 @@
                 // ========== 联机消息处理 ==========
                 _onRemoteMessage(msg){
                     if (!this.onlineMode || !this.onlineManager) return; // 断开后忽略残余消息
+                    if (!msg || typeof msg.type !== 'string') return;
                     this._remoteProcessing = true;
                     try {
                         switch(msg.type){
                             case 'move':{
                                 const piece = this.getPieceById(msg.pieceId);
                                 if(!piece) break;
+                                // 验证：不能移动对手的棋子
+                                if (piece.color !== this.onlineMyColor) {
+                                    this.addLog('[安全] 拒绝非法移动（非己方棋子）'); break;
+                                }
+                                // 验证：目标坐标在棋盘内
+                                if (typeof msg.toRow !== 'number' || typeof msg.toCol !== 'number' ||
+                                    msg.toRow < 0 || msg.toRow >= 8 || msg.toCol < 0 || msg.toCol >= 8) {
+                                    this.addLog('[安全] 拒绝非法移动（坐标越界）'); break;
+                                }
                                 const target = msg.isAttack && msg.targetId ? this.getPieceById(msg.targetId) : null;
+                                // 验证：吃子目标必须是对方棋子
+                                if (target && target.color === piece.color) {
+                                    this.addLog('[安全] 拒绝非法移动（不能吃己方棋子）'); break;
+                                }
                                 const fromRow = piece.row, fromCol = piece.col;
                                 this.movePiece(piece, msg.toRow, msg.toCol, msg.isAttack, target);
                                 if(msg.animInfo){
@@ -3851,13 +4012,33 @@
                             }
                             case 'giveElectron':{
                                 const metal = this.getPieceById(msg.metalId), nonmetal = this.getPieceById(msg.nonmetalId);
-                                if(metal && nonmetal) this.giveElectron(metal, nonmetal);
+                                // 验证：两个棋子必须存在且金属属于对手（对手视角的己方）
+                                if (!metal || !nonmetal) break;
+                                if (metal.color !== this.onlineManager.localColor) {
+                                    this.addLog('[安全] 拒绝非法给电子'); break;
+                                }
+                                // 验证：两者相邻
+                                const dr2 = Math.abs(metal.row - nonmetal.row);
+                                const dc2 = Math.abs(metal.col - nonmetal.col);
+                                if (dr2 > 1 || dc2 > 1 || (dr2 === 0 && dc2 === 0)) {
+                                    this.addLog('[安全] 拒绝非法给电子（不相邻）'); break;
+                                }
+                                this.giveElectron(metal, nonmetal);
                                 this.updateUI();
                                 break;
                             }
                             case 'nuclearTransform':{
                                 const piece = this.getPieceById(msg.pieceId);
-                                if(piece) this.nuclearTransform(piece, msg.newKey, msg.isotopeSpec||null);
+                                if(!piece) break;
+                                // 验证：必须是己方Li且在底线
+                                if (piece.color !== this.onlineManager.localColor || piece.symbol !== 'Li') {
+                                    this.addLog('[安全] 拒绝非法核变'); break;
+                                }
+                                if (!this.canNuclearTransform(piece)) {
+                                    this.addLog('[安全] 拒绝非法核变（不在底线）'); break;
+                                }
+                                if (!PIECE_DEFS[msg.newKey] || msg.newKey === 'H') break;
+                                this.nuclearTransform(piece, msg.newKey, msg.isotopeSpec||null);
                                 this.endTurn(true);
                                 break;
                             }
@@ -3977,11 +4158,6 @@
                     const supDigits = {'0':'\u2070','1':'\u00B9','2':'\u00B2','3':'\u00B3','4':'\u2074','5':'\u2075','6':'\u2076','7':'\u2077','8':'\u2078','9':'\u2079'};
                     const massStr = String(mass).split('').map(c => supDigits[c]||c).join('');
                     return massStr + sym;
-                }
-
-                // 核素符号格式化（HTML上标，用于界面渲染）
-                nuclideHTML(sym, mass) {
-                    return `<sup>${mass}</sup>${sym}`;
                 }
 
                 // 将棋子变换为另一元素（保留位置、颜色、id，衰变产物使用默认同位素）
@@ -4332,8 +4508,10 @@
                         this._scheduleTimeout(() => this.triggerAIMove(), 500);
                         return;
                     }
-                    // 无步跳过循环
-                    while (!this.gameOver && !this.hasAvailableSteps(this.currentTurn)) {
+                    // 无步跳过循环（最多迭代8次防止无限循环）
+                    let _skipIter = 0;
+                    while (!this.gameOver && !this.hasAvailableSteps(this.currentTurn) && _skipIter < 8) {
+                        _skipIter++;
                         const colorName = this._sideName(this.currentTurn);
                         if (this.currentTurn === COLOR_WHITE) this._whiteNoStepCount++;
                         else this._blackNoStepCount++;
@@ -4350,6 +4528,9 @@
                         this.selectedPiece = null; this.legalMoves = [];
                         this.updateAllBonds();
                         this.updateUI();
+                    }
+                    if (_skipIter >= 8 && !this.gameOver) {
+                        this.addLog(`[WARN] 跳过循环达到上限，强制继续执子`);
                     }
                     if(!skipSend && this.onlineMode && this.onlineManager && !this._skipNextEndTurnSend){
                         this.onlineManager.send({type:'endTurn'});
@@ -4541,7 +4722,7 @@
                     // 保存回退状态
                     if (!this._remoteProcessing) this.saveUndoState();
                     this._animating = true;
-                    this._scheduleTimeout(() => { this._animating = false; this.updateUI(); }, 420);
+                    this._scheduleTimeout(() => { this._animating = false; this.updateUI(); }, 360);
                     const fromRow = piece.row, fromCol = piece.col;
                     const captured = move.isAttack ? move.targetPiece : null;
                     // 快照移动前角标状态（移动后可能因吃子而获得电荷/额外电子）
@@ -4583,9 +4764,6 @@
                         this.onlineManager.send({type:'move',pieceId:piece.id,fromRow,fromCol,toRow:move.row,toCol:move.col,isAttack:move.isAttack,targetId:captured?captured.id:null,animInfo:this._animMovedInfos[0],endTurn:true});
                         this._skipNextEndTurnSend = true;
                     }
-                    // 移动后刷新成键指示器overlay（不触发renderBoard，保留动画状态）
-                    this._renderBondDisplayOverlay();
-                    this._renderBondIndicatorOverlay();
                     // Li移动后到达底线 → 自动弹出升变面板 (debug模式跳过)
                     if(!this.debugMode && piece.symbol==='Li' && this.canNuclearTransform(piece)){
                         this.selectedPiece=piece; this.legalMoves=[];
@@ -4789,14 +4967,18 @@
                         card.addEventListener('click', ()=>{
                             const spec=isStable?{mass:iso.mass,radio:false,halfLife:0,decay:null,name:iso.name||null}
                                 :{mass:iso.mass,radio:true,halfLife:iso.halfLife||3,decay:iso.decay||'alpha',name:iso.name||null};
-                            if (this._debugAddTarget) {
+                            if (this._debugAddTarget && this.debugMode) {
                                 this.debugPlaceNewPiece(this._debugAddTarget.row, this._debugAddTarget.col, elementKey, spec, this._debugAddColor);
                                 this._debugAddTarget = null;
                             } else {
-                                this.nuclearTransform(piece,elementKey,spec);
-                                this.selectedPiece=null; this.legalMoves=[];
-                                closeModal(modal); this.endTurn();
-                                return;
+                                // 清除可能泄漏的 debug 状态
+                                this._debugAddTarget = null;
+                                if (piece) {
+                                    this.nuclearTransform(piece,elementKey,spec);
+                                    this.selectedPiece=null; this.legalMoves=[];
+                                    closeModal(modal); this.endTurn();
+                                    return;
+                                }
                             }
                             closeModal(modal);
                         });
@@ -4996,11 +5178,13 @@
                 }
 
                 // 通用：计算两格包围框（百分比定位），返回创建的frame元素
-                _renderBondFrame(overlay, r1, c1, r2, c2, frameClass) {
+                // dataKey: 可选标识符，用于增量更新时区分新旧帧
+                _renderBondFrame(overlay, r1, c1, r2, c2, frameClass, dataKey = null) {
                     const pct = 100 / 8;
                     const inset = 0.05;
                     const frame = document.createElement('div');
                     frame.className = frameClass;
+                    if (dataKey != null) frame.dataset.bondKey = dataKey;
                     const dr = r2 - r1, dc = c2 - c1;
                     const isDiagonal = (dr !== 0 && dc !== 0);
                     if (isDiagonal) {
@@ -5036,32 +5220,129 @@
                 }
 
                 // 已存在键合显示（共价键灰色实线框 / 金属键拼接大圆角矩形）
-                _renderBondDisplayOverlay() {
+                // animateIn: 是否启用增量动画（新键淡入 + 断键淡出）
+                _renderBondDisplayOverlay(animateIn = false) {
                     const overlay = document.getElementById('bondDisplayOverlay');
                     if (!overlay) return;
-                    overlay.innerHTML = '';
-                    const drawnPairs = new Set();
                     const covalentBonds = this.bonds.filter(b => b.type !== 'metallic');
                     const metallicBonds = this.bonds.filter(b => b.type === 'metallic');
 
-                    // 共价键：逐对渲染
+                    // 收集当前应有的所有键标识符
+                    const currentKeys = new Set();
+                    const drawnPairs = new Set();
+                    const covalentEntries = []; // { pairKey, p1, p2 }
                     for (const b of covalentBonds) {
                         const p1 = this.getPieceById(b.p1), p2 = this.getPieceById(b.p2);
                         if (!p1 || !p2) continue;
-                        const pairKey = Math.min(b.p1, b.p2) + '_' + Math.max(b.p1, b.p2);
+                        const minId = Math.min(b.p1, b.p2), maxId = Math.max(b.p1, b.p2);
+                        const pairKey = `c_${minId}_${maxId}_${p1.row}_${p1.col}_${p2.row}_${p2.col}`;
                         if (drawnPairs.has(pairKey)) continue;
                         drawnPairs.add(pairKey);
-                        this._renderBondFrame(overlay, p1.row, p1.col, p2.row, p2.col, 'bond-display-frame');
+                        currentKeys.add(pairKey);
+                        covalentEntries.push({ pairKey, p1, p2 });
+                    }
+                    // 金属簇键标识符（用于增量比较，但不做逐帧淡出）
+                    const mKeys = metallicBonds.length > 0 ? this._getMetallicClusterKeys(metallicBonds) : [];
+                    for (const k of mKeys) currentKeys.add(k);
+
+                    if (!animateIn) {
+                        // 静态渲染：全量重建，无动画
+                        overlay.innerHTML = '';
+                        for (const { p1, p2, pairKey } of covalentEntries) {
+                            this._renderBondFrame(overlay, p1.row, p1.col, p2.row, p2.col, 'bond-display-frame', pairKey);
+                        }
+                        if (metallicBonds.length > 0) this._renderMetallicClusters(overlay, metallicBonds);
+                        return;
                     }
 
-                    // 金属键：按集群渲染拼接大框
-                    if (metallicBonds.length > 0) {
-                        this._renderMetallicClusters(overlay, metallicBonds);
+                    // === 增量动画渲染 ===
+                    // 1. 收集DOM中已有的帧及其键（SVG和div分开追踪）
+                    const existingByKey = new Map(); // key → DOM element (div covalent frame)
+                    const svgByKey = new Map();      // key → SVG element (metallic cluster)
+                    for (const el of overlay.children) {
+                        const k = el.dataset && el.dataset.bondKey;
+                        if (!k) continue;
+                        if (el.tagName === 'svg' || el.tagName === 'SVG') {
+                            svgByKey.set(k, el);
+                        } else {
+                            existingByKey.set(k, el);
+                        }
+                    }
+                    const prevKeys = new Set(existingByKey.keys());
+                    for (const k of svgByKey.keys()) prevKeys.add(k);
+
+                    // 2. 断键淡出：在prevKeys但不在currentKeys中的共价帧
+                    for (const [key, el] of existingByKey) {
+                        if (!currentKeys.has(key) && key.startsWith('c_')) {
+                            el.style.opacity = '0';
+                            this._scheduleTimeout(() => { if (el.parentNode) el.remove(); }, 300);
+                        }
+                    }
+                    // 金属簇：增量更新——消失的淡出，新的淡入，不变的保留
+                    const prevMKeys = new Set(svgByKey.keys());
+                    for (const [svgKey, svg] of svgByKey) {
+                        if (!currentKeys.has(svgKey)) {
+                            // 消失的簇：淡出后移除
+                            svg.style.opacity = '0';
+                            this._scheduleTimeout(() => { if (svg.parentNode) svg.remove(); }, 300);
+                        }
+                        // 仍存在的簇：保留在DOM中不动
+                    }
+                    // 仅渲染新出现的簇（在currentKeys但不在prevMKeys中）
+                    const newMKeys = new Set([...currentKeys].filter(k => k.startsWith('m_') && !prevMKeys.has(k)));
+                    if (newMKeys.size > 0 && metallicBonds.length > 0) {
+                        this._renderMetallicClusters(overlay, metallicBonds, newMKeys);
+                        // 新簇淡入
+                        for (const el of overlay.children) {
+                            const k = el.dataset && el.dataset.bondKey;
+                            if (k && newMKeys.has(k)) {
+                                el.style.opacity = '0';
+                                this._scheduleTimeout(() => { el.style.opacity = ''; }, 200);
+                            }
+                        }
+                    }
+
+                    // 3. 新键淡入 / 复活：在currentKeys但不在prevKeys中的共价键
+                    const newCovalentKeys = new Set([...currentKeys].filter(k => !prevKeys.has(k) && k.startsWith('c_')));
+                    for (const { p1, p2, pairKey } of covalentEntries) {
+                        if (newCovalentKeys.has(pairKey)) {
+                            // 清除可能正在淡出的旧帧（断键后快速重建）
+                            const stale = existingByKey.get(pairKey);
+                            if (stale && parseFloat(stale.style.opacity) === 0) { stale.remove(); }
+                            const frame = this._renderBondFrame(overlay, p1.row, p1.col, p2.row, p2.col, 'bond-display-frame', pairKey);
+                            frame.style.opacity = '0';
+                            this._scheduleTimeout(() => { frame.style.opacity = ''; }, 200);
+                        } else if (!existingByKey.has(pairKey)) {
+                            // DOM中丢失但仍应存在（异常恢复）：直接渲染
+                            this._renderBondFrame(overlay, p1.row, p1.col, p2.row, p2.col, 'bond-display-frame', pairKey);
+                        }
+                        // 键已在DOM中且可见 → 保持不动
                     }
                 }
 
+                // 计算金属簇键标识符（不实际渲染）
+                _getMetallicClusterKeys(metallicBonds) {
+                    const parent = new Map();
+                    const find = (x) => { if (!parent.has(x)) parent.set(x, x); if (parent.get(x) !== x) parent.set(x, find(parent.get(x))); return parent.get(x); };
+                    const union = (a, b) => { const ra = find(a), rb = find(b); if (ra !== rb) parent.set(ra, rb); };
+                    for (const b of metallicBonds) union(b.p1, b.p2);
+                    const clusters = new Map();
+                    for (const id of new Set(metallicBonds.flatMap(b => [b.p1, b.p2]))) {
+                        const root = find(id);
+                        if (!clusters.has(root)) clusters.set(root, new Set());
+                        clusters.get(root).add(id);
+                    }
+                    const keys = [];
+                    for (const ids of clusters.values()) {
+                        if (ids.size >= 2) keys.push('m_' + [...ids].sort((a, b) => a - b).join('_'));
+                    }
+                    return keys;
+                }
+
                 // 金属键集群：SVG path 外边界（innerHTML方式，兼容性最好）
-                _renderMetallicClusters(overlay, metallicBonds) {
+                // includeKeys: 可选Set，仅渲染指定key的集群（增量更新用）
+                _renderMetallicClusters(overlay, metallicBonds, includeKeys = null) {
+                    const mKeys = [];
                     const parent = new Map();
                     const find = (x) => { if (!parent.has(x)) parent.set(x, x); if (parent.get(x) !== x) parent.set(x, find(parent.get(x))); return parent.get(x); };
                     const union = (a, b) => { const ra = find(a), rb = find(b); if (ra !== rb) parent.set(ra, rb); };
@@ -5084,7 +5365,10 @@
                     for (const ids of clusters.values()) {
                         const cells = [...ids].map(id => this.getPieceById(id)).filter(p => p);
                         if (cells.length < 2) continue;
-                        
+                        // 增量模式：跳过不需要渲染的集群
+                        const clusterKey = 'm_' + [...ids].sort((a, b) => a - b).join('_');
+                        if (includeKeys && !includeKeys.has(clusterKey)) continue;
+
                         const cellSet = new Set(cells.map(p => `${p.row},${p.col}`));
                         
                         // 1. 提取所有无相邻格子的外边缘段（顺时针）
@@ -5219,17 +5503,26 @@
 
                         if (!pathD) continue;
 
-                        const svgHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible;" xmlns="http://www.w3.org/2000/svg">
+                        // clusterKey 已在循环头部声明（供 includeKeys 过滤使用）
+                        mKeys.push(clusterKey);
+                        const svgHTML = `<svg data-bond-key="${clusterKey}" viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible;transition:opacity 0.28s cubic-bezier(0.34,1.3,0.64,1);" xmlns="http://www.w3.org/2000/svg">
                             <path d="${pathD}" fill="none" stroke="#c4a090" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" opacity="0.5"/>
                         </svg>`;
                         overlay.insertAdjacentHTML('beforeend', svgHTML);
                     }
+                    return mKeys;
                 }
 
                 // 成键指示器（选中棋子时预览共价键/金属键，灰色虚线框）
-                _renderBondIndicatorOverlay() {
+                // animateIn: 是否延迟渐显（棋子移动动画完成前50ms开始淡入）
+                _renderBondIndicatorOverlay(animateIn = false) {
                     const overlay = document.getElementById('bondIndicatorOverlay');
                     if (!overlay) return;
+                    // 收集DOM中已有的指示帧键（上次渲染结果）
+                    const prevKeys = new Set();
+                    for (const el of overlay.querySelectorAll('[data-bond-key]')) {
+                        prevKeys.add(el.dataset.bondKey);
+                    }
                     overlay.innerHTML = '';
                     if (!this.selectedPiece || this.selectedPiece.noble) return;
                     // 对每个合法落点预览：模拟棋子位于该落点时会形成的成键，框从落点画到成键对象
@@ -5241,10 +5534,28 @@
                         for (const tid of targets) {
                             const target = this.getPieceById(tid);
                             if (!target) continue;
-                            const key = move.row + ',' + move.col + '-' + tid;
+                            const key = 'i_' + move.row + ',' + move.col + '-' + tid;
                             if (drawn.has(key)) continue;
                             drawn.add(key);
-                            this._renderBondFrame(overlay, move.row, move.col, target.row, target.col, 'bond-indicator-frame');
+                            this._renderBondFrame(overlay, move.row, move.col, target.row, target.col, 'bond-indicator-frame', key);
+                        }
+                    }
+                    // 仅对新出现的指示帧执行渐显动画
+                    if (animateIn && overlay.children.length > 0) {
+                        const newFrames = [];
+                        for (const frame of overlay.children) {
+                            const k = frame.dataset && frame.dataset.bondKey;
+                            if (k && !prevKeys.has(k)) newFrames.push(frame);
+                        }
+                        if (newFrames.length > 0) {
+                            for (const frame of newFrames) {
+                                frame.style.opacity = '0';
+                            }
+                            this._scheduleTimeout(() => {
+                                for (const frame of newFrames) {
+                                    frame.style.opacity = '';
+                                }
+                            }, 200);
                         }
                     }
                 }
@@ -5352,9 +5663,11 @@
                     }
                     boardEl.replaceChildren(frag);
                     // 已存在键合显示：灰色实线圆角矩形框
-                    this._renderBondDisplayOverlay();
+                    // 有移动动画时延迟渐显：动画380ms → 完成前50ms(330ms后)开始淡入
+                    const hasAnim = this._animMovedInfos && this._animMovedInfos.length > 0;
+                    this._renderBondDisplayOverlay(hasAnim);
                     // 成键指示器：灰色虚线圆角矩形框（选中棋子时预览）
-                    this._renderBondIndicatorOverlay();
+                    this._renderBondIndicatorOverlay(hasAnim);
                     // 电子给体指示器：灰色虚线圆（选中金属时显示可给电子的非金属目标）
                     this._renderElectronDonationOverlay();
                     // 清除一次性动画标记
@@ -5499,6 +5812,15 @@
                     ti.style.opacity = '';
                     if (!bestMove) {
                         this.addLog(this._t('logAINoMoves'));
+                        this.endTurn();
+                        return;
+                    }
+                    // 核变动作：直接执行核变后结束回合
+                    if (bestMove.action === 'nuclear') {
+                        const liP = this.getPieceById(bestMove.piece.id);
+                        if (liP && liP.symbol === 'Li' && this.canNuclearTransform(liP)) {
+                            this.nuclearTransform(liP, bestMove.elementKey, bestMove.isotopeSpec);
+                        }
                         this.endTurn();
                         return;
                     }
@@ -5916,8 +6238,6 @@
                         timeoutWhite: '白方超时判负',
                         timeoutBlack: '黑方超时判负',
                         hCaptured: '氢王(H)被吃',
-                        gameStart: '游戏开始！白方先行。',
-                        gameReset: '游戏已重置！白方先行。',
                         ionBondTip: '离子键可直接吃子；共价/金属键需目标已键合且攻击者非键合伙伴。',
                         settings: '设置',
                         darkMode: '夜间模式',
@@ -6065,8 +6385,6 @@
                         timeoutWhite: 'White lost on time',
                         timeoutBlack: 'Black lost on time',
                         hCaptured: 'Hydrogen King captured',
-                        gameStart: 'Game started! White goes first.',
-                        gameReset: 'Game reset! White goes first.',
                         ionBondTip: 'Ionic bond: direct capture. Covalent/metallic: target must be bonded, attacker not a bond partner.',
                         settings: 'Settings',
                         darkMode: 'Dark Mode',
@@ -6740,15 +7058,11 @@
             const btnReview = document.getElementById('btnReview');
             if (btnReview) {
                 btnReview.addEventListener('click', () => { game.openReview(); });
-                btnReview.addEventListener('dblclick', () => { game.openReview(); });
             }
 
             // ========== AI人机对战控制 ==========
             const btnAI = document.getElementById('btnAI');
             btnAI.addEventListener('click', () => toggleAI());
-            // AI复盘（双击）
-            btnAI.addEventListener('dblclick', () => { game.openReview(); });
-            btnAI.addEventListener('contextmenu', (e) => { e.preventDefault(); game.openReview(); });
 
             function showRulesModal() {
                 const modal = document.getElementById('rulesModal');
