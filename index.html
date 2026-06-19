@@ -3186,6 +3186,7 @@
                     this.winReason = null;
                     this.logEntries = [];
                     this._resetGeneration = 0; // 递增以废弃旧定时器回调
+                    this._aiGeneration = 0;    // 递增以废弃旧的AI思考任务
                     this._animFrameId = null; // 追踪requestAnimationFrame
                     this.debugMode = false; this._debugAddTarget = null; this._debugAddColor = COLOR_WHITE;
                     this.onlineMode = false; this.onlineManager = null; this.onlineMyColor = null;
@@ -4457,6 +4458,8 @@
                 undo() {
                     if (this.gameOver || this._animating || this._undoStack.length === 0) return false;
                     if (this.onlineMode) { this.addLog(this._t('logCannotUndo')); return false; }
+                    // 中断正在执行的AI思考任务
+                    this._aiGeneration++;
                     if (this.aiMode && this.currentTurn !== this.aiColor) {
                         // 人机模式：撤销两步（玩家+AI）
                         this._undoStack.pop();
@@ -4482,6 +4485,14 @@
                             p.decayCounter = pd.decayCounter; p.isotopeName = pd.isotopeName;
                             this.pieces.push(p);
                             pieceMap.set(p.id, p);
+                        } else {
+                            // 已存在的棋子（如Li升变后的新元素）：恢复核心身份属性
+                            p.defKey = pd.defKey; p.symbol = pd.symbol; p.group = pd.group;
+                            p.Z = pd.Z; p.electroneg = pd.electroneg; p.period = pd.period;
+                            p.noble = pd.noble; p.isHydrogenKing = pd.isHydrogenKing;
+                            p.mass = pd.mass; p.radioactive = pd.radioactive;
+                            p.decayMode = pd.decayMode; p.halfLifeRounds = pd.halfLifeRounds;
+                            p.decayCounter = pd.decayCounter; p.isotopeName = pd.isotopeName;
                         }
                         p.row = pd.row; p.col = pd.col; p.valence = pd.valence;
                         p.sharedElectrons = pd.sharedElectrons; p.bonusElectrons = pd.bonusElectrons;
@@ -4835,6 +4846,7 @@
                     this.aiColor = 'black';
                     // 废弃所有挂起的定时器回调
                     this._resetGeneration++;
+                    this._aiGeneration++;
                     // 取消挂起的动画帧
                     if (this._animFrameId) { cancelAnimationFrame(this._animFrameId); this._animFrameId = null; }
                     // 停止计时器
@@ -5462,6 +5474,8 @@
                 async triggerAIMove() {
                     if (!this.ai || this.gameOver || this.currentTurn !== this.aiColor) return;
                     if (this._animating) { this._scheduleTimeout(() => this.triggerAIMove(), 200); return; }
+                    // 记录当前代次，用于检测回退中断
+                    const aiGen = this._aiGeneration;
                     // 暂停计时器，UI显示"思考中"
                     if (this.chessClock && this.chessClock.running) this.chessClock.pause();
                     const ti = document.getElementById('turnIndicator');
@@ -5472,7 +5486,11 @@
                     this.updateUI();
                     // yield to UI，让棋盘渲染完成
                     await new Promise(r => setTimeout(r, 80));
+                    // 回退/重置中断检查
+                    if (this._aiGeneration !== aiGen) return;
                     const bestMove = this.ai.findBestMove();
+                    // 回退/重置中断检查（搜索可能耗时数秒，期间状态可能被回退修改）
+                    if (this._aiGeneration !== aiGen || !this.ai || this.gameOver || this.currentTurn !== this.aiColor) return;
                     // 恢复计时器
                     if (this.chessClock && this.chessClock.active && !this.chessClock.running) {
                         this.chessClock.resume();
