@@ -302,6 +302,36 @@
         @media (min-width: 769px) {
             .side-panel { height: calc(var(--board-size) + 16px); max-height: none; }
         }
+        /* 隐藏侧边栏 */
+        body.sidebar-hidden .side-panel { display: none !important; }
+        /* 移动端：侧边栏隐藏后显示浮动恢复按钮 */
+        .sidebar-mobile-toggle { display: none; }
+        @media (max-width: 900px) {
+            body.sidebar-hidden .sidebar-mobile-toggle {
+                display: flex !important;
+                position: fixed; bottom: 20px; right: 20px; z-index: 999;
+                width: 34px; height: 34px; min-width: 34px; min-height: 34px;
+                border-radius: 50%;
+                border: 1.5px solid var(--panel-border, #ddd);
+                background: var(--panel-bg);
+                color: #b0908a;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+                cursor: pointer;
+                align-items: center; justify-content: center;
+                transition: transform 0.2s, opacity 0.3s;
+                padding: 0; line-height: 1;
+            }
+            .sidebar-mobile-toggle:hover {
+                border-color: #b0908a; transform: scale(1.1);
+                box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+            }
+            body.dark-mode .sidebar-mobile-toggle { border-color: var(--panel-border); color: #c4a48a; }
+            .sidebar-mobile-toggle:hover { transform: scale(1.1); }
+            body.dark-mode .sidebar-mobile-toggle {
+                background: var(--side-panel-bg, rgba(40,40,40,0.85));
+                border-color: var(--panel-border, #555);
+            }
+        }
         .side-panel h2 { text-align: center; color: #333333; color: var(--side-panel-heading); margin: 0; font-size: 1.2em; border-bottom: 2px solid #ccc; padding-bottom: 8px; }
         /* 移动端设置行：PC端隐藏 */
         .settings-mobile-row { display: none; }
@@ -1443,6 +1473,13 @@
                 <rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/>
                 <path d="M8 12l3 3 5-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </g>
+            <g id="icon-panel">
+                <rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+                <line x1="9.5" y1="4" x2="9.5" y2="20" stroke="currentColor" stroke-width="1.6"/>
+                <line x1="5.5" y1="8" x2="8" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <line x1="5.5" y1="11.5" x2="8" y2="11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <line x1="5.5" y1="15" x2="8" y2="15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </g>
             <g id="icon-first">
                 <polyline points="17 5 17 19 7 19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                 <polyline points="7 12 3 12 3 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1494,6 +1531,7 @@
             <button class="settings-icon-btn" id="btnCoords" title="显示坐标"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-grid"/></svg></button>
             <button class="settings-icon-btn" id="btnLang" title="Language"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-lang"/></svg></button>
             <button class="settings-icon-btn" id="btnTheme" title="主题设置"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-theme"/></svg></button>
+            <button class="settings-icon-btn" id="btnSidebar" title="隐藏侧边栏"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-panel"/></svg></button>
             <div class="lang-popup" id="langPopup" style="display:none;">
                 <div class="lang-option active" data-lang="zh">中文</div>
                 <div class="lang-option" data-lang="en">English</div>
@@ -1822,6 +1860,11 @@
         </div>
     </div>
 
+    <!-- 移动端侧边栏显示按钮 -->
+    <button class="sidebar-mobile-toggle" id="sidebarMobileToggle" title="显示侧边栏">
+        <svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-panel"/></svg>
+    </button>
+
     <script>
         (function() {
             const BOARD_SIZE = 8;
@@ -2099,7 +2142,9 @@
                     }
                 }
                 get totalElectrons() { return this.valence + this.sharedElectrons + this.bonusElectrons; }
-                get charge() { return this.electronsGiven - this.bonusElectrons; }
+                get charge() {
+                    return this.electronsGiven - this.bonusElectrons;
+                }
                 get effectiveMoveDirs() { return Math.min(this.totalElectrons, 8); }
                 get effectiveMoveSteps() { return this.totalElectrons; }
                 get isEvenPeriod() { return this.period % 2 === 0; }
@@ -2483,9 +2528,9 @@
                     const myPieces = this.color === 'white' ? this.game.whitePieces : this.game.blackPieces;
                     const oppPieces = this.color === 'white' ? this.game.blackPieces : this.game.whitePieces;
                     if (this.game.gameOver) {
-                        if (this.game.winner === this.color) return 100000;
+                        if (this.game.winner === this.color) return 100000000;
                         if (this.game.winner === 'draw') return 0;
-                        return -100000;
+                        return -100000000;
                     }
                     let score = 0;
                     let myMat = 0, oppMat = 0;
@@ -2587,55 +2632,58 @@
                     score += (myDirs - oppDirs) * 2;
                     score += (mySteps - oppSteps) * 1;
 
-                    // === 7. H SAFETY (对称，适度权重避免局部最优) ===
+                    // === 7. H SAFETY (大幅提高权重，吃H即获胜) ===
                     if (myH && myH.row>=0) {
                         const n = this.game.getAdjacentPieces(myH.row, myH.col);
                         const friends = n.filter(x=>x.color===this.color).length;
                         const foes = n.filter(x=>x.color!==this.color).length;
-                        score += friends * 16;
-                        score -= foes * 25;
-                        if (myMat < oppMat) { score += friends * 6; score -= foes * 10; }
-                        if (friends === 0 && foes > 0) score -= 30;
+                        score += friends * 40;
+                        score -= foes * 80;
+                        if (myMat < oppMat) { score += friends * 15; score -= foes * 30; }
+                        if (friends === 0 && foes > 0) score -= 80;
                     }
                     if (oppH && oppH.row>=0) {
                         const n = this.game.getAdjacentPieces(oppH.row, oppH.col);
                         const oppColor = this.color === 'white' ? 'black' : 'white';
                         const oppFriends = n.filter(x => x.color === oppColor).length;
                         const oppFoes = n.filter(x => x.color === this.color).length;
-                        score -= oppFriends * 16;
-                        score += oppFoes * 25;
-                        if (oppMat < myMat) { score -= oppFriends * 6; score += oppFoes * 10; }
-                        if (oppFriends === 0 && oppFoes > 0) score += 35;
+                        score -= oppFriends * 40;
+                        score += oppFoes * 80;
+                        if (oppMat < myMat) { score -= oppFriends * 15; score += oppFoes * 30; }
+                        if (oppFriends === 0 && oppFoes > 0) score += 80;
                     }
 
-                    // === 8. KING SAFETY (对称，可吃H时给予显著但不极端的奖励) ===
+                    // === 8. H THREAT (更加激进地追求吃H) ===
                     for (const p of myPieces) {
                         if (p.row<0||p.col<0||!oppH||oppH.row<0) continue;
                         const distToHK = Math.abs(p.row - oppH.row) + Math.abs(p.col - oppH.col);
-                        const canReach = distToHK <= Math.min(p.totalElectrons, 3);
+                        const canReach = distToHK <= Math.min(p.totalElectrons, 6);
                         if (canReach) {
                             const lineClear = this._isLineClear(p.row, p.col, oppH.row, oppH.col);
                             if (lineClear && this.game.canCapture(p, oppH)) {
-                                score += 4000;  // 可直接吃H — 显著奖励
+                                score += 10000;  // 可直接吃H — 极高奖励
                             }
-                            score += this._pieceValue(p) * 0.12;
+                            score += this._pieceValue(p) * 0.25;
                         }
-                        if (distToHK <= 1) score += 20;
-                        if (distToHK <= 3) score += (4 - distToHK) * 4;
+                        if (distToHK <= 1) score += 100;
+                        if (distToHK <= 3) score += (4 - distToHK) * 15;
+                        // 越靠近H越高奖励
+                        if (distToHK <= 5) score += (6 - distToHK) * 8;
                     }
                     for (const p of oppPieces) {
                         if (p.row<0||p.col<0||!myH||myH.row<0) continue;
                         const distToHK = Math.abs(p.row - myH.row) + Math.abs(p.col - myH.col);
-                        const canReach = distToHK <= Math.min(p.totalElectrons, 3);
+                        const canReach = distToHK <= Math.min(p.totalElectrons, 6);
                         if (canReach) {
                             const lineClear = this._isLineClear(p.row, p.col, myH.row, myH.col);
                             if (lineClear && this.game.canCapture(p, myH)) {
-                                score -= 4000;  // 对方可直接吃我方H — 严重警告
+                                score -= 10000;  // 对方可直接吃我方H — 严重警告
                             }
-                            score -= this._pieceValue(p) * 0.12;
+                            score -= this._pieceValue(p) * 0.25;
                         }
-                        if (distToHK <= 1) score -= 20;
-                        if (distToHK <= 3) score -= (4 - distToHK) * 4;
+                        if (distToHK <= 1) score -= 100;
+                        if (distToHK <= 3) score -= (4 - distToHK) * 15;
+                        if (distToHK <= 5) score -= (6 - distToHK) * 8;
                     }
 
                     // === 9. ADVANCEMENT ===
@@ -2776,7 +2824,7 @@
                 _pieceValue(p) {
                     if (p.row < 0) return 0;
                     let v = p.Z * 2;
-                    if (p.isHydrogenKing) v = 250;
+                    if (p.isHydrogenKing) v = 1200;
                     if (p.noble) v = 25;
                     if (p.totalElectrons > 8) v += Math.pow(p.totalElectrons - 8, 1.5) * 3;
                     if (p.radioactive) v -= 10;
@@ -2809,6 +2857,15 @@
                         for (const m of pieceMoves) {
                             moves.push({ piece: p, move: m });
                         }
+                        // 金属给电子：AI可选动作
+                        if (p.group === METAL && p.electronsGiven < p.baseValence) {
+                            const targets = this.game.canGiveElectron(p);
+                            if (targets && targets.length > 0) {
+                                for (const t of targets) {
+                                    moves.push({ piece: p, move: { action: 'giveElectron', metalId: p.id, nonmetalId: t.id, nonmetal: t } });
+                                }
+                            }
+                        }
                     }
                     return moves;
                 }
@@ -2819,11 +2876,33 @@
 
                 _scoreMove(piece, move) {
                     let score = 0;
+                    // 金属给电子：大幅提高权重
+                    if (move.action === 'giveElectron') {
+                        const nm = move.nonmetal;
+                        if (nm) {
+                            // 基础分：非金属越强收益越大
+                            score += nm.Z * 50 + 500;
+                            // 被增强的非金属距敌H越近价值越高
+                            const oppH = (this.color === 'white' ? this.game.blackPieces : this.game.whitePieces).find(p => p.isHydrogenKing);
+                            if (oppH && oppH.row >= 0 && nm.row >= 0) {
+                                const dist = Math.abs(nm.row - oppH.row) + Math.abs(nm.col - oppH.col);
+                                if (dist <= 3) score += (8 - dist) * 500;
+                            }
+                            // 检查增强后能否直接吃H或吃子
+                            const afterMoves = this.game.getLegalMoves(nm);
+                            if (afterMoves.some(m => m.isAttack && this.game.board[m.row][m.col]?.isHydrogenKing)) {
+                                score += 80000;
+                            }
+                            const captureCount = afterMoves.filter(m => m.isAttack).length;
+                            score += captureCount * 800;
+                        }
+                        return score;
+                    }
                     const isAtk = move.isAttack ? 1 : 0;
                     if (isAtk) {
                         const tgt = this.game.board[move.row][move.col];
                         if (tgt) {
-                            if (tgt.isHydrogenKing) score += 100000;
+                            if (tgt.isHydrogenKing) score += 100000000;
                             else score += tgt.Z * 100;
                         }
                         score += 5000;
@@ -2834,11 +2913,13 @@
                     if (enemyHK && enemyHK.row >= 0) {
                         const oldDist = Math.abs(piece.row - enemyHK.row) + Math.abs(piece.col - enemyHK.col);
                         const newDist = Math.abs(move.row - enemyHK.row) + Math.abs(move.col - enemyHK.col);
-                        if (newDist <= 1) score += 12000;        // 贴脸威胁H
-                        else if (newDist <= 2) score += 4000;    // 逼近到两步内
-                        // 奖励缩短距离（权重适中，避免忽略吃子机会）
+                        if (newDist <= 1) score += 50000;        // 贴脸威胁H — 极大奖励
+                        else if (newDist <= 2) score += 20000;    // 逼近到两步内
+                        // 奖励缩短距离
                         const distReduction = oldDist - newDist;
-                        if (distReduction > 0) score += distReduction * 1500;
+                        if (distReduction > 0) score += distReduction * 5000;
+                        // 奖励减少与H的绝对距离（不论缩短与否，离H越近越好）
+                        if (newDist <= 3) score += (8 - newDist) * 2000;
                     }
                     // Center-ward bonus: prefer moves toward center of 8x8 board
                     score += (7 - Math.abs(move.col - 3.5) - Math.abs(move.row - 3.5)) * 10;
@@ -2860,9 +2941,12 @@
                     const ttBestMove = ttEntry ? ttEntry.bestMove : null;
                     moves.forEach(m => {
                         let bonus = 0;
-                        if (ttBestMove && m.piece.id === ttBestMove.pieceId &&
-                            m.move.row === ttBestMove.row && m.move.col === ttBestMove.col) {
-                            bonus = 1000000;
+                        if (ttBestMove && m.piece.id === ttBestMove.pieceId) {
+                            if (m.move.action === 'giveElectron' && ttBestMove.action === 'giveElectron' && m.move.nonmetalId === ttBestMove.nonmetalId) {
+                                bonus = 1000000;
+                            } else if (m.move.row === ttBestMove.row && m.move.col === ttBestMove.col) {
+                                bonus = 1000000;
+                            }
                         }
                         m._sortScore = this._scoreMove(m.piece, m.move) + bonus;
                     });
@@ -2870,6 +2954,7 @@
                 }
 
                 _storeKiller(piece, move) {
+                    if (move.action === 'giveElectron') return; // 不给电子动作不参加killer
                     const entry = { pieceId: piece.id, row: move.row, col: move.col };
                     if (!this._killerMoves[0] || this._killerMoves[0].pieceId !== piece.id ||
                         this._killerMoves[0].row !== move.row || this._killerMoves[0].col !== move.col) {
@@ -2880,6 +2965,7 @@
 
                 // Returns true if a move puts the piece adjacent to the opponent's HK (giving check)
                 _givesCheck(piece, move) {
+                    if (move.action === 'giveElectron') return false;
                     const oppH = (this.color === 'white' ? this.game.blackPieces : this.game.whitePieces).find(p=>p.isHydrogenKing);
                     if (!oppH || oppH.row < 0) return false;
                     return Math.abs(move.row - oppH.row) + Math.abs(move.col - oppH.col) <= 1;
@@ -2998,13 +3084,17 @@
                             this._restore(snapshot);
                             if (score > bestScore) {
                                 bestScore = score;
-                                bestMoveEntry = { pieceId: piece.id, row: move.row, col: move.col };
+                                bestMoveEntry = move.action === 'giveElectron'
+                                    ? { pieceId: piece.id, action: 'giveElectron', nonmetalId: move.nonmetalId }
+                                    : { pieceId: piece.id, row: move.row, col: move.col };
                             }
                             if (score > alpha) alpha = score;
                             if (alpha >= beta) {
                                 if (!move.isAttack) this._storeKiller(piece, move);
-                                const histKey = `${piece.id}-${move.row}-${move.col}`;
-                                this._historyTable[histKey] = (this._historyTable[histKey] || 0) + depth * depth;
+                                if (move.action !== 'giveElectron') {
+                                    const histKey = `${piece.id}-${move.row}-${move.col}`;
+                                    this._historyTable[histKey] = (this._historyTable[histKey] || 0) + depth * depth;
+                                }
                                 break;
                             }
                         }
@@ -3039,13 +3129,17 @@
                             this._restore(snapshot);
                             if (score < bestScore) {
                                 bestScore = score;
-                                bestMoveEntry = { pieceId: piece.id, row: move.row, col: move.col };
+                                bestMoveEntry = move.action === 'giveElectron'
+                                    ? { pieceId: piece.id, action: 'giveElectron', nonmetalId: move.nonmetalId }
+                                    : { pieceId: piece.id, row: move.row, col: move.col };
                             }
                             if (score < beta) beta = score;
                             if (alpha >= beta) {
                                 if (!move.isAttack) this._storeKiller(piece, move);
-                                const histKey = `${piece.id}-${move.row}-${move.col}`;
-                                this._historyTable[histKey] = (this._historyTable[histKey] || 0) + depth * depth;
+                                if (move.action !== 'giveElectron') {
+                                    const histKey = `${piece.id}-${move.row}-${move.col}`;
+                                    this._historyTable[histKey] = (this._historyTable[histKey] || 0) + depth * depth;
+                                }
                                 break;
                             }
                         }
@@ -3057,10 +3151,22 @@
 
                 findBestMove() {
                     if (this.color !== this.game.currentTurn) return null;
+                    this.game._aiSearching = true;
                     this._transpositionTable.clear();
                     this._killerMoves = [null, null];
                     this._historyTable = {};
                     const moves = this.generateMoves();
+
+                    // === 检查是否有直接吃H的走法（立即返回，不搜索） ===
+                    for (const { piece, move } of moves) {
+                        if (move.isAttack) {
+                            const tgt = this.game.board[move.row][move.col];
+                            if (tgt && tgt.isHydrogenKing) {
+                                this.game._aiSearching = false;
+                                return { piece, move, evalScore: 100000000 };
+                            }
+                        }
+                    }
 
                     // === Li核变评估（搜索前） ===
                     let bestNuclear = null, bestNuclearScore = -Infinity;
@@ -3126,6 +3232,7 @@
                     }
 
                     if (moves.length === 0) {
+                        this.game._aiSearching = false;
                         if (bestNuclear) return bestNuclear;
                         return null;
                     }
@@ -3134,10 +3241,13 @@
                     const deadline = Date.now() + (timeLimits[this.MAX_DEPTH] || 1500);
                     this._deadline = deadline;
                     let bestMove = null, bestScore = -Infinity, prevScore = 0, bestMoveKey = null;
+                    const _moveKey = (pm) => pm.move.action === 'giveElectron'
+                        ? `${pm.piece.id}:giveE:${pm.move.nonmetalId}`
+                        : `${pm.piece.id}:${pm.move.row},${pm.move.col}`;
                     for (let d = 1; d <= this.MAX_DEPTH; d++) {
                         let localBest = null, localScore = -Infinity;
                         if (bestMoveKey) {
-                            const idx = moves.findIndex(m => `${m.piece.id}:${m.move.row},${m.move.col}` === bestMoveKey);
+                            const idx = moves.findIndex(m => _moveKey(m) === bestMoveKey);
                             if (idx > 0) {
                                 const item = moves[idx];
                                 moves.splice(idx, 1);
@@ -3161,7 +3271,7 @@
                             if (score > localScore) {
                                 localScore = score;
                                 localBest = { piece, move, evalScore: score };
-                                bestMoveKey = `${piece.id}:${move.row},${move.col}`;
+                                bestMoveKey = _moveKey({piece, move});
                             }
                         }
                         if (Date.now() > deadline && d > 1) {
@@ -3174,8 +3284,10 @@
                     }
                     // 核变优于常规走法时选用核变
                     if (bestNuclear && bestNuclearScore > bestScore) {
+                        this.game._aiSearching = false;
                         return bestNuclear;
                     }
+                    this.game._aiSearching = false;
                     return bestMove;
                 }
 
@@ -3197,7 +3309,11 @@
                             sharedElectrons: p.sharedElectrons,
                             bonusElectrons: p.bonusElectrons,
                             bonusElectronRounds: p.bonusElectronRounds,
-                            bondedWith: p.bondedWith ? [...p.bondedWith] : null
+                            bondedWith: p.bondedWith ? [...p.bondedWith] : null,
+                            valence: p.valence,
+                            electronsGiven: p.electronsGiven,
+                            chargeRounds: p.chargeRounds,
+                            _bonusBatches: p._bonusBatches ? p._bonusBatches.map(b => ({...b})) : null
                         })),
                         bonds: this.game.bonds.map(b => ({...b})),
                         currentTurn: this.game.currentTurn,
@@ -3237,6 +3353,10 @@
                         p.bonusElectrons = pd.bonusElectrons || 0;
                         p.bonusElectronRounds = pd.bonusElectronRounds || 0;
                         p.bondedWith = pd.bondedWith;
+                        if (pd.valence !== undefined) p.valence = pd.valence;
+                        if (pd.electronsGiven !== undefined) p.electronsGiven = pd.electronsGiven;
+                        if (pd.chargeRounds !== undefined) p.chargeRounds = pd.chargeRounds;
+                        if (pd._bonusBatches !== undefined) p._bonusBatches = pd._bonusBatches ? pd._bonusBatches.map(b => ({...b})) : null;
                         if (p.row >= 0 && p.col >= 0) {
                             this.game.board[p.row][p.col] = p;
                         }
@@ -3250,6 +3370,15 @@
 
                 _executeTemp(piece, move) {
                     this._capturedPiece = null;
+                    // 金属给电子特殊动作
+                    if (move.action === 'giveElectron') {
+                        const metal = this.game.getPieceById(move.metalId);
+                        const nonmetal = this.game.getPieceById(move.nonmetalId);
+                        if (metal && nonmetal) {
+                            this.game.giveElectron(metal, nonmetal);
+                        }
+                        return;
+                    }
                     const captured = move.isAttack ? this.game.board[move.row][move.col] : null;
                     if (captured) {
                         // 模拟吃子效果：HK捕获→胜局，离子键→额外电子，共价/金属键→仅移除
@@ -3283,7 +3412,9 @@
                     piece.row = move.row; piece.col = move.col;
                     this.game.board[move.row][move.col] = piece;
                     this.game.updateAllBonds();
-                    this.game.currentTurn = this.game.currentTurn === 'white' ? 'black' : 'white';
+                    if (!this.game.gameOver) {
+                        this.game.currentTurn = this.game.currentTurn === 'white' ? 'black' : 'white';
+                    }
                 }
             }
 
@@ -3586,7 +3717,6 @@
                         const dc = Math.abs(p.col - atCol);
                         if (dr > 1 || dc > 1 || (dr === 0 && dc === 0)) continue;
                         // 金属-非金属：用judgeBondType判定；离子键→直接吃子(不显示为成键候选)；共价键→显示候选
-                        // 已达八隅体稳定结构的棋子不再成共价键
                         if ((selectedPiece.group === METAL && p.group === NONMETAL) ||
                             (selectedPiece.group === NONMETAL && p.group === METAL)) {
                             const metal = selectedPiece.group === METAL ? selectedPiece : p;
@@ -3597,7 +3727,7 @@
                             const needSel = octetSel - selectedPiece.totalElectrons;
                             const needP = octetP - p.totalElectrons;
                             const sharedE = Math.min(Math.max(0, needSel), Math.max(0, needP));
-                            if (sharedE > 0) results.push(p.id);
+                            results.push(p.id);  // 八电子体也可成键（sharedE=0仍可吃子）
                             continue;
                         }
                         // 金属键：显示所有相邻未键合金属
@@ -3606,14 +3736,14 @@
                             if (!already) results.push(p.id);
                             continue;
                         }
-                        // 共价键候选：H 用 2 电子规则（已达稳定结构的不再成键）
+                        // 共价键候选
                         if (selectedPiece.group === NONMETAL && p.group === NONMETAL) {
                             const octetSel = selectedPiece.isHydrogenKing ? 2 : 8;
                             const octetP = p.isHydrogenKing ? 2 : 8;
                             const needSel = octetSel - selectedPiece.totalElectrons;
                             const needP = octetP - p.totalElectrons;
                             const sharedE = Math.min(Math.max(0, needSel), Math.max(0, needP));
-                            if (sharedE > 0) results.push(p.id);
+                            results.push(p.id);  // 八电子体也可成键
                         }
                     }
                     // 共价键：模拟贪心算法，仅保留最优目标；已是最优则不显示
@@ -3669,28 +3799,23 @@
                                 const nonmetal = p.group === NONMETAL ? p : n;
                                 if (this.judgeBondType(metal, nonmetal) === 'ionic') continue;
                                 // 判为共价键 → 形成低电负性差金属-非金属共价键
-                                // 已达八隅体稳定结构的棋子不再成键
                                 const needP = 8 - p.totalElectrons;
                                 const needN = 8 - n.totalElectrons;
                                 const sharedE = Math.min(Math.max(0, needP), Math.max(0, needN));
-                                if (sharedE > 0) {
-                                    candidates.push({ p1: p.id, p2: n.id, type: 'covalent', shared: sharedE, enDiff });
-                                }
+                                candidates.push({ p1: p.id, p2: n.id, type: 'covalent', shared: sharedE, enDiff });
                                 continue;
                             }
                             if (bothMetal) {
                                 // 金属键
                                 candidates.push({ p1: p.id, p2: n.id, type: 'metallic', shared: 1, enDiff });
                             } else if (bothNonMetal) {
-                                // 共价键：H 用 2 电子规则，其他用 8 电子规则（已达稳定结构的不再成键）
+                                // 共价键
                                 const octetP = p.isHydrogenKing ? 2 : 8;
                                 const octetN = n.isHydrogenKing ? 2 : 8;
                                 const needP = octetP - p.totalElectrons;
                                 const needN = octetN - n.totalElectrons;
                                 const sharedE = Math.min(Math.max(0, needP), Math.max(0, needN));
-                                if (sharedE > 0) {
-                                    candidates.push({ p1: p.id, p2: n.id, type: 'covalent', shared: sharedE, enDiff });
-                                }
+                                candidates.push({ p1: p.id, p2: n.id, type: 'covalent', shared: sharedE, enDiff });
                             }
                         }
                     }
@@ -3749,6 +3874,7 @@
                 expandMetallicClusters(covalentShared = null) {
                     const metallicBonds = this.bonds.filter(b => b.type === 'metallic');
                     if (metallicBonds.length === 0) return;
+                    // Union-Find 识别连通集群
                     const parent = new Map();
                     const find = (x) => {
                         if (!parent.has(x)) parent.set(x, x);
@@ -3764,18 +3890,20 @@
                         if (!clusters.has(root)) clusters.set(root, []);
                         clusters.get(root).push(id);
                     }
-                    // 自由电子池化：集群总自由电子 = 各金属baseValence之和，均匀分配
+                    // 金属键电子海：汇总各金属的valence（不含bonusElectrons），均分电子和电荷。
+                    // electronsGiven 保持不动（保留原始给电子者的 timer/恢复机制），
+                    // 金属键电子海：sum(valence) → ceil/N → 均分 sharedElectrons。
                     for (const ids of clusters.values()) {
-                        const members = ids.map(id => this.getPieceById(id)).filter(p => p && p.group === METAL);
+                        const members = ids.map(id => this.getPieceById(id)).filter(p => p && p.group === METAL && p.row >= 0);
                         if (members.length === 0) continue;
-                        let totalFree = 0;
-                        for (const p of members) totalFree += p.baseValence;
-                        // 均匀分配，上限8（八隅律）
-                        const sharedPerMetal = Math.min(8, Math.max(1, Math.floor(totalFree / members.length)));
+                        const N = members.length;
+                        // 电子池 = Σ(valence)；池 ≥ N 时 ceil 均分，池 < N 时谁也分不到
+                        let totalE = 0;
+                        for (const p of members) totalE += p.valence;
+                        const sharedPerMetal = totalE >= N ? Math.min(8, Math.ceil(totalE / N)) : 0;
                         for (const p of members) {
-                            // 金属键共享电子与共价键叠加（而非取最大值）
                             const covShare = (covalentShared && covalentShared.has(p.id)) ? covalentShared.get(p.id) : 0;
-                            p.sharedElectrons = Math.min(8, covShare + sharedPerMetal);
+                            p.sharedElectrons = Math.min(8, covShare + Math.max(0, sharedPerMetal - p.valence));
                         }
                     }
                 }
@@ -3980,11 +4108,15 @@
                         this.removePiece(defender); return false;
                     }
                     if (isIonic) {
+                        // 对方的总可捕获电子 = valence + bonusElectrons
+                        const defenderElectrons = defender.valence + defender.bonusElectrons;
                         // 八隅律上限：攻击方能接受的电子数不能超过其八隅体缺口
                         const maxOctet = attacker.isHydrogenKing ? Math.max(0, 2 - attacker.valence - attacker.sharedElectrons - attacker.bonusElectrons) : Math.max(0, 8 - attacker.valence - attacker.sharedElectrons - attacker.bonusElectrons);
-                        const actualGain = Math.min(defender.valence, maxOctet);
-                        this._addBonusElectrons(attacker, actualGain, 3);
-                        const overflow = defender.valence - actualGain;
+                        const actualGain = Math.min(defenderElectrons, maxOctet);
+                        if (actualGain > 0) {
+                            this._addBonusElectrons(attacker, actualGain, 3);
+                        }
+                        const overflow = defenderElectrons - actualGain;
                         if (overflow > 0) {
                             attacker._overflowRays = Math.min(overflow, 8);
                             this.addLog(`${this._t('logIonicCapture')}: ${attacker.symbol} +${actualGain}${this._t('logOverflow')} ${overflow}${this._t('logOverflowRays')}${attacker._overflowRays}`);
@@ -4129,21 +4261,90 @@
                 }
 
                 giveElectron(metal, nonmetal) {
-                    // H最多容纳2个电子，已达上限则拒绝
                     if (nonmetal.isHydrogenKing && nonmetal.totalElectrons >= 2) {
                         this.addLog(`${this._t('logHFull')}, ${metal.symbol} ${this._t('logCannotGive')}`);
                         return;
                     }
-                    // 八隅律：已达8电子的非金属不能再接受电子
                     if (!nonmetal.isHydrogenKing && nonmetal.totalElectrons >= 8) {
                         this.addLog(`${nonmetal.symbol} ${this._t('logCannotGive')}（已达八电子稳定结构）`);
                         return;
                     }
-                    metal.valence = Math.max(0, metal.valence - 1); metal.electronsGiven++;
-                    metal.chargeRounds=3;
-                    nonmetal.chargeRounds=3;
+                    // BFS 收集整个金属键连通集群
+                    const clusterSet = new Set([metal.id]);
+                    const queue = [metal.id];
+                    while (queue.length > 0) {
+                        const cur = this.getPieceById(queue.shift());
+                        if (!cur || !cur.bondedWith) continue;
+                        for (const pid of cur.bondedWith) {
+                            if (clusterSet.has(pid)) continue;
+                            const p = this.getPieceById(pid);
+                            if (!p || p.group !== METAL || p.row < 0) continue;
+                            // 只有金属键关系才连通集群
+                            if (!this.bonds.some(b => b.type === 'metallic' && ((b.p1 === cur.id && b.p2 === pid) || (b.p1 === pid && b.p2 === cur.id)))) continue;
+                            clusterSet.add(pid);
+                            queue.push(pid);
+                        }
+                    }
+                    const cluster = [...clusterSet].map(id => this.getPieceById(id)).filter(p => p && p.group === METAL && p.row >= 0);
+                    // 在集群中：选余量最大的金属承担（每人最多给出 baseValence 个电子）
+                    if (cluster.length > 1) {
+                        const eligible = cluster.filter(p => p.electronsGiven < p.baseValence);
+                        if (eligible.length === 0) {
+                            this.addLog(`${this._t('logCannotGive')}（集群所有金属已达给电子上限）`);
+                            return;
+                        }
+                        // 选剩余可给电子最多的
+                        eligible.sort((a, b) => a.electronsGiven - b.electronsGiven || a.id - b.id);
+                        const donor = eligible[0];
+                        donor.valence = Math.max(0, donor.valence - 1);
+                        donor.electronsGiven++;
+                        donor.chargeRounds = Math.max(donor.chargeRounds || 0, 3);
+                    } else {
+                        // 不在集群中：自身最多给 baseValence 个
+                        if (metal.electronsGiven >= metal.baseValence) {
+                            this.addLog(`${metal.symbol} ${this._t('logCannotGive')}（已达给电子上限）`);
+                            return;
+                        }
+                        metal.valence = Math.max(0, metal.valence - 1);
+                        metal.electronsGiven++;
+                        metal.chargeRounds = 3;
+                    }
+                    nonmetal.chargeRounds = 3;
                     this._addBonusElectrons(nonmetal, 1, 3);
                     this.addLog(`${metal.symbol} ${this._t('logGaveElectron')} ${nonmetal.symbol} → ${this._t('logCationAnion')}`);
+                    // 记录棋谱和复盘数据（AI搜索中不记录）
+                    if (!this._aiSearching) {
+                        const _cl = ['a','b','c','d','e','f','g','h'];
+                        const _n = `${metal.symbol}${_cl[metal.col]}${8-metal.row} e⁻ ${nonmetal.symbol}${_cl[nonmetal.col]}${8-nonmetal.row}`;
+                        const _mn = this.roundNumber;
+                        if (metal.color === 'white') {
+                            this._notationMoves.push({ moveNum: _mn, white: _n, black: '' });
+                        } else {
+                            const _lst = this._notationMoves[this._notationMoves.length - 1];
+                            if (_lst && _lst.black === '') {
+                                _lst.black = _n;
+                            } else {
+                                this._notationMoves.push({ moveNum: _mn, white: '…', black: _n });
+                            }
+                        }
+                        this.updateNotationDisplay();
+                        this._gameRecord.moves.push({
+                            moveIndex: this._gameRecord.moves.length + 1,
+                            roundNumber: this.roundNumber,
+                            color: metal.color,
+                            pieceSymbol: metal.symbol,
+                            pieceId: metal.id,
+                            from: [metal.row, metal.col],
+                            to: [nonmetal.row, nonmetal.col],
+                            isCapture: false,
+                            targetSymbol: null,
+                            notation: _n,
+                            boardState: this.serializeBoard(),
+                            evalRaw: null, evalCentipawns: null, winProbability: null,
+                            bestMoveScore: null, classification: null, classificationIcon: null, evalDiff: null
+                        });
+                    }
+                    this.rebuildAllBonds();
                 }
 
                 canNuclearTransform(piece) {
@@ -4438,6 +4639,7 @@
                     const arr = piece.color === COLOR_WHITE ? this.whitePieces : this.blackPieces;
                     const arrIdx = arr.indexOf(piece); if (arrIdx >= 0) arr[arrIdx] = np;
                     this.removeAllBondsFor(piece);
+                    this.rebuildAllBonds(); // 旧棋子从金属键集群移除后立刻重算共享电子
                     return np;
                 }
 
@@ -4684,6 +4886,8 @@
                     const arr=p.color===COLOR_WHITE?this.whitePieces:this.blackPieces;
                     const ai=arr.indexOf(p); if(ai>=0) arr.splice(ai,1);
                     this.removeAllBondsFor(p);
+                    // 其余金属键集群成员失掉了此棋子的贡献，立刻重算共享电子
+                    this.rebuildAllBonds();
                 }
 
                 // 安全添加额外电子：同时维护批次追踪，每批独立过期
@@ -4717,7 +4921,6 @@
 
                 decrementTimers() {
                     for(const p of this.pieces){
-                        // bonusElectrons过期：逐批追踪，每批独立过期
                         if(p._bonusBatches && p._bonusBatches.length > 0){
                             for (let i = p._bonusBatches.length - 1; i >= 0; i--) {
                                 p._bonusBatches[i].roundsLeft--;
@@ -4726,12 +4929,10 @@
                                     p._bonusBatches.splice(i, 1);
                                 }
                             }
-                            // 更新总剩余回合（取最大）
                             p.bonusElectronRounds = p._bonusBatches.length > 0
                                 ? Math.max(...p._bonusBatches.map(b => b.roundsLeft))
                                 : 0;
                         }
-                        // chargeRounds过期：恢复给电子时减少的valence
                         if(p.chargeRounds>0){
                             p.chargeRounds--;
                             if(p.chargeRounds===0){
@@ -4964,6 +5165,7 @@
                     this.selectedPiece = null;
                     this.legalMoves = [];
                     this._prevCharges.clear();
+                    this.updateAllBonds(); // 重算 sharedElectrons
                     this.addLog(this._t('logUndoDone'));
                     this.updateUI();
                     if (this.gameOver) {
@@ -6079,6 +6281,20 @@
                         this.endTurn();
                         return;
                     }
+                    // 金属给电子动作（不消耗回合）
+                    if (bestMove.move && bestMove.move.action === 'giveElectron') {
+                        const metal = this.getPieceById(bestMove.move.metalId);
+                        const nonmetal = this.getPieceById(bestMove.move.nonmetalId);
+                        if (metal && nonmetal) {
+                            this.giveElectron(metal, nonmetal);
+                        }
+                        this.updateUI();
+                        // 继续AI回合（给电子不消耗回合）
+                        if (this.ai && this.currentTurn === this.aiColor && !this.gameOver) {
+                            this._scheduleTimeout(() => this.triggerAIMove(), 100);
+                        }
+                        return;
+                    }
                     await new Promise(r => setTimeout(r, 150));
                     const p = bestMove.piece;
                     const m = bestMove.move;
@@ -6221,11 +6437,15 @@
                 _renderBoard() {
                     const boardEl = this._dom.reviewBoard;
                     boardEl.innerHTML = '';
+                    const wrapper = boardEl.parentElement;
+                    const oldOverlay = wrapper.querySelector('.bond-display-overlay');
+                    if (oldOverlay) oldOverlay.remove();
+
                     const record = this.game._gameRecord;
                     const stateStr = this._currentIdx === 0 ? record.initialBoardState : (record.moves[this._currentIdx - 1]?.boardState || '');
                     if (!stateStr || stateStr.length < 192) { console.warn('Invalid board state at idx:', this._currentIdx); return; }
                     const b = this.game.deserializeBoard(stateStr);
-                    // 获取当前步的分类气泡信息
+
                     let bubbleIcon = null, bubbleTo = null;
                     if (this._currentIdx > 0) {
                         const curMove = record.moves[this._currentIdx - 1];
@@ -6234,6 +6454,65 @@
                             bubbleTo = curMove.to;
                         }
                     }
+
+                    // 将复盘局面临时加载到游戏引擎中，用真正的 rebuildAllBonds 计算键合
+                    const savedBoard = this.game.board;
+                    const savedPieces = this.game.pieces;
+                    const savedWhite = this.game.whitePieces;
+                    const savedBlack = this.game.blackPieces;
+                    const savedBonds = this.game.bonds;
+                    const tempPieces = [];
+                    let tempId = 0;
+                    const tempBoard = Array.from({length:8},()=>Array(8).fill(null));
+                    for (let r = 0; r < 8; r++) {
+                        for (let c = 0; c < 8; c++) {
+                            const info = b[r][c];
+                            if (info) {
+                                const p = new Piece(info.defKey, info.color, tempId++);
+                                p.row = r; p.col = c;
+                                tempBoard[r][c] = p;
+                                tempPieces.push(p);
+                            }
+                        }
+                    }
+                    this.game.board = tempBoard;
+                    this.game.pieces = tempPieces;
+                    this.game.whitePieces = tempPieces.filter(p => p.color === 'white');
+                    this.game.blackPieces = tempPieces.filter(p => p.color === 'black');
+                    this.game.rebuildAllBonds();
+                    const tempBonds = [...this.game.bonds];
+
+                    // 在恢复前渲染键合（_renderMetallicClusters 需要 this.getPieceById 能找到 temp pieces）
+                    const covalentBonds = tempBonds.filter(b => b.type !== 'metallic');
+                    const metallicBondsTemp = tempBonds.filter(b => b.type === 'metallic');
+                    const hasBonds = covalentBonds.length > 0 || metallicBondsTemp.length > 0;
+                    if (hasBonds) {
+                        const overlay = document.createElement('div');
+                        overlay.className = 'bond-display-overlay';
+                        overlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;';
+                        const drawn = new Set();
+                        for (const b of covalentBonds) {
+                            const p1 = tempPieces[b.p1], p2 = tempPieces[b.p2];
+                            if (!p1 || !p2) continue;
+                            const key = Math.min(b.p1,b.p2)+'-'+Math.max(b.p1,b.p2);
+                            if (drawn.has(key)) continue;
+                            drawn.add(key);
+                            this.game._renderBondFrame(overlay, p1.row, p1.col, p2.row, p2.col, 'bond-display-frame');
+                        }
+                        if (metallicBondsTemp.length > 0) {
+                            this.game._renderMetallicClusters(overlay, metallicBondsTemp);
+                        }
+                        wrapper.appendChild(overlay);
+                    }
+
+                    // 恢复游戏状态
+                    this.game.board = savedBoard;
+                    this.game.pieces = savedPieces;
+                    this.game.whitePieces = savedWhite;
+                    this.game.blackPieces = savedBlack;
+                    this.game.bonds = savedBonds;
+
+                    // 渲染棋盘格子
                     for (let r = 0; r < 8; r++) {
                         for (let c = 0; c < 8; c++) {
                             const cell = document.createElement('div');
@@ -6247,7 +6526,6 @@
                                 piece.innerHTML = `<span class="rb-symbol">${def.symbol}</span>`;
                                 cell.appendChild(piece);
                             }
-                            // 分类气泡
                             if (bubbleIcon && bubbleTo && r === bubbleTo[0] && c === bubbleTo[1]) {
                                 const bubble = document.createElement('div');
                                 bubble.className = 'rb-bubble';
@@ -6586,6 +6864,8 @@
                         peerLeft: '对手已离开房间',
                         logMQTTTimeout: 'MQTT连接超时，请检查网络',
                         logMQTTFailed: '所有MQTT服务器连接失败，请检查网络',
+                        sidebarHide: '隐藏侧边栏',
+                        sidebarShow: '显示侧边栏',
                     },
                     en: {
                         gameTitle: 'Chemiss',
@@ -6737,6 +7017,8 @@
                         peerLeft: 'Opponent has left',
                         logMQTTTimeout: 'MQTT connection timeout, check network',
                         logMQTTFailed: 'All MQTT brokers failed, check network',
+                        sidebarHide: 'Hide Sidebar',
+                        sidebarShow: 'Show Sidebar',
                     }
                 },
                 t(key) { return this.data[this.lang][key] || this.data['zh'][key] || key; },
@@ -6863,6 +7145,7 @@
                 setTitle('btnCoords', 'coords');
                 setTitle('btnReview', 'reviewTitle');
                 setTitle('btnLang', 'language');
+                setTitle('btnSidebar', 'sidebarHide');
                 set('aiDiffLabel', 'aiDifficulty');
                 set('aiColorLabel', 'aiColor');
                 // AI执子颜色芯片
@@ -6911,6 +7194,14 @@
                     if (target === 'bondListContent') h.childNodes[0].textContent = L['bondList'] + ' ';
                     if (target === 'logContent') h.childNodes[0].textContent = L['eventLog'] + ' ';
                 });
+                // 侧边栏按钮：根据当前状态使用正确的提示文字
+                const sidebarBtn = document.getElementById('btnSidebar');
+                if (sidebarBtn) {
+                    const sbKey = document.body.classList.contains('sidebar-hidden') ? 'sidebarShow' : 'sidebarHide';
+                    sidebarBtn.title = L[sbKey] || sidebarBtn.title;
+                    const cloneSb = document.getElementById('btnSidebarClone');
+                    if (cloneSb) cloneSb.title = sidebarBtn.title;
+                }
             }
 
             // Load saved language
@@ -7049,6 +7340,7 @@
                 btnDefs.push({ id: 'btnTheme', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-theme"/></svg>', title: '主题设置', handler: () => openThemeModal() });
                 btnDefs.push({ id: 'btnReview', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-review"/></svg>', title: '复盘分析', handler: () => { game.openReview(); } });
                 btnDefs.push({ id: 'btnLang', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-lang-zh"/></svg>', title: 'Language', handler: () => { const next = I18N.lang === 'zh' ? 'en' : 'zh'; I18N.switchLang(next); updateLangIcon(); updateLangPopupActive(); } });
+                btnDefs.push({ id: 'btnSidebar', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-panel"/></svg>', title: '隐藏侧边栏', handler: () => toggleSidebar() });
                 btnDefs.forEach(def => {
                     const clone = document.createElement('button');
                     clone.className = 'settings-icon-btn';
@@ -7122,6 +7414,31 @@
                 document.body.classList.toggle('show-coords', showCoords);
                 btnCoords.classList.toggle('active', showCoords);
             });
+            // ========== 隐藏侧边栏 ==========
+            function toggleSidebar() {
+                document.body.classList.toggle('sidebar-hidden');
+                const hidden = document.body.classList.contains('sidebar-hidden');
+                const orig = document.getElementById('btnSidebar');
+                const clone = document.getElementById('btnSidebarClone');
+                const key = hidden ? 'sidebarShow' : 'sidebarHide';
+                const title = typeof I18N !== 'undefined' ? I18N.t(key) : (hidden ? '显示侧边栏' : '隐藏侧边栏');
+                if (orig) { orig.title = title; orig.classList.toggle('active', hidden); }
+                if (clone) { clone.title = title; clone.classList.toggle('active', hidden); }
+                try { localStorage.setItem('chemiss_sidebar_hidden', hidden ? '1' : ''); } catch(e) {}
+            }
+            const btnSidebar = document.getElementById('btnSidebar');
+            if (btnSidebar) {
+                btnSidebar.addEventListener('click', toggleSidebar);
+                // 恢复上次状态
+                try {
+                    if (localStorage.getItem('chemiss_sidebar_hidden') === '1') {
+                        toggleSidebar();
+                    }
+                } catch(e) {}
+            }
+            // 移动端浮动按钮
+            const sbMobile = document.getElementById('sidebarMobileToggle');
+            if (sbMobile) sbMobile.addEventListener('click', toggleSidebar);
             // ========== 语言切换 ==========
             const btnLang = document.getElementById('btnLang');
             const langPopup = document.getElementById('langPopup');
