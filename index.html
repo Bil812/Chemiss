@@ -2972,12 +2972,12 @@
 
                 _scoreMove(piece, move) {
                     let score = 0;
-                    // 金属给电子：大幅提高权重
+                    // 金属给电子：仅在有实际威胁时高权重，避免AI盲目给出无用电子
                     if (move.action === 'giveElectron') {
                         const nm = move.nonmetal;
                         if (nm) {
-                            // 基础分：非金属越强收益越大
-                            score += nm.Z * 50 + 500;
+                            // 基础分大幅降低（不再无条件给500+）：只有能形成威胁（吃子/将军/靠近敌H）的给电子才值得
+                            score += nm.Z * 10 + 60;
                             // 计算增强后的合法移动
                             const afterMoves = this.game.getLegalMoves(nm);
                             // 被增强的非金属离敌H近且有实际威胁才加分
@@ -3465,6 +3465,31 @@
                         }
                     }
 
+                    // === 安全过滤：搜索期getLegalMoves跳过了"暴露将军"检查，AI可能推荐把自己H置于
+                    // 将军下的走法；执行层找不到该走法时只能随机兜底 → AI乱走、一步分多步、跳过。
+                    // 这里在搜索前剔除会暴露己方H的走法（吃H即胜的走法除外）。
+                    if (moves.length > 0) {
+                        const safeMoves = [];
+                        for (const { piece, move } of moves) {
+                            if (move.action === 'giveElectron') { safeMoves.push({ piece, move }); continue; }
+                            if (move.isAttack && this.game.board[move.row][move.col] &&
+                                this.game.board[move.row][move.col].isHydrogenKing) { safeMoves.push({ piece, move }); continue; }
+                            const snapF = this._snapshot();
+                            let ok = false;
+                            try {
+                                this._executeTemp(piece, move);
+                                ok = !this.isInCheck(this.color);
+                            } catch(e) {
+                                // 模拟异常不得污染真实棋盘，放行该走法（执行层还会校验）
+                            } finally {
+                                this._restore(snapF);
+                            }
+                            if (ok) safeMoves.push({ piece, move });
+                        }
+                        moves.length = 0;
+                        moves.push(...safeMoves);
+                    }
+
                     // === Li核变评估（搜索前） ===
                     let bestNuclear = null, bestNuclearScore = -Infinity;
                     const myPieces = this.color === 'white' ? this.game.whitePieces : this.game.blackPieces;
@@ -3477,53 +3502,22 @@
                             'U','Th','Pu','Np','Am','Cm',      // 可裂变重核
                             'Fe','Cu','Ag'                    // 过渡金属
                         ];
-                        const liRow = liPiece.row, liCol = liPiece.col, liId = liPiece.id;
-                        // 保存Li棋子完整数据（snapshot不保存defKey等核心属性）
-                        const liSaved = {
-                            defKey: liPiece.defKey, symbol: liPiece.symbol, Z: liPiece.Z,
-                            valence: liPiece.valence, electroneg: liPiece.electroneg,
-                            group: liPiece.group, period: liPiece.period, noble: liPiece.noble,
-                            isHydrogenKing: liPiece.isHydrogenKing, mass: liPiece.mass,
-                            radioactive: liPiece.radioactive, decayMode: liPiece.decayMode,
-                            halfLifeRounds: liPiece.halfLifeRounds, decayCounter: liPiece.decayCounter,
-                            isotopeName: liPiece.isotopeName
-                        };
                         for (const elemKey of AI_NUCLEAR_TARGETS) {
                             if (!PIECE_DEFS[elemKey] || elemKey === 'H') continue;
                             const isos = ISOTOPES[elemKey] || [];
-                            const stableIso = isos.find(iso => iso.stable) || isos[0];
+                            // 稳定同位素优先；无稳定同位素时选半衰期最长者（AI不再自动选Lr262这类快速衰变核素）
+                            const stableIso = isos.find(iso => iso.stable) ||
+                                isos.reduce((a, b) => ((b.halfLife || 0) > (a.halfLife || 0) ? b : a), isos[0]);
                             if (!stableIso) continue;
                             const spec = stableIso.stable
                                 ? { mass: stableIso.mass, radio: false, halfLife: 0, decay: null, name: stableIso.name || null }
                                 : { mass: stableIso.mass, radio: true, halfLife: stableIso.halfLife || 3, decay: stableIso.decay || 'alpha', name: stableIso.name || null };
-                            // 模拟核变
-                            const snapshot = this._snapshot();
-                            const np = new Piece(elemKey, liPiece.color, liId, spec);
-                            np.row = liRow; np.col = liCol;
-                            np.sharedElectrons = 0; np.bondedWith = null;
-                            this.game.board[liRow][liCol] = np;
-                            const arrIdx = this.game.pieces.indexOf(liPiece);
-                            if (arrIdx >= 0) this.game.pieces[arrIdx] = np;
-                            const colorArr = liPiece.color === 'white' ? this.game.whitePieces : this.game.blackPieces;
-                            const cai = colorArr.indexOf(liPiece);
-                            if (cai >= 0) colorArr[cai] = np;
-                            this.game.updateAllBonds();
-                            this.game.currentTurn = this.game.currentTurn === 'white' ? 'black' : 'white';
-                            const score = this.evaluate();
-                            // 恢复（snapshot恢复后还需恢复Li棋子核心属性）
-                            this._restore(snapshot);
-                            const restoredLi = this.game.getPieceById(liId);
-                            if (restoredLi && restoredLi.defKey !== 'Li') {
-                                Object.assign(restoredLi, liSaved);
-                                restoredLi.sharedElectrons = 0;
-                                restoredLi.bondedWith = null;
-                                restoredLi.bonusElectrons = 0;
-                                restoredLi.charge = 0;
-                            }
-                            this.game.board[liRow][liCol] = restoredLi;
-                            if (score > bestNuclearScore) {
-                                bestNuclearScore = score;
-                                bestNuclear = { piece: liPiece, action: 'nuclear', elementKey: elemKey, isotopeSpec: spec, evalScore: score };
+                            // 目标元素静态价值评分（用户公式：吃子计分×机动性值×0.15 + 吃H加分 + 核变加分 + 放射扣分 + 控制加分），
+                            // 替代"稳定优先+局面模拟评估+半衰期重罚"：评分直接决定目标元素，半衰期长短只做轻量扣分
+                            const nuclearScore = this.game._nuclideValueScore(elemKey);
+                            if (nuclearScore > bestNuclearScore) {
+                                bestNuclearScore = nuclearScore;
+                                bestNuclear = { piece: liPiece, action: 'nuclear', elementKey: elemKey, isotopeSpec: spec, evalScore: nuclearScore };
                             }
                         }
                     }
@@ -3535,8 +3529,9 @@
                     }
                     this._orderMoves(moves);
                     const timeLimits = [0, 300, 600, 1000, 1800, 3000, 5000];
+                    // 尊重外部预算（如复盘分析/最佳走法箭头设置的更早截止时间），防止覆盖导致界面卡死
                     const deadline = Date.now() + (timeLimits[this.MAX_DEPTH] || 1500);
-                    this._deadline = deadline;
+                    this._deadline = this._deadline ? Math.min(this._deadline, deadline) : deadline;
                     let bestMove = null, bestScore = -Infinity, prevScore = 0, bestMoveKey = null;
                     const _moveKey = (pm) => pm.move.action === 'giveElectron'
                         ? `${pm.piece.id}:giveE:${pm.move.nonmetalId}`
@@ -3647,26 +3642,16 @@
                     for (let r = 0; r < 8; r++)
                         for (let c = 0; c < 8; c++)
                             this.game.board[r][c] = null;
-                    // 恢复被临时移出棋盘的棋子
-                    if (this._capturedPiece) {
-                        const cp = this._capturedPiece;
-                        cp.row = cp._aiTempRow;
-                        cp.col = cp._aiTempCol;
-                        this._capturedPiece = null;
-                    }
-                    // 恢复所有棋子到快照位置
+                    // 丢弃残留的临时标记：若此前某次模拟异常中断，_aiTempRow/_capturedPiece
+                    // 会残留在真实棋子上，若按它们恢复会把棋子错位到旧位置（从棋盘消失/重叠）。
+                    // 因此一律以快照坐标为准，无条件清除残留。
+                    this._capturedPiece = null;
+                    // 恢复所有棋子到快照位置（快照在模拟前拍摄，pd.row/pd.col 即模拟前坐标）
                     for (const pd of snap.pieces) {
                         const p = pieceMap.get(pd.id);
                         if (!p) continue;
-                        // 如果棋子被临时移动了，恢复原始位置
-                        if (p._aiTempRow !== undefined) {
-                            p.row = p._aiTempRow;
-                            p.col = p._aiTempCol;
-                            delete p._aiTempRow;
-                            delete p._aiTempCol;
-                        } else {
-                            p.row = pd.row; p.col = pd.col;
-                        }
+                        p.row = pd.row; p.col = pd.col;
+                        delete p._aiTempRow; delete p._aiTempCol;
                         p.sharedElectrons = pd.sharedElectrons;
                         p.bonusElectrons = pd.bonusElectrons || 0;
                         p.bonusElectronRounds = pd.bonusElectronRounds || 0;
@@ -3683,7 +3668,6 @@
                     this.game.currentTurn = snap.currentTurn;
                     this.game.gameOver = snap.gameOver;
                     this.game.winner = snap.winner;
-                    this._capturedPiece = null;
                 }
 
                 _executeTemp(piece, move) {
@@ -3738,6 +3722,11 @@
 
             // ========== 复盘分析引擎 ==========
             class PostGameAnalyzer {
+                // 最佳走法缓存：key = `${depth}|${color}|${boardState}`。
+                // 复盘面板在分类阶段计算过的最佳走法会存入此缓存，之后用户翻动棋步时直接复用，
+                // 避免每次导航都同步跑一次全深度搜索导致界面卡死。
+                static _bestCache = new Map();
+                static _cacheKey(depth, color, boardState) { return depth + '|' + color + '|' + boardState; }
                 constructor(game, gameRecord, analysisDepth, useStatic) {
                     this.game = game;
                     this.record = gameRecord;
@@ -3749,7 +3738,7 @@
                     this._onProgress = null;
                     this._onComplete = null;
                 }
-                cancel() { this._canceled = true; this._gen++; }
+                cancel() { this._canceled = true; this._gen++; this.game._aiSearching = false; }
                 _rawToCentipawns(raw) {
                     const abs = Math.abs(raw);
                     const sign = Math.sign(raw) || 1;
@@ -3771,6 +3760,9 @@
                     this.game._aiSearching = true;
                     const moves = this.record.moves;
                     if (moves.length === 0) { this.game._aiSearching = false; if (onComplete) onComplete(this._buildResult()); return; }
+                    // 新分析：清空最佳走法缓存与旧结果，防止跨局/跨深度串数据
+                    PostGameAnalyzer._bestCache.clear();
+                    for (const m of moves) m._bestFull = null;
                     const cleanup = () => { this.game._aiSearching = false; };
                     try {
                         const ai = new ChemissAI(this.game, 'white', this.ANALYSIS_DEPTH);
@@ -3800,8 +3792,12 @@
                                     m.bestMoveScore = ev;
                                 } catch(e) {}
                             }
-                            try { this._classifyAllMoves(moves); if (onComplete) onComplete(this._buildResult()); } catch(e) { console.error('Static classify:', e); }
-                            this.game._aiSearching = false;
+                            try {
+                                this._classifySequentially(moves, () => {
+                                    this.game._aiSearching = false;
+                                    if (onComplete) onComplete(this._buildResult());
+                                });
+                            } catch(e) { console.error('Static classify:', e); this.game._aiSearching = false; }
                             return;
                         }
                         // 搜索模式：时序批处理，每批3步，逐步加深
@@ -3850,15 +3846,14 @@
                             if (onProgress && pct !== this._progress) { this._progress = pct; onProgress(pct); }
                             if (i < total) { setTimeout(tick, 0); }
                             else {
-                                console.log(`[分析] 批处理完成, 总耗时=${Date.now()-tickStart}ms, 开始分类...`);
-                                this.game._aiSearching = true;
-                                try {
-                                    this._classifyAllMoves(moves);
-                                } catch(e) { console.error('Classify error:', e); }
-                                this.game._aiSearching = false;
-                                try {
-                                    if (onComplete) onComplete(this._buildResult());
-                                } catch(e) { console.error('Result error:', e); }
+                                // 分类阶段同样异步分片执行（每片1步），进度从99%推进到100%，
+                                // 避免对整局棋同步跑"每步一次全深度搜索"导致界面卡死
+                                this._classifySequentially(moves, () => {
+                                    this.game._aiSearching = false;
+                                    try {
+                                        if (onComplete) onComplete(this._buildResult());
+                                    } catch(e) { console.error('Result error:', e); }
+                                });
                             }
                         };
                         setTimeout(tick, 10);
@@ -3895,136 +3890,174 @@
                     const result = this._findBestMoveFull(boardState, colorToMove);
                     return result ? result.cp : null;
                 }
-                _findBestMoveFull(boardState, colorToMove) {
+                _findBestMoveFull(boardState, colorToMove, budgetMs) {
+                    // 结果缓存：同一局面同一深度不重复搜索（防止复盘翻棋步时反复卡死，
+                    // 也保证同一次会话内"最优走法"结果稳定，不再每次翻页跳来跳去）
+                    const cacheKey = PostGameAnalyzer._cacheKey(this.ANALYSIS_DEPTH, colorToMove, boardState);
+                    const cached = PostGameAnalyzer._bestCache.get(cacheKey);
+                    if (cached) return cached;
                     this._restoreBoardForAnalysis(boardState);
                     const depth = this.ANALYSIS_DEPTH;
                     this.game.currentTurn = colorToMove;
                     const ai = new ChemissAI(this.game, colorToMove, depth);
+                    // 预算限制：给搜索设置硬性时间上限，超时立即用当前评估值兜底
+                    if (budgetMs) ai._deadline = Date.now() + budgetMs;
+                    let result = null;
                     try {
                         const best = ai.findBestMove();
                         if (!best || !best.move) {
                             const isMax = colorToMove === 'white';
                             const score = ai.search(depth, -Infinity, Infinity, isMax, 0);
-                            return { cp: this._rawToCentipawns(isMax ? score : -score) };
-                        }
-                        const cp = this._rawToCentipawns(best.evalScore);
-                        let fromR, fromC, toR, toC, giveInfo = null, followInfo = null;
-                        if (best.move.action === 'giveElectron') {
-                            // 给电子：记录金属→非金属坐标，执行后再找最佳常规移动
-                            const m = this.game.getPieceById(best.move.metalId);
-                            const n = this.game.getPieceById(best.move.nonmetalId);
-                            if (m && n) {
-                                giveInfo = { fromR: m.row, fromC: m.col, toR: n.row, toC: n.col };
-                            }
-                            // findBestMove已将_aiSearching置false，需重新置true防止giveElectron写入_gameRecord
-                            this.game._aiSearching = true;
-                            const snapGE = ai._snapshot();
-                            ai._executeTemp(best.piece, best.move);
-                            const allMoves = ai.generateMoves();
-                            const regularMoves = allMoves.filter(mv => mv.move.action !== 'giveElectron');
-                            let bestRegScore = -Infinity;
-                            for (const { piece, move } of regularMoves) {
-                                const snapM = ai._snapshot();
-                                ai._executeTemp(piece, move);
-                                const sc = ai.search(Math.max(1, depth - 1), -Infinity, Infinity, false, 0);
-                                ai._restore(snapM);
-                                if (sc > bestRegScore) {
-                                    bestRegScore = sc;
-                                    fromR = piece.row; fromC = piece.col;
-                                    toR = move.row; toC = move.col;
+                            result = { cp: this._rawToCentipawns(isMax ? score : -score) };
+                        } else {
+                            const cp = this._rawToCentipawns(best.evalScore);
+                            let fromR, fromC, toR, toC, giveInfo = null, followInfo = null;
+                            if (best.move.action === 'giveElectron') {
+                                // 给电子：记录金属→非金属坐标，执行后再找最佳常规移动
+                                const m = this.game.getPieceById(best.move.metalId);
+                                const n = this.game.getPieceById(best.move.nonmetalId);
+                                if (m && n) {
+                                    giveInfo = { fromR: m.row, fromC: m.col, toR: n.row, toC: n.col };
                                 }
-                            }
-                            ai._restore(snapGE);
-                            if (fromR !== undefined) {
-                                followInfo = { fromR, fromC, toR, toC };
-                            }
-                        } else if (best.piece) {
-                            fromR = best.piece.row; fromC = best.piece.col;
-                            toR = best.move.row; toC = best.move.col;
-                        }
-                        this.game._aiSearching = false;
-                        return { cp, fromR, fromC, toR, toC, giveInfo, followInfo };
-                    } catch(e) {
-                        this.game._aiSearching = false;
-                        const isMax = colorToMove === 'white';
-                        const score = ai.evaluate();
-                        return { cp: this._rawToCentipawns(isMax ? score : -score) };
-                    }
-                }
-                _classifyAllMoves(moves) {
-                    if (moves.length === 0) return;
-                    let prevCp = 0, prevBoardState = this.record.initialBoardState || (moves[0] ? moves[0].boardState : null);
-                    const classifyAI = new ChemissAI(this.game, 'white', this.ANALYSIS_DEPTH);
-                    if (prevBoardState && moves.length > 0) {
-                        this._restoreBoardForAnalysis(prevBoardState);
-                        // 使用搜索评估（非静态eval），与走法评估深度一致，避免第一着evalDiff因评估方式不同而失真
-                        const firstColor = moves[0].color;
-                        const nextTurn = firstColor === 'white' ? 'black' : 'white';
-                        classifyAI.game.currentTurn = nextTurn;
-                        classifyAI._deadline = Date.now() + 300;
-                        const isMax = nextTurn === 'white';
-                        const s = classifyAI.search(Math.min(3, this.ANALYSIS_DEPTH), -Infinity, Infinity, isMax, 0);
-                        const ev = isMax ? s : -s;
-                        prevCp = this._rawToCentipawns(ev);
-                    }
-                    for (let i = 0; i < moves.length; i++) {
-                        const move = moves[i];
-                        // 给电子步：辅助动作不消耗回合，跳过分类
-                        if (move.isGiveElectron) continue;
-                        // 将杀
-                        if (move.isCapture && move.targetSymbol === 'H') {
-                            move.classification = 'checkmate'; move.classificationIcon = '#';
-                            move.evalDiff = 999;
-                            move.winProbability = move.color === 'white' ? 100 : 0;
-                            prevCp = move.evalCentipawns; prevBoardState = move.boardState;
-                            continue;
-                        }
-                        const rawDiff = move.evalCentipawns - prevCp;
-                        move.evalDiff = move.color === 'white' ? rawDiff : -rawDiff;
-                        // 弃子检测：攻击方Z >> 被吃方Z
-                        let isSacrifice = false;
-                        if (move.isCapture && move.pieceSymbol && move.targetSymbol) {
-                            const aDef = PIECE_DEFS[move.pieceSymbol];
-                            const dDef = PIECE_DEFS[move.targetSymbol];
-                            if (aDef && dDef && aDef.Z > dDef.Z + 10) isSacrifice = true;
-                        }
-                        // 寻找理论最优走法的评估值 + 最佳走法坐标
-                        let bestCp = null;
-                        let isExactBest = false;
-                        if (prevBoardState && this.ANALYSIS_DEPTH >= 3) {
-                            try {
-                                const full = this._findBestMoveFull(prevBoardState, move.color);
-                                if (full) {
-                                    bestCp = full.cp;
-                                    if (full.fromR !== undefined && move.from && move.to) {
-                                        isExactBest = move.from[0] === full.fromR && move.from[1] === full.fromC
-                                            && move.to[0] === full.toR && move.to[1] === full.toC;
+                                // findBestMove已将_aiSearching置false，需重新置true防止giveElectron写入_gameRecord
+                                this.game._aiSearching = true;
+                                const snapGE = ai._snapshot();
+                                ai._executeTemp(best.piece, best.move);
+                                const allMoves = ai.generateMoves();
+                                const regularMoves = allMoves.filter(mv => mv.move.action !== 'giveElectron');
+                                let bestRegScore = -Infinity;
+                                for (const { piece, move } of regularMoves) {
+                                    if (ai._deadline && Date.now() > ai._deadline) break;
+                                    const snapM = ai._snapshot();
+                                    ai._executeTemp(piece, move);
+                                    const sc = ai.search(Math.max(1, depth - 1), -Infinity, Infinity, false, 0);
+                                    ai._restore(snapM);
+                                    if (sc > bestRegScore) {
+                                        bestRegScore = sc;
+                                        fromR = piece.row; fromC = piece.col;
+                                        toR = move.row; toC = move.col;
                                     }
                                 }
-                            } catch(e) {}
+                                ai._restore(snapGE);
+                                if (fromR !== undefined) {
+                                    followInfo = { fromR, fromC, toR, toC };
+                                }
+                            } else if (best.piece) {
+                                fromR = best.piece.row; fromC = best.piece.col;
+                                toR = best.move.row; toC = best.move.col;
+                            }
+                            result = { cp, fromR, fromC, toR, toC, giveInfo, followInfo };
                         }
-                        // 分类
-                        const ed = move.evalDiff;
-                        const isOptimal = isExactBest || (bestCp !== null && Math.abs(move.evalCentipawns - bestCp) < 120);
-                        if (ed > 500 && isSacrifice) {
-                            move.classification = 'brilliant'; move.classificationIcon = '!!';
-                        } else if (ed > 250 && isSacrifice) {
-                            move.classification = 'great'; move.classificationIcon = '!';
-                        } else if (ed > 80 && isOptimal) {
-                            move.classification = 'best'; move.classificationIcon = '★';
-                        } else if (ed > 80) {
-                            move.classification = 'excellent'; move.classificationIcon = '👍';
-                        } else if (ed >= -100) {
-                            move.classification = 'good'; move.classificationIcon = '✓';
-                        } else if (ed > -300) {
-                            move.classification = 'inaccuracy'; move.classificationIcon = '?!';
-                        } else if (ed > -1000) {
-                            move.classification = 'mistake'; move.classificationIcon = '?';
-                        } else {
-                            move.classification = 'blunder'; move.classificationIcon = '??';
-                        }
-                        prevCp = move.evalCentipawns; prevBoardState = move.boardState;
+                    } catch(e) {
+                        const isMax = colorToMove === 'white';
+                        const score = ai.evaluate();
+                        result = { cp: this._rawToCentipawns(isMax ? score : -score) };
+                    } finally {
+                        this.game._aiSearching = false;
                     }
+                    PostGameAnalyzer._bestCache.set(cacheKey, result);
+                    return result;
+                }
+                // 分类阶段异步驱动：每片处理1步并让出主线程，进度推进到100%
+                _classifySequentially(moves, onDone) {
+                    if (moves.length === 0) { if (onDone) onDone(); return; }
+                    const gen = this._gen;
+                    const state = {
+                        prevCp: 0,
+                        prevBoardState: this.record.initialBoardState || (moves[0] ? moves[0].boardState : null)
+                    };
+                    // 初始 prevCp：搜索评估（与原有 _classifyAllMoves 逻辑一致）
+                    try {
+                        if (state.prevBoardState && moves.length > 0) {
+                            const classifyAI = new ChemissAI(this.game, 'white', this.ANALYSIS_DEPTH);
+                            this._restoreBoardForAnalysis(state.prevBoardState);
+                            const firstColor = moves[0].color;
+                            const nextTurn = firstColor === 'white' ? 'black' : 'white';
+                            classifyAI.game.currentTurn = nextTurn;
+                            classifyAI._deadline = Date.now() + 300;
+                            const isMax = nextTurn === 'white';
+                            const s = classifyAI.search(Math.min(3, this.ANALYSIS_DEPTH), -Infinity, Infinity, isMax, 0);
+                            state.prevCp = this._rawToCentipawns(isMax ? s : -s);
+                        }
+                    } catch(e) {}
+                    let ci = 0;
+                    const total = moves.length;
+                    const tick = () => {
+                        if (this._canceled || gen !== this._gen) return;
+                        const end = Math.min(ci + 1, total);
+                        for (; ci < end; ci++) {
+                            if (this._canceled || gen !== this._gen) return;
+                            try {
+                                const r = this._classifyMove(moves, ci, state.prevCp, state.prevBoardState);
+                                state.prevCp = r.prevCp; state.prevBoardState = r.prevBoardState;
+                            } catch(e) { console.error('Classify move error:', e); }
+                        }
+                        const pct = Math.min(100, Math.round(99 + (ci / total) * 1));
+                        if (this._onProgress && pct !== this._progress) { this._progress = pct; this._onProgress(pct); }
+                        if (ci < total) { setTimeout(tick, 0); }
+                        else { if (onDone) onDone(); }
+                    };
+                    setTimeout(tick, 0);
+                }
+                // 分类单步：给电子跳过、将杀特殊处理、弃子检测、最优走法对比、归类
+                _classifyMove(moves, i, prevCp, prevBoardState) {
+                    const move = moves[i];
+                    // 给电子步：辅助动作不消耗回合，跳过分类
+                    if (move.isGiveElectron) return { prevCp, prevBoardState };
+                    // 将杀
+                    if (move.isCapture && move.targetSymbol === 'H') {
+                        move.classification = 'checkmate'; move.classificationIcon = '#';
+                        move.evalDiff = 999;
+                        move.winProbability = move.color === 'white' ? 100 : 0;
+                        return { prevCp: move.evalCentipawns, prevBoardState: move.boardState };
+                    }
+                    const rawDiff = move.evalCentipawns - prevCp;
+                    move.evalDiff = move.color === 'white' ? rawDiff : -rawDiff;
+                    // 弃子检测：攻击方Z >> 被吃方Z
+                    let isSacrifice = false;
+                    if (move.isCapture && move.pieceSymbol && move.targetSymbol) {
+                        const aDef = PIECE_DEFS[move.pieceSymbol];
+                        const dDef = PIECE_DEFS[move.targetSymbol];
+                        if (aDef && dDef && aDef.Z > dDef.Z + 10) isSacrifice = true;
+                    }
+                    // 寻找理论最优走法的评估值 + 最佳走法坐标（带预算，避免长时间卡顿）
+                    let bestCp = null;
+                    let isExactBest = false;
+                    if (prevBoardState && this.ANALYSIS_DEPTH >= 3) {
+                        try {
+                            const full = this._findBestMoveFull(prevBoardState, move.color, 300);
+                            if (full) {
+                                // 缓存最佳走法供复盘箭头复用，翻棋步时不再重复搜索
+                                move._bestFull = full;
+                                bestCp = full.cp;
+                                if (full.fromR !== undefined && move.from && move.to) {
+                                    isExactBest = move.from[0] === full.fromR && move.from[1] === full.fromC
+                                        && move.to[0] === full.toR && move.to[1] === full.toC;
+                                }
+                            }
+                        } catch(e) {}
+                    }
+                    // 分类
+                    const ed = move.evalDiff;
+                    const isOptimal = isExactBest || (bestCp !== null && Math.abs(move.evalCentipawns - bestCp) < 120);
+                    if (ed > 500 && isSacrifice) {
+                        move.classification = 'brilliant'; move.classificationIcon = '!!';
+                    } else if (ed > 250 && isSacrifice) {
+                        move.classification = 'great'; move.classificationIcon = '!';
+                    } else if (ed > 80 && isOptimal) {
+                        move.classification = 'best'; move.classificationIcon = '★';
+                    } else if (ed > 80) {
+                        move.classification = 'excellent'; move.classificationIcon = '👍';
+                    } else if (ed >= -100) {
+                        move.classification = 'good'; move.classificationIcon = '✓';
+                    } else if (ed > -300) {
+                        move.classification = 'inaccuracy'; move.classificationIcon = '?!';
+                    } else if (ed > -1000) {
+                        move.classification = 'mistake'; move.classificationIcon = '?';
+                    } else {
+                        move.classification = 'blunder'; move.classificationIcon = '??';
+                    }
+                    return { prevCp: move.evalCentipawns, prevBoardState: move.boardState };
                 }
                 _computeAccuracy(moves, color) {
                     const playerMoves = moves.filter(m=>m.color===color && !m.isGiveElectron);
@@ -4479,6 +4512,46 @@
                 // 键型判定：基于例外表 + 法扬斯规则 + 电负性差阈值
                 // 参数：metalPiece=金属棋子, nonmetalPiece=非金属棋子
                 // 返回：'ionic' | 'covalent'
+                // 目标核素作为棋子的静态价值评分（AI核变目标选择用）：
+                // 总分 = 吃子计分 × 机动性值 × 0.15 + 吃H加分 + 核变加分 + 放射扣分 + 控制加分
+                _nuclideValueScore(defKey) {
+                    const d = PIECE_DEFS[defKey];
+                    if (!d) return -9999;
+                    const asDef = (k) => { const x = PIECE_DEFS[k]; return { symbol:x.symbol, electroneg:x.en, valence:x.valence, period:x.period, group:x.group }; };
+                    // 1. 吃子计分（0~10，H不计入）
+                    //    非金属攻击者：能离子键吃掉的初始金属（Na×4、Li×4），每个计1分
+                    //    金属攻击者：每种能离子键吃掉的初始非金属（C/N/O/F/S），每类计2分
+                    let captureScore = 0;
+                    if (d.group === NONMETAL && !d.noble) {
+                        for (const m of ['Na','Li']) {
+                            if (this.judgeBondType(asDef(m), asDef(defKey)) === 'ionic') captureScore += 4;
+                        }
+                    } else if (d.group === METAL) {
+                        for (const n of ['C','N','O','F','S']) {
+                            if (this.judgeBondType(asDef(defKey), asDef(n)) === 'ionic') captureScore += 2;
+                        }
+                    }
+                    // 2. 机动性值（0~9.6）：方向模板前N个方向（N=价电子数，上限8），直线权重1.2、斜线0.8
+                    const nDirs = Math.min(d.valence, 8);
+                    const template = d.period % 2 === 0 ? PRIORITY_EVEN : PRIORITY_ODD;
+                    let mobility = 0;
+                    for (let i = 0; i < nDirs; i++) {
+                        const [dr, dc] = template[i];
+                        mobility += (dr === 0 || dc === 0) ? 1.2 : 0.8;
+                    }
+                    // 3. 吃H加分：能否通过离子键直接吃掉氢王
+                    let eatH = 0;
+                    if (d.group === METAL && this.judgeBondType(asDef(defKey), asDef('H')) === 'ionic') eatH = 3;
+                    // 4. 核变加分：是否为初始Li（核变目标核素此项恒为0，保留以符合公式）
+                    const nuclearBonus = defKey === 'Li' ? 0.8 : 0;
+                    // 5. 放射扣分（默认同位素）：半衰期>4回合扣1，≤4回合扣2，无放射不扣
+                    let radioPenalty = 0;
+                    if (d.radio) radioPenalty = (d.halfLife || 0) > 4 ? -1 : -2;
+                    // 6. 控制加分：稀有气体免疫吃子且8方向8步移动，封路控场极强
+                    const controlBonus = d.noble ? 3 : 0;
+                    return captureScore * mobility * 0.15 + eatH + nuclearBonus + radioPenalty + controlBonus;
+                }
+
                 judgeBondType(metalPiece, nonmetalPiece) {
                     // 1. 【最高优先级】硬编码例外表（覆盖一切理论）
                     const exceptions = {
@@ -4585,13 +4658,17 @@
                     if (!this.debugMode && !this._aiSearching) {
                         const tmpAI = new ChemissAI(this, piece.color, 1);
                         return moves.filter(m => {
+                            const snap = tmpAI._snapshot();
                             try {
-                                const snap = tmpAI._snapshot();
                                 tmpAI._executeTemp(piece, m);
                                 const safe = !tmpAI.isInCheck(piece.color);
-                                tmpAI._restore(snap);
                                 return safe;
-                            } catch(e) { return true; }
+                            } catch(e) {
+                                // 模拟异常不能泄漏到真实对局：必须先恢复快照再放行
+                                return true;
+                            } finally {
+                                tmpAI._restore(snap);
+                            }
                         });
                     }
                     return moves;
@@ -4616,8 +4693,10 @@
                     piece.row = toRow; piece.col = toCol;
                     this.board[toRow][toCol] = piece;
                     this.updateAllBonds();
-                    // 离子键溢出射线：等落子动画完成后从新位置发射
-                    if (wasIonic && !this._remoteProcessing && piece._overflowRays) {
+                    // 离子键溢出射线：等落子动画完成后从新位置发射。
+                    // 注意：远端也必须执行（效果由确定性随机数决定，双方结果一致），
+                    // 否则两端的 bonusElectrons/嬗变状态分叉导致联机不同步。
+                    if (wasIonic && piece._overflowRays) {
                         const numRays = piece._overflowRays;
                         delete piece._overflowRays;
                         this._scheduleTimeout(() => {
@@ -4940,7 +5019,8 @@
                     this.updateAllBonds();
                     this.updateUI();
                     this._editTargetColor = null;
-                    if(this.onlineMode && this.onlineManager){
+                    // 仅在本地发起时发送消息；接收远程核变消息时不再回传，避免双方互发同一事件
+                    if(this.onlineMode && this.onlineManager && !this._remoteProcessing){
                         this.onlineManager.send({type:'nuclearTransform',pieceId:piece.id,newKey:newKey,isotopeSpec:isotopeSpec||null,endTurn:true});
                         this._skipNextEndTurnSend = true;
                     }
@@ -4952,9 +5032,11 @@
                     const candidates = [];
                     for (const [key, def] of Object.entries(PIECE_DEFS)) {
                         if (key === 'H' || def.isHK) continue; // 不能变为氢王
-                        // 找默认稳定同位素
+                        // 找默认稳定同位素；无稳定同位素时选半衰期最长者（避免选Lr262这类快速衰变核素）
                         const isos = ISOTOPES[key] || [];
-                        const stable = isos.find(i => i.stable) || isos[0] || { mass: def.mass || 1 };
+                        const stable = isos.find(i => i.stable) ||
+                            isos.reduce((a, b) => ((b.halfLife || 0) > (a.halfLife || 0) ? b : a), isos[0]) ||
+                            { mass: def.mass || 1 };
                         candidates.push({
                             key,
                             Z: def.Z,
@@ -4968,28 +5050,8 @@
                             decay: stable.decay || null
                         });
                     }
-                    // 评分：偏向高Z、接近敌方H、可吃子的元素
-                    const oppH = (piece.color === 'white' ? this.blackPieces : this.whitePieces)
-                        .find(p => p.isHydrogenKing && p.row >= 0);
-                    const scoreElem = (e) => {
-                        let s = e.Z * 10; // 基础：Z越高越好
-                        if (oppH) {
-                            const dist = Math.abs(piece.row - oppH.row) + Math.abs(piece.col - oppH.col);
-                            // 接近敌方H加分
-                            if (dist <= 3) s += (6 - dist) * 500;
-                        }
-                        // 金属且高价的加分（可给电子、可离子键吃子）
-                        if (e.group === METAL && e.valence >= 3) s += 200;
-                        // 非金属高电负性的加分
-                        if (e.group === NONMETAL && e.en >= 3.0) s += 200;
-                        // 放射性惩罚（避免自伤）
-                        if (e.radio) s -= 100;
-                        // 稀有气体不可吃子，扣分
-                        const def = PIECE_DEFS[e.key];
-                        if (def && def.noble) s -= 300;
-                        return s;
-                    };
-                    candidates.sort((a, b) => scoreElem(b) - scoreElem(a));
+                    // 评分：目标核素静态价值（用户公式：吃子计分×机动性值×0.15 + 吃H加分 + 核变加分 + 放射扣分 + 控制加分）
+                    candidates.sort((a, b) => this._nuclideValueScore(b.key) - this._nuclideValueScore(a.key));
                     const best = candidates[0];
                     if (!best) return;
                     const iso = { mass: best.mass, radio: best.radio, halfLife: best.halfLife, decay: best.decay, name: null };
@@ -5282,7 +5344,10 @@
                     if (piece.isHydrogenKing) {
                         this.gameOver = true; this.winner = piece.color === COLOR_WHITE ? COLOR_BLACK : COLOR_WHITE;
                         this.addLog(`氢王(H)因嬗变消失，${this.winner==='white'?'白方':'黑方'}获胜`);
-                        this.removePiece(piece); return null;
+                        this.removePiece(piece);
+                        // 必须弹胜利窗口，否则 gameOver 后点击被静默吞掉（棋盘看似冻结）
+                        if (typeof this.showVictory === 'function') this.showVictory();
+                        return null;
                     }
                     // 衰变产物使用默认稳定同位素
                     const np = new Piece(newKey, piece.color, piece.id, null);
@@ -5404,6 +5469,13 @@
                                 const target = this.getPieceById(targetId);
                                 if (!target || !this.pieces.includes(target)) return;
                                 if (this.tryFissionOnHit(target, 'α粒子')) return;
+                                // 氢王不能被嬗变（否则胜利条件消失导致对局无法结束）
+                                if (target.isHydrogenKing) {
+                                    target.stunned = true; target.stunRounds = 1;
+                                    this.addLog(`α射线击中氢王(H)，眩晕1回合（氢王不受嬗变影响）`);
+                                    if (!this._animating) this.updateUI();
+                                    return;
+                                }
                                 const oldSym = target.symbol, oldMass = target.mass;
                                 const newZ = target.Z + 2;
                                 const newKey = this.findKeyByZ(newZ);
@@ -5588,6 +5660,8 @@
                     if (piece.isHydrogenKing) {
                         this.gameOver = true; this.winner = piece.color === COLOR_WHITE ? COLOR_BLACK : COLOR_WHITE;
                         this.addLog(`氢王(H)因裂变消失，${this.winner==='white'?'白方':'黑方'}获胜`);
+                        // 必须弹胜利窗口，否则 gameOver 后点击被静默吞掉（棋盘看似冻结）
+                        this._scheduleTimeout(() => { if (typeof this.showVictory === 'function') this.showVictory(); }, 650);
                     }
                     // 动画结束后清理并更新UI
                     this._scheduleTimeout(() => {
@@ -5689,11 +5763,12 @@
                     if (this.currentTurn === COLOR_WHITE) this._whiteNoStepCount = 0;
                     else this._blackNoStepCount = 0;
                     this.currentTurn=this.currentTurn===COLOR_WHITE?COLOR_BLACK:COLOR_WHITE;
-                    if(this.currentTurn===COLOR_WHITE){ this.roundNumber++; this.decrementTimers(); }
+                    // 半衰期与电荷/电子保持同一回合口径：仅当双方各走一步（回合回到白方）时推进
+                    if(this.currentTurn===COLOR_WHITE){ this.roundNumber++; this.decrementTimers(); this.resolveRadioactiveDecay(); }
                     this.selectedPiece=null; this.legalMoves=[];
                     // 切换计时器
                     if (this.chessClock && this.chessClock.active) this.chessClock.switch();
-                    this.resolveElectrostaticAttraction(); this.resolveRadioactiveDecay();
+                    this.resolveElectrostaticAttraction();
                     this.updateAllBonds();
                     // 电场位移后更新最后一步的棋盘状态和着法终点，确保复盘分析和实际棋盘一致
                     if (this._gameRecord.moves.length > 0) {
@@ -5724,10 +5799,10 @@
                             this.gameOver = true; this.winner = 'draw';
                             const drawMsg = `${colorName} ${this._t('logDrawBySkip')}`;
                             this.addLog(drawMsg);
-                            this.updateUI(); break;
+                            this.updateUI(); this.showVictory(); break;
                         }
                         this.currentTurn = this.currentTurn === COLOR_WHITE ? COLOR_BLACK : COLOR_WHITE;
-                        if (this.currentTurn === COLOR_WHITE){ this.roundNumber++; this.decrementTimers(); }
+                        if (this.currentTurn === COLOR_WHITE){ this.roundNumber++; this.decrementTimers(); this.resolveRadioactiveDecay(); }
                         this.selectedPiece = null; this.legalMoves = [];
                         this.updateAllBonds();
                         // 仅更新侧边栏（保留棋盘上的棋子移动动画）
@@ -5976,12 +6051,14 @@
                         sdy: (fromRow - move.row) * 100 + '%',
                         prevBadges: prevBadges
                     }];
-                    if(this.gameOver){ this.updateUI(); this.showVictory(); return; }
+                    // 联机消息必须在gameOver检查之前发送：
+                    // 吃掉氢王的制胜走法会触发gameOver提前return，若不先发送，对手永远看不到这步棋 → 两边棋局分叉
                     if(this.onlineMode && this.onlineManager) {
                         const isLiPromo = !this.debugMode && piece.symbol==='Li' && this.canNuclearTransform(piece);
                         this.onlineManager.send({type:'move',pieceId:piece.id,fromRow,fromCol,toRow:move.row,toCol:move.col,isAttack:move.isAttack,targetId:captured?captured.id:null,targetRow:captured?captured.row:null,targetCol:captured?captured.col:null,animInfo:this._animMovedInfos[0],endTurn:!isLiPromo});
                         this._skipNextEndTurnSend = true;
                     }
+                    if(this.gameOver){ this.updateUI(); this.showVictory(); return; }
                     // Li移动后到达底线 → 升变处理
                     if(!this.debugMode && piece.symbol==='Li' && this.canNuclearTransform(piece)){
                         if(this.aiMode && piece.color === this.aiColor){
@@ -7622,15 +7699,19 @@
                         this.game.winner = savedWinner;
                         this.game.currentTurn = savedTurn;
                     };
-                    // 最优着法（蓝色虚线箭头+给电子圆圈）：调用统一的_findBestMoveFull
+                    // 最优着法（蓝色虚线箭头+给电子圆圈）：优先复用分析阶段缓存的 _bestFull，
+                    // 未命中时用250ms预算兜底搜索，避免翻棋步时同步全深度搜索卡死界面
                     if (this._showBestMove && this._currentIdx > 0) {
                         try {
                             const prevMove = record.moves[this._currentIdx - 1];
                             const prevColor = prevMove?.color || 'white';
                             const prevStateStr = this._currentIdx <= 1 ? record.initialBoardState : (record.moves[this._currentIdx - 2]?.boardState || '');
                             if (prevStateStr) {
-                                const tempAnalyzer = new PostGameAnalyzer(this.game, record, this._analysisDepth, this._useStaticAnalysis);
-                                const full = tempAnalyzer._findBestMoveFull(prevStateStr, prevColor);
+                                let full = prevMove._bestFull || null;
+                                if (!full) {
+                                    const tempAnalyzer = new PostGameAnalyzer(this.game, record, this._analysisDepth, this._useStaticAnalysis);
+                                    full = tempAnalyzer._findBestMoveFull(prevStateStr, prevColor, 250);
+                                }
                                 if (full) {
                                     // 给电子标记（圆圈+短箭头）
                                     if (full.giveInfo) {
@@ -7737,8 +7818,12 @@
                                     }
                                 }
                                 this.game.rebuildAllBonds();
+                                // 快速评估期间标记搜索态，跳过getLegalMoves的逐子安全过滤（每子都建AI快照非常慢）
+                                const savedSearching = this.game._aiSearching;
+                                this.game._aiSearching = true;
                                 const quickAI = new ChemissAI(this.game, 'white', 1);
-                                const rawEval = quickAI.evaluate();
+                                let rawEval;
+                                try { rawEval = quickAI.evaluate(); } finally { this.game._aiSearching = savedSearching; }
                                 const isMoverWhite = move.color === 'white';
                                 const cp = isMoverWhite ? rawEval * 5 : -rawEval * 5;
                                 evalEl.innerHTML = `<span class="rm-cp" style="opacity:0.7">~${(cp>=0?'+':'')+cp.toFixed(0)}</span>`;
@@ -8892,20 +8977,20 @@
 <h4 style="color:#b0908a;margin:10px 0 4px;">II. Board & Pieces</h4>
 <p>8&times;8 board. White (bottom) moves first. Each side starts with 16 pieces: H&times;1, C&times;1, N&times;1, O&times;1, F&times;1, Si&times;1, P&times;1, S&times;1, Li&times;4, Na&times;4.</p>
 <h4 style="color:#b0908a;margin:10px 0 4px;">III. Movement</h4>
-<p>Move 1 piece per turn. Direction count = min(total electrons, 8). Step count = total electrons. Direction priority: even-period pieces move orthogonally first (up/left/right/down), odd-period move diagonally first. Chirality (left/right mirror) depends on starting column. Forward/backward flips by color.</p>
+<p>Move 1 piece per turn. Direction count = min(total electrons, 8). Step count = total electrons. Total electrons = valence (outer-shell) + shared + bonus electrons. Direction priority: even-period pieces move orthogonally first (up/left/right/down), odd-period move diagonally first. Chirality (left/right mirror) depends on starting column. Forward/backward flips by color.</p>
 <p>Dots around a piece show its move directions.</p>
 <h4 style="color:#b0908a;margin:10px 0 4px;">IV. Bonds & Captures</h4>
-<p><b>Ionic capture</b>: Metal vs nonmetal — bond type determined by: (1) hardcoded exceptions (e.g. Li-H, Na-H always ionic; Be-H, Mg-H always covalent), (2) EN diff > 2.0 → ionic, < 0.8 → covalent, (3) Fajans rule (polarizing power = valence/period vs anion softness), (4) default threshold EN diff > 1.7 → ionic, else covalent. Attacker gains defender's electrons up to octet deficit (8 − current total; 2 for H-king), lasting 3 turns. Unabsorbed defender electrons emit beta rays (up to 8).</p>
+<p><b>Ionic capture</b>: Metal vs nonmetal — bond type determined by: (1) hardcoded exceptions (e.g. Li-H, Na-H always ionic; Be-H, Mg-H always covalent), (2) EN diff > 2.0 → ionic, < 0.8 → covalent, (3) Fajans rule (polarizing power = valence/period vs anion softness), (4) default threshold EN diff > 1.7 → ionic, else covalent. Attacker gains the defender's valence + bonus electrons up to the attacker's octet deficit (8 − attacker's total electrons; 2 for H-king), lasting 3 turns. Unabsorbed defender electrons emit beta rays (up to 8).</p>
 <p><b>Covalent/Metallic capture</b>: Target must be bonded, attacker not a bond partner. Adjacent opposite-color pieces auto-bond. Covalent: 1 bond per atom max, sorted by EN diff descending. Metallic: multi-atom clusters share an electron sea (⌈total valence / N⌉ + 1).</p>
 <p><b>Noble gases</b>: No bonds, cannot capture or be captured.</p>
 <h4 style="color:#b0908a;margin:10px 0 4px;">V. Special Abilities</h4>
 <p><b>Electrostatic attraction</b>: Between turns, opposite-charge pieces move toward each other. Cross-color opposite-charge pairs take priority; sorted by Coulomb force |q<sub>1</sub>q<sub>2</sub>|/r².</p>
-<p><b>Metal electron donation</b>: Metal gives 1 electron to adjacent friendly nonmetal → metal becomes cation (+1 charge, 3 turns), nonmetal gains +1 bonus electron (3 turns).</p>
-<p><b>Li transmutation</b>: Li reaching opponent's back rank can become any non-H element (choose isotope).</p>
-<p><b>Radioactive decay</b>: Each turn, radioactive pieces count down half-life. Once half-life reaches 0, ~55% chance per turn to trigger decay (alpha: Z−2, beta: Z+1, gamma: no transmutation) emitting a ray. α/β decay has 50% chance to emit a concurrent gamma ray.</p>
+<p><b>Metal electron donation</b>: Metal loses 1 valence electron and gives it to an adjacent friendly nonmetal → metal becomes cation (+1 charge, 3 turns), nonmetal gains +1 bonus electron (3 turns).</p>
+<p><b>Li transmutation</b>: Li reaching opponent's back rank can become any non-H element (choose isotope). AI auto-selection ranks target elements by static value score: total = (capture score &times; mobility &times; 0.15) + eat-H bonus + transmutation bonus + radioactive penalty + control bonus. Capture score: nonmetals get 1 pt per capturable Na/Li (8 max), metals get 2 pts per capturable nonmetal type (C/N/O/F/S, 10 max); H-king not counted. Mobility: sum of weights of the first min(valence, 8) directions in the template (straight 1.2, diagonal 0.8). Eat-H: +3 if it can ionically capture the H-king. Transmutation: +0.8 if initial Li. Radioactive default isotope: &minus;1 (half-life &gt; 4) or &minus;2 (&le; 4). Noble gases: +3 (immune to capture, 8-way 8-step control).</p>
+<p><b>Radioactive decay</b>: Every full round (both sides have moved), radioactive pieces count down half-life. Once half-life reaches 0, ~55% chance per round to trigger decay (alpha: Z−2, beta: Z+1, gamma: no transmutation) emitting a ray. α/β decay has 50% chance to emit a concurrent gamma ray.</p>
 <h4 style="color:#b0908a;margin:10px 0 4px;">VI. Ray Effects</h4>
-<p>Alpha (range 2): Target absorbs Z+2 transmutation (or valence −1 if no suitable element). Heavy nuclei (Z≥90): 40% chance to fission.</p>
-<p>Beta (range 4): Target valence ±1 (random, 3 turns). Heavy nuclei may fission.</p>
+<p>Alpha (range 2): Target absorbs Z+2 transmutation and is stunned 1 turn; if no suitable element exists, valence −1 and stunned 1 turn; if no suitable isotope, stunned only. H-king is never transmuted — stunned 1 turn only. Heavy nuclei (Z≥90): 40% chance to fission.</p>
+<p>Beta (range 4): Target bonus electrons ±1 (random, 3 turns); H-king clamped to its octet limit (2). Heavy nuclei may fission.</p>
 <p>Gamma (range 8): Target stunned 1 turn. Heavy nuclei (Z≥90) may fission.</p>
 <p>Fission: Z≥90 element disappears, 2 fission products (Z 30–60) spawn in adjacent empty cells.</p>
 <h4 style="color:#b0908a;margin:10px 0 4px;">VII. Interface</h4>
@@ -8917,20 +9002,20 @@
 <h4 style="color:#b0908a;margin:10px 0 4px;">二、棋盘与棋子</h4>
 <p>8&times;8棋盘。白方（下方）先行。初始各16枚棋子：H&times;1, C&times;1, N&times;1, O&times;1, F&times;1, Si&times;1, P&times;1, S&times;1, Li&times;4, Na&times;4。</p>
 <h4 style="color:#b0908a;margin:10px 0 4px;">三、移动规则</h4>
-<p>每回合移动己方1枚棋子。方向数=min(总电子数,8)，步数=总电子数。方向优先级：偶数周期先走直向(上/左/右/下)，奇数周期先走斜向。手性(左右镜像)由棋子的生成列位决定且固定不变。前后方向由阵营（白/黑）翻转。</p>
+<p>每回合移动己方1枚棋子。方向数=min(总电子数,8)，步数=总电子数。总电子数=价电子(最外层电子)+共享电子+额外电子。方向优先级：偶数周期先走直向(上/左/右/下)，奇数周期先走斜向。手性(左右镜像)由棋子的生成列位决定且固定不变。前后方向由阵营（白/黑）翻转。</p>
 <p>棋子周围圆点表示当前可移动方向。</p>
 <h4 style="color:#b0908a;margin:10px 0 4px;">四、成键与吃子</h4>
-<p><b>离子键吃子</b>：金属-非金属判定流程：①硬编码例外表(Li-H,Na-H等=离子型；Be-H,Mg-H等=共价型)；②电负性差&gt;2.0&rarr;离子型，&lt;0.8&rarr;共价型；③法扬斯规则(极化力=价电子数/周期 vs 阴离子软度)；④默认阈值电负性差&gt;1.7&rarr;离子型，否则共价型。攻击方获得防御方电子至八隅体上限(8&minus;当前总电子；氢王上限2)，持续3回合。未吸收的防御方电子转化为&beta;射线(最多8条)。</p>
-<p><b>共价/金属键吃子</b>：目标必须已键合，攻击者不能是键合伙伴。相邻异色棋子自动成键，共价键按电负性差降序贪心分配、每原子限1根。金属键可形成多原子簇，共享电子海(&lceil;总价电子/N&rceil;+1)。</p>
+<p><b>离子键吃子</b>：金属-非金属判定流程：①硬编码例外表(Li-H,Na-H等=离子型；Be-H,Mg-H等=共价型)；②电负性差&gt;2.0&rarr;离子型，&lt;0.8&rarr;共价型；③法扬斯规则(极化力=价电子数/周期 vs 阴离子软度)；④默认阈值电负性差&gt;1.7&rarr;离子型，否则共价型。攻击方获得防御方的价电子与额外电子，上限为攻击方的八隅体缺口(8&minus;攻击方当前总电子数；氢王上限2)，持续3回合。未吸收的防御方电子转化为&beta;射线(最多8条)。</p>
+<p><b>共价/金属键吃子</b>：目标必须已键合，攻击者不能是键合伙伴。相邻异色棋子自动成键，共价键按电负性差降序贪心分配、每原子限1根。金属键可形成多原子簇，共享电子海(&lceil;各金属价电子之和/N&rceil;+1)。</p>
 <p><b>稀有气体</b>：不参与任何键合，不能吃子也不能被吃。</p>
 <h4 style="color:#b0908a;margin:10px 0 4px;">五、特殊能力</h4>
 <p><b>电性吸引</b>：回合切换时，异号电荷棋子自动互相靠近。不同阵营且异号电荷对优先，按库仑力|q<sub>1</sub>q<sub>2</sub>|/r&sup2;排序。</p>
-<p><b>金属给电子</b>：金属给相邻己方非金属1个电子&rarr;金属带正电荷(3回合)，非金属获得+1额外电子(3回合)。</p>
-<p><b>Li核变</b>：Li到达对方底线可变为除H外的任意元素(选同位素)。</p>
-<p><b>放射性衰变</b>：每回合放射性棋子倒计半衰期，归零后约55%概率触发衰变，发射射线(&alpha;: Z&minus;2, &beta;: Z+1, &gamma;: 不嬗变)。&alpha;/&beta;衰变有50%概率伴随&gamma;射线。</p>
+<p><b>金属给电子</b>：金属价电子&minus;1，并给相邻己方非金属1个电子&rarr;金属带正电荷(3回合)，非金属获得+1额外电子(3回合)。</p>
+<p><b>Li核变</b>：Li到达对方底线可变为除H外的任意元素(选同位素)。AI自动选择时按目标元素静态价值评分：总分=(吃子计分&times;机动性值&times;0.15)+吃H加分+核变加分+放射扣分+控制加分。吃子计分：非金属每能离子键吃掉1个Na/Li计1分(满分8)；金属每能吃掉1种初始非金属(C/N/O/F/S)计2分(满分10)；H不计入。机动性值：方向模板前min(价电子数,8)个方向的权重之和，直向1.2、斜向0.8(满分9.6)。能离子键直接吃氢王+3；初始Li+0.8；默认同位素放射性半衰期&gt;4回合扣1分、&le;4回合扣2分；稀有气体免疫吃子且8方向8步控场+3。</p>
+<p><b>放射性衰变</b>：每个完整回合（双方各走一步）放射性棋子倒计半衰期（与电子/电荷保持同一回合口径），归零后约55%概率触发衰变，发射射线(&alpha;: Z&minus;2, &beta;: Z+1, &gamma;: 不嬗变)。&alpha;/&beta;衰变有50%概率伴随&gamma;射线。</p>
 <h4 style="color:#b0908a;margin:10px 0 4px;">六、射线效果</h4>
-<p>alpha射线(射程2)：目标Z+2吸收嬗变，若无对应元素则价电子&minus;1；重核(Z&ge;90)有40%概率裂变。</p>
-<p>beta射线(射程4)：目标价电子随机&plusmn;1(3回合)；重核可裂变。</p>
+<p>alpha射线(射程2)：目标Z+2吸收嬗变并眩晕1回合；无可对应元素则价电子&minus;1并眩晕1回合；无合适同位素仅眩晕。氢王不受嬗变，仅眩晕1回合。重核(Z&ge;90)有40%概率裂变。</p>
+<p>beta射线(射程4)：目标额外电子随机&plusmn;1(3回合)；氢王受八隅上限2约束。重核可裂变。</p>
 <p>gamma射线(射程8)：目标眩晕1回合；重核(Z&ge;90)可裂变。</p>
 <p>裂变：Z&ge;90元素消失，相邻空格生成2个Z 30~60的裂变产物。</p>
 <h4 style="color:#b0908a;margin:10px 0 4px;">七、界面说明</h4>
