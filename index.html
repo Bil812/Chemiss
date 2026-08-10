@@ -8,34 +8,74 @@
         :root {
             --board-size: min(85vw, 85vh, 640px);
             --cell-size: calc(var(--board-size) / 8);
-            --white-cell: #ffffff;
-            --black-cell: #f2f2f2;
-            --legal-move: #bfbfbf;
+            --white-cell: #FFFFFF;
+            --black-cell: #F3F3F3;
+            --legal-move: #CCCCCC;
             --bond-glow: #666666;
-            --selected: #bfbfbf;
-            --panel-bg: #ffffff;
-            --panel-text: #222;
+            --selected: #b0908a;
+            --panel-bg: #FFFFFF;
+            --panel-text: #1A1A1A;
             --stun-mark: #c4a0a0;
             --cation-mark: #c49a7a;
             --anion-mark: #8a9fb8;
-            /* 主题自定义变量 */
-            --body-bg: #f9f9f9;
-            --board-wrapper-bg: #eaeaea;
-            --board-border-color: #cccccc;
-            --white-piece-start: #ffffff;
-            --white-piece-end: #f0f0f0;
-            --white-piece-color: #1a1a1a;
-            --black-piece-start: #222222;
-            --black-piece-end: #1a1a1a;
-            --black-piece-color: #f0f0f0;
+            /* 主题自定义变量 — WinUI 3 Light 默认 */
+            --body-bg: #F3F3F3;
+            --board-wrapper-bg: #F3F3F3;
+            --board-border-color: #E0E0E0;
+            --white-piece-start: #FFFFFF;
+            --white-piece-end: #F3F3F3;
+            --white-piece-color: #1A1A1A;
+            --black-piece-start: #1F1F1F;
+            --black-piece-end: #2D2D2D;
+            --black-piece-color: #FFFFFF;
             --piece-radius: 50%;
-            --dot-white: #1a1a1a;
-            --dot-black: #f2f2f2;
+            --dot-white: #1A1A1A;
+            --dot-black: #FFFFFF;
             --dot-size: 6.5%;
-            --side-panel-bg: rgba(255,255,255,0.72);
-            --side-panel-color: #222222;
-            --side-panel-heading: #333333;
-            --panel-border: #dddddd;
+            --side-panel-bg: rgba(255,255,255,0.78);
+            --side-panel-color: #1A1A1A;
+            --side-panel-heading: #1A1A1A;
+            --panel-border: #E0E0E0;
+
+            /* ===== WinUI 3 / Fluent 2 设计 Tokens ===== */
+            /* 字体 */
+            --font-caption: 12px;
+            --font-body: 14px;
+            --font-subtitle: 16px;
+            --font-title: 20px;
+            --font-title-large: 28px;
+            --font-weight-body-strong: 600;
+            --font-weight-subtitle: 600;
+
+            /* 间距 (4px 网格) */
+            --spacing-xxs: 4px;
+            --spacing-xs: 8px;
+            --spacing-sm: 12px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --spacing-xxl: 48px;
+
+            /* 圆角 */
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-circle: 50%;
+
+            /* 阴影 (Fluent elevation: ambient + edge) */
+            --elevation-card: 0 0 2px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.04);
+            --elevation-flyout: 0 0 2px rgba(0,0,0,0.06), 0 4px 8px rgba(0,0,0,0.08);
+            --elevation-dialog: 0 0 2px rgba(0,0,0,0.06), 0 8px 16px rgba(0,0,0,0.12);
+
+            /* 动画时长 */
+            --duration-fast: 83ms;
+            --duration-standard: 167ms;
+            --duration-moderate: 250ms;
+            --duration-slow: 350ms;
+
+            /* 缓动曲线 */
+            --easing-standard: cubic-bezier(0.45, 0, 0.33, 1);
+            --easing-decelerate: cubic-bezier(0.0, 0, 0.19, 1);
+            --easing-accelerate: cubic-bezier(0.45, 0, 0.55, 1);
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { overflow: auto; scrollbar-width: none; -ms-overflow-style: none; }
@@ -43,16 +83,16 @@
         body {
             display: flex; justify-content: center; align-items: flex-start;
             min-height: 100vh; background: #f9f9f9; background: var(--body-bg);
-            font-family: 'Times New Roman', 'Segoe UI', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            font-family: 'Times New Roman', 'Microsoft YaHei', 'Noto Sans SC', serif;
             user-select: none; -webkit-user-select: none;
-            gap: 16px; padding: 10px; padding-top: max(20px, calc((100vh - var(--board-size) - 40px) / 2));
+            gap: var(--spacing-md); padding: var(--spacing-sm); padding-top: max(20px, calc((100vh - var(--board-size) - 40px) / 2));
             flex-wrap: wrap;
         }
-        .game-container { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+        .game-container { display: flex; gap: var(--spacing-md); align-items: flex-start; flex-wrap: wrap; justify-content: center; }
         .board-wrapper {
             border: 4px solid #cccccc; border: 4px solid var(--board-border-color); border-radius: 8px;
-            background: #eaeaea; background: var(--board-wrapper-bg); padding: 4px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            background: #eaeaea; background: var(--board-wrapper-bg); padding: var(--spacing-xxs);
+            box-shadow: var(--elevation-card);
         }
         .board {
             display: grid; grid-template-columns: repeat(8, var(--cell-size));
@@ -64,7 +104,7 @@
         .cell {
             width: var(--cell-size); height: var(--cell-size);
             position: relative; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; transition: background 0.15s; border: 1px solid transparent;
+            cursor: pointer; transition: background var(--duration-standard) var(--easing-decelerate); border: 1px solid transparent;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
             overflow: visible; z-index: auto;
@@ -182,9 +222,9 @@
             width: 78%; height: 78%; border-radius: 50%; border-radius: var(--piece-radius);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             font-weight: 900; cursor: pointer; z-index: 5;
-            border: 2px solid rgba(0,0,0,0.5); box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+            border: 2px solid rgba(0,0,0,0.5); box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
             letter-spacing: -0.5px; text-shadow: 0 1px 1px rgba(0,0,0,0.3);
-            transition: transform 0.12s;
+            transition: transform var(--duration-fast) var(--easing-decelerate);
             position: relative;
         }
         /* 棋子落地时轻微弹跳 */
@@ -203,7 +243,7 @@
 
         /* 回合指示器：平滑文字过渡 */
         .turn-indicator {
-            transition: background 0.3s, color 0.3s, border-color 0.3s;
+            transition: background var(--duration-moderate) var(--easing-decelerate), color var(--duration-moderate) var(--easing-decelerate), border-color var(--duration-moderate) var(--easing-decelerate);
         }
         /* 设置行：简洁淡入 */
         .settings-bar-row {
@@ -261,9 +301,9 @@
         .direction-dot.black-dot { background: #f2f2f2; background: var(--dot-black); box-shadow: 0 0 4px #f2f2f2; box-shadow: 0 0 4px var(--dot-black); }
         .side-panel {
             background: rgba(255,255,255,0.72); background: var(--side-panel-bg); color: #222; color: var(--side-panel-color);
-            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-            border-radius: 10px; padding: 16px; width: 260px; min-width: 220px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.15); font-size: 0.9em;
+            backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+            border-radius: var(--radius-md); padding: var(--spacing-md); width: 260px; min-width: 220px;
+            box-shadow: var(--elevation-card); font-size: 0.9em;
             max-height: 85vh; overflow: hidden; display: flex; flex-direction: column; gap: 10px;
             scrollbar-width: none; -ms-overflow-style: none;
         }
@@ -293,7 +333,7 @@
                 order: 999; margin-top: auto;
                 position: sticky; bottom: 0; z-index: 1;
                 background: var(--side-panel-bg, rgba(255,255,255,0.72));
-                backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+                backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
                 border-top: 1px solid #ddd; padding-top: 8px;
             }
             .side-panel-divider { display: none; }
@@ -345,10 +385,11 @@
         .log { max-height: 180px; overflow-y: auto; font-size: 0.72em; background: #f0f0f0; padding: 6px 8px; border-radius: 4px; color: #333; }
         .log .log-entry { padding: 2px 0; border-bottom: 1px solid #ddd; }
         button {
-            padding: 8px 14px; border: none; border-radius: 6px; cursor: pointer;
-            font-weight: 700; font-size: 0.9em; transition: transform 0.2s, opacity 0.2s, background 0.2s, box-shadow 0.2s; letter-spacing: 0.5px;
+            padding: 8px 14px; border: none; border-radius: var(--radius-md); cursor: pointer;
+            font-weight: var(--font-weight-body-strong); font-size: 0.9em; transition: background var(--duration-fast) var(--easing-decelerate), transform var(--duration-fast) var(--easing-decelerate), opacity var(--duration-fast) var(--easing-decelerate); letter-spacing: 0.5px; font-family: inherit;
         }
-        button:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        button:hover { background: rgba(0,0,0,0.04); transform: none; box-shadow: none; }
+        button:active { transform: scale(0.98); background: rgba(0,0,0,0.08); }
         .btn-undo { background: #c0b0a0; color: #fff; }
         .btn-reset { background: #b0908a; color: #fff; }
         .btn-nuclear { background: #a090b0; color: #fff; }
@@ -394,7 +435,7 @@
         .modal-overlay {
             display: none; position: fixed; top:0; left:0; width:100%; height:100%;
             background: rgba(0,0,0,0.45);
-            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
             z-index:100; justify-content:center; align-items:center;
         }
         .modal-overlay.active { display: flex; animation: modal-fade-in 0.25s ease-out; }
@@ -408,9 +449,9 @@
             100% { opacity: 0; }
         }
         .modal {
-            background: rgba(255,255,255,0.78); background: var(--panel-bg); border-radius:12px; padding:20px; color:#222; color: var(--panel-text);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            max-width:720px; width:95%; box-shadow:0 10px 40px rgba(0,0,0,0.3); text-align:center;
+            background: rgba(255,255,255,0.78); background: var(--panel-bg); border-radius:var(--radius-md); padding:20px; color:#222; color: var(--panel-text);
+            backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+            max-width:720px; width:95%; box-shadow:var(--elevation-dialog); text-align:center;
             max-height:90vh; overflow-y:auto;
             position: relative;
             animation: modal-pop-in 0.3s ease-out;
@@ -468,7 +509,7 @@
         /* ========== 同位素弹窗 ========== */
         .iso-popup-overlay {
             position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.35); border-radius: 12px;
+            background: rgba(0,0,0,0.35); border-radius: var(--radius-md);
             display: flex; align-items: center; justify-content: center; z-index: 10;
             animation: iso-fade-in 0.2s ease-out;
         }
@@ -478,9 +519,9 @@
         }
         .iso-popup {
             background: var(--panel-bg, rgba(255,255,255,0.78)); color: var(--panel-text, #222);
-            backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-            border-radius: 14px; padding: 18px 20px 14px;
-            box-shadow: 0 6px 28px rgba(0,0,0,0.3);
+            backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+            border-radius: var(--radius-md); padding: 18px 20px 14px;
+            box-shadow: var(--elevation-dialog);
             text-align: center; max-width: 560px; width: 90%;
             animation: iso-pop-in 0.25s ease-out;
         }
@@ -542,16 +583,16 @@
         .victory-overlay {
             display:none; position:fixed; top:0; left:0; width:100%; height:100%;
             background:rgba(20,18,16,0.65);
-            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
             z-index:200;
             justify-content:center; align-items:center; flex-direction:column; gap:0;
         }
         .victory-overlay.active { display:flex; }
         .victory-card {
             background: rgba(255,255,255,0.72); color: #222;
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border-radius: 16px; padding: 40px 48px; text-align: center;
-            box-shadow: 0 8px 40px rgba(0,0,0,0.35);
+            backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+            border-radius: var(--radius-md); padding: 40px 48px; text-align: center;
+            box-shadow: var(--elevation-dialog);
             max-width: 420px; width: 88%;
             animation: victory-enter 0.6s ease-out forwards;
             display: flex; flex-direction: column; align-items: center; gap: 24px;
@@ -748,7 +789,7 @@
         body.dark-mode .timer-section { background: #2a2a2a; border-color: #444; }
         .clock-display {
             display: flex; justify-content: center; align-items: center;
-            gap: 10px; font-family: 'Courier New', 'SF Mono', monospace; font-weight: 700;
+            gap: 10px; font-family: 'Cascadia Code', 'Cascadia Mono', 'Consolas', 'SF Mono', monospace; font-weight: 700;
             font-size: 1.2em; padding: 2px 0 8px;
         }
         .clock-face {
@@ -787,7 +828,7 @@
             width: 42px; padding: 2px 4px; text-align: center;
             border: 1px solid #ddd; border-radius: 5px;
             background: #fafafa; color: #666; font-size: 0.88em;
-            font-family: 'Courier New', monospace; outline: none;
+            font-family: 'Cascadia Code', 'Consolas', monospace; outline: none;
         }
         .clock-num-input:focus { border-color: #b0908a; }
         body.dark-mode .clock-num-input { background: #333; border-color: #555; color: #aaa; }
@@ -837,7 +878,7 @@
         /* ========== 棋谱 ========== */
         .notation-list {
             max-height: 160px; overflow-y: auto; font-size: 0.75em;
-            font-family: 'Courier New', monospace; color: #555;
+            font-family: 'Cascadia Code', 'Consolas', monospace; color: #555;
         }
         body.dark-mode .notation-list { color: #ccc; }
         .copy-notation-row {
@@ -855,7 +896,7 @@
         .notation-num { color: #999; min-width: 24px; }
         body.dark-mode .notation-num { color: #888; }
 
-        /* ========== 暗色模式 ========== */
+        /* ========== 暗色模式 (WinUI 3 Dark) ========== */
         body.dark-mode {
             --stun-mark: #c4a0a0;
             --cation-mark: #c49a7a;
@@ -867,23 +908,23 @@
         body.dark-mode .side-panel h2 { color: var(--side-panel-heading); border-bottom-color: #555; }
         body.dark-mode .info-section { background: var(--panel-bg); color: var(--panel-text); }
         body.dark-mode .info-section h3 { color: #c4a48a; }
-        body.dark-mode .bond-item { background: var(--panel-bg, #3a3a3a); color: var(--panel-text, #ddd); border-left-color: var(--panel-border, #c4b898); }
-        body.dark-mode .log { background: #2a2a2a; color: #ccc; }
+        body.dark-mode .bond-item { background: #2D2D2D; color: var(--panel-text, #FFFFFF); border-left-color: var(--panel-border, #c4b898); }
+        body.dark-mode .log { background: #2D2D2D; color: #ADADAD; }
         body.dark-mode .log .log-entry { border-bottom-color: #444; }
-        body.dark-mode .turn-white { background: #d8d8d8; color: #1a1a1a; border-color: #aaa; }
+        body.dark-mode .turn-white { background: #D8D8D8; color: #1A1A1A; border-color: #aaa; }
         body.dark-mode .modal { background: var(--panel-bg); color: var(--panel-text); }
-        body.dark-mode .modal .choice-btn { background: #3a3a3a; color: #ddd; }
-        body.dark-mode .modal .choice-btn:hover { background: #4a4a4a; }
-        body.dark-mode .pt-cell { background: #333; color: #ddd; border-color: #555; }
-        body.dark-mode .pt-cell.pt-metal { background: #3e2723; border-color: #6d4c41; }
-        body.dark-mode .pt-cell.pt-nonmetal { background: #1b3a1b; border-color: #388e3c; }
-        body.dark-mode .pt-cell.pt-noble { background: #2a1a3a; border-color: #7b1fa2; }
-        body.dark-mode .pt-cell.pt-hk { background: #3a1a1a; }
-        body.dark-mode .pt-cell.pt-missing { border-color: #333; }
-        body.dark-mode .pt-cell:hover { background: #4a4038; }
-        body.dark-mode .iso-popup { background: var(--panel-bg, rgba(42,42,42,0.84)); color: var(--panel-text, #eee); }
-        body.dark-mode .victory-card { background: rgba(42,42,42,0.78); color: #eee; }
-        body.dark-mode .pt-cell .pt-z { color: #aaa; }
+        body.dark-mode .modal .choice-btn { background: #2D2D2D; color: #FFFFFF; }
+        body.dark-mode .modal .choice-btn:hover { background: #404040; }
+        body.dark-mode .pt-cell { background: #2D2D2D; color: #FFFFFF; border-color: #555; }
+        body.dark-mode .pt-cell.pt-metal { background: #3E2723; border-color: #6D4C41; }
+        body.dark-mode .pt-cell.pt-nonmetal { background: #1B3A1B; border-color: #388E3C; }
+        body.dark-mode .pt-cell.pt-noble { background: #2A1A3A; border-color: #7B1FA2; }
+        body.dark-mode .pt-cell.pt-hk { background: #3A1A1A; }
+        body.dark-mode .pt-cell.pt-missing { border-color: #353535; }
+        body.dark-mode .pt-cell:hover { background: #404040; }
+        body.dark-mode .iso-popup { background: rgba(45,45,45,0.84); color: var(--panel-text, #FFFFFF); }
+        body.dark-mode .victory-card { background: rgba(45,45,45,0.84); color: #FFFFFF; }
+        body.dark-mode .pt-cell .pt-z { color: #ADADAD; }
 
         /* ========== 射线动画 ========== */
         .cell.ray-source::after {
@@ -944,23 +985,23 @@
             border-radius: 50%; border: 1.5px solid #ddd; border-color: var(--panel-border); background: var(--panel-bg);
             color: #b0908a; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
-            font-size: 1em; box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-            transition: transform 0.2s, opacity 0.2s, background 0.2s, border-color 0.2s, box-shadow 0.2s; padding: 0; line-height: 1;
+            font-size: 1em; box-shadow: var(--elevation-card);
+            transition: transform var(--duration-fast) var(--easing-decelerate), opacity var(--duration-fast) var(--easing-decelerate), background var(--duration-fast) var(--easing-decelerate), border-color var(--duration-fast) var(--easing-decelerate); padding: 0; line-height: 1;
             flex-shrink: 0; overflow: visible;
         }
         .settings-icon-btn:hover {
-            border-color: #b0908a; transform: scale(1.1);
-            box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+            border-color: #b0908a; transform: scale(1.08);
+            box-shadow: var(--elevation-flyout);
         }
         .settings-icon-btn.active {
             background: #b0908a; border-color: #b0908a; color: var(--side-panel-color, #222);
         }
-        body.dark-mode .settings-icon-btn { border-color: var(--panel-border); color: #c4a48a; }
+        body.dark-mode .settings-icon-btn { background: #2D2D2D; border-color: #555555; color: #c4a48a; }
         body.dark-mode .settings-icon-btn.active { background: #8a7068; border-color: #8a7068; color: var(--side-panel-color, #eee); }
         .lang-popup {
             position: absolute; top: 100%; right: 0; margin-top: 6px;
-            background: rgba(255,255,255,0.94); backdrop-filter: blur(12px);
-            border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            background: rgba(255,255,255,0.94); backdrop-filter: blur(30px);
+            border-radius: var(--radius-md); box-shadow: var(--elevation-flyout);
             overflow: hidden; z-index: 310; min-width: 100px;
             animation: modal-fade-in 0.2s ease-out;
         }
@@ -1173,7 +1214,7 @@
         body.dark-mode .online-label { color: #aaa; }
         .online-room-code {
             font-weight: 700; font-size: 1.4em; letter-spacing: 4px;
-            font-family: 'Courier New', monospace; flex: 1; text-align: center;
+            font-family: 'Cascadia Code', 'Consolas', monospace; flex: 1; text-align: center;
             color: var(--panel-text);
         }
         .online-room-input {
@@ -1195,14 +1236,14 @@
         /* ========== 复盘面板 ========== */
         .review-overlay {
             display: none; position: fixed; top:0; left:0; width:100%; height:100%;
-            background: rgba(10,10,12,0.7); backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px); z-index:250;
+            background: rgba(10,10,12,0.7); backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px); z-index:250;
             justify-content: center; align-items: center;
         }
         .review-overlay.active { display: flex; animation: modal-fade-in 0.3s ease-out; }
         .review-container {
-            background: var(--side-panel-bg, rgba(255,255,255,0.82)); backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px); border-radius:14px;
+            background: var(--side-panel-bg, rgba(255,255,255,0.82)); backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px); border-radius:var(--radius-md);
             width:95vw; max-width:1100px; max-height:94vh;
             display: flex; flex-direction: column;
             box-shadow: 0 12px 48px rgba(0,0,0,0.35); color: var(--side-panel-color, #222); overflow: hidden;
@@ -1267,7 +1308,7 @@
         .review-board .rb-bubble-great { background:#5d89b4; color:#fff; }
         .review-board .rb-bubble-best { background:#81b64c; color:#fff; }
         .review-board .rb-bubble-excellent { background:#95bb6a; color:#fff; }
-        .review-board .rb-bubble-good { background:#c8c8c8; color:#666; }
+        .review-board .rb-bubble-good { background:#6a9a6a; color:#fff; }
         .review-board .rb-bubble-inaccuracy { background:#f7c631; color:#fff; }
         .review-board .rb-bubble-mistake { background:#f08c36; color:#fff; }
         .review-board .rb-bubble-blunder { background:#ca3432; color:#fff; }
@@ -1457,6 +1498,10 @@
                 <circle cx="15" cy="13" r="1.5" fill="currentColor"/>
                 <line x1="9" y1="17.5" x2="15" y2="17.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
             </g>
+            <g id="icon-autoplay">
+                <path d="M12.84 6.17Q12.7 5.93 12.41 5.83Q12.12 5.74 11.84 5.82Q11.57 5.9 11.47 6.17L7.06 16.54Q6.94 16.82 7.06 17.12Q7.18 17.42 7.46 17.52Q7.8 17.62 8.06 17.51Q8.33 17.4 8.45 17.11L9.7 14.16L14.59 14.16L15.84 17.11Q15.96 17.4 16.22 17.51Q16.49 17.62 16.82 17.52Q17.14 17.42 17.24 17.12Q17.35 16.82 17.23 16.54L12.84 6.17ZM12.14 8.38L13.97 12.65L10.34 12.65Z" fill="currentColor"/>
+                <path d="M22.99 12.07Q22.99 9.19 21.6 6.71Q20.21 4.22 17.81 2.69Q15.41 1.15 12.53 1.01Q9.55 0.86 6.95 2.22Q4.34 3.58 2.75 6.04Q1.15 8.5 1.01 11.47Q0.86 14.45 2.22 17.04Q3.58 19.63 6.04 21.24Q8.5 22.85 11.47 22.99Q13.78 22.99 15.66 22.38Q17.54 21.77 19.22 20.28Q19.46 20.11 19.48 19.79Q19.49 19.46 19.3 19.25Q19.1 19.01 18.79 18.98Q18.48 18.96 18.24 19.18Q16.85 20.38 15.11 20.98Q13.37 21.58 11.54 21.48Q8.98 21.36 6.85 19.98Q4.73 18.6 3.56 16.36Q2.4 14.11 2.52 11.54Q2.64 8.93 4.03 6.8Q5.42 4.68 7.66 3.53Q9.89 2.38 12.46 2.5Q14.95 2.62 17.02 3.92Q19.08 5.23 20.28 7.37Q21.48 9.5 21.48 12L19.87 12Q19.75 12 19.66 12.08Q19.56 12.17 19.54 12.29Q19.51 12.41 19.56 12.53L21.65 15.89Q21.7 15.98 21.82 16.03Q21.94 16.08 22.06 16.04Q22.18 16.01 22.22 15.91Q22.25 15.89 22.25 15.88Q22.25 15.86 22.27 15.84Q22.61 15 22.8 13.98Q22.99 12.96 22.99 12.07Z" fill="currentColor"/>
+            </g>
             <g id="icon-clock">
                 <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                 <polyline points="12 7 12 12 15.5 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1576,6 +1621,7 @@
             <button class="settings-icon-btn" id="btnOnline" title="联机对战"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-link"/></svg></button>
             <button class="settings-icon-btn" id="btnFlip" title="翻转棋盘"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-flip"/></svg></button>
             <button class="settings-icon-btn" id="btnAI" title="人机对战"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-robot"/></svg></button>
+            <button class="settings-icon-btn" id="btnAutoPlay" title="AI自动对弈"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-autoplay"/></svg></button>
             <button class="settings-icon-btn" id="btnClock" title="计时器"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-clock"/></svg></button>
             <button class="settings-icon-btn" id="btnReview" title="复盘分析"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-review"/></svg></button>
             <button class="settings-icon-btn" id="btnNotation" title="棋谱"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-notation"/></svg></button>
@@ -1865,8 +1911,8 @@
                 <div class="review-side-col">
                     <div class="review-depth-row">
                         <span class="review-depth-label">分析模式</span>
-                        <span class="review-mode-toggle" id="reviewModeStatic">静态</span>
-                        <span class="review-mode-toggle active" id="reviewModeSearch">搜索</span>
+                        <span class="review-mode-toggle active" id="reviewModeStatic">静态</span>
+                        <span class="review-mode-toggle" id="reviewModeSearch">搜索</span>
                     </div>
                     <div class="review-depth-row">
                         <span class="review-depth-label">搜索深度</span>
@@ -1900,10 +1946,10 @@
                         <svg class="review-chart-svg" id="reviewChartSvg" viewBox="0 0 400 150" preserveAspectRatio="xMidYMid meet">
                             <line x1="30" y1="10" x2="400" y2="10" stroke="#888" stroke-width="0.4" opacity="0.3"/>
                             <line x1="30" y1="75" x2="400" y2="75" stroke="#888" stroke-width="0.4" opacity="0.5"/>
-                            <line x1="30" y1="140" x2="400" y2="140" stroke="#888" stroke-width="0.4" opacity="0.3"/>
+                            <line x1="30" y1="135" x2="400" y2="135" stroke="#888" stroke-width="0.4" opacity="0.3"/>
                             <text x="8" y="13" fill="#aaa" font-size="8">100%</text>
                             <text x="8" y="78" fill="#aaa" font-size="8">50%</text>
-                            <text x="8" y="143" fill="#aaa" font-size="8">0%</text>
+                            <text x="8" y="138" fill="#aaa" font-size="8">0%</text>
                             <path id="reviewChartLine" fill="none" stroke="#b0908a" stroke-width="2" d=""/>
                             <path id="reviewChartArea" fill="rgba(176,144,138,0.12)" d=""/>
                         </svg>
@@ -2195,6 +2241,8 @@
                 'No':[{mass:259,radio:true,halfLife:2,decay:'alpha'},{mass:255,radio:true,halfLife:1,decay:'alpha'}],
                 'Lr':[{mass:266,radio:true,halfLife:3,decay:'alpha'},{mass:262,radio:true,halfLife:2,decay:'alpha'}]
             };
+            // Li核变升变目标不做候选集限制：两条核变路径（findBestMove bestNuclear 与 _aiAutoNuclearTransform）
+            // 均遍历全部元素，用 _nuclideValueScore 公式选最优（评分高者优先，如重过渡金属）
             // 默认稳定同位素质量数map
             const DEFAULT_ISOTOPE = {};
             for(const [k, list] of Object.entries(ISOTOPES)){
@@ -2756,9 +2804,9 @@
                         const distToHK = Math.abs(p.row - oppH.row) + Math.abs(p.col - oppH.col);
                         if (this._isChecking(p, oppH)) {
                             if (this._isCheckmateLevel(p, p.row, p.col, oppH)) {
-                                score += 2000; // 将死级威胁（对方无法反吃）
+                                score += 700; // 将死级威胁（对方无法反吃）：仍显著但不再2000级爆炸
                             } else {
-                                score += 600;  // 一般将军（对方可反吃将军子）
+                                score += 200; // 一般将军（对方可反吃将军子）：收敛，避免单步将军抛高曲线
                             }
                         } else if (distToHK <= 1) {
                             score += 30;
@@ -2771,9 +2819,9 @@
                         const distToHK = Math.abs(p.row - myH.row) + Math.abs(p.col - myH.col);
                         if (this._isChecking(p, myH)) {
                             if (this._isCheckmateLevel(p, p.row, p.col, myH)) {
-                                score -= 2000; // 对方将死级威胁
+                                score -= 700; // 对方将死级威胁
                             } else {
-                                score -= 600;  // 对方一般将军（我方可反吃）
+                                score -= 200; // 对方一般将军（我方可反吃）
                             }
                         } else if (distToHK <= 1) {
                             score -= 30;
@@ -2787,11 +2835,25 @@
                         if (p.row<0||p.col<0||p.isHydrogenKing||p.noble) continue;
                         const adv = this.color==='white' ? (7-p.row) : p.row;
                         score += Math.pow(adv, 1.3) * 1.2;
+                        // Li升变潜力：Li越接近底线加分越多，鼓励把Li推进到底线核变
+                        if (p.symbol === 'Li' && !p.stunned) {
+                            const liDist = p.color === 'white' ? p.row : (7 - p.row);
+                            if (liDist <= 1) score += 40;
+                            else if (liDist === 2) score += 20;
+                            else if (liDist === 3) score += 10;
+                        }
                     }
                     for (const p of oppPieces) {
                         if (p.row<0||p.col<0||p.isHydrogenKing||p.noble) continue;
                         const adv = this.color==='white' ? p.row : (7-p.row);
                         score -= Math.pow(adv, 1.3) * 1.2;
+                        // 对方Li升变威胁：阻止对方把Li推进到底线
+                        if (p.symbol === 'Li' && !p.stunned) {
+                            const liDist = p.color === 'white' ? p.row : (7 - p.row);
+                            if (liDist <= 1) score -= 40;
+                            else if (liDist === 2) score -= 20;
+                            else if (liDist === 3) score -= 10;
+                        }
                     }
 
                     // === 10. CHARGE (完全对称) ===
@@ -2920,13 +2982,90 @@
                 _pieceValue(p) {
                     if (p.row < 0) return 0;
                     let v = p.Z * 2;
-                    if (p.isHydrogenKing) v = 1200;
+                    // H王子力从1200收敛到300：吃H即获胜已由gameOver制胜分(±1e8)表达，
+                    // 1200会让H王周围攻防状态变化使material差剧烈跳变，放大胜率曲线方差。
+                    // 300仍明显高于普通子(2~184)，AI继续重视保护H王。
+                    if (p.isHydrogenKing) v = 300;
                     if (p.noble) v = 25;
                     if (p.totalElectrons > 8) v += Math.pow(p.totalElectrons - 8, 1.5) * 3;
                     if (p.radioactive) v -= 10;
                     if (p.stunned) v *= 0.25;
                     if (p.lanthanide) v -= 2;
                     return v;
+                }
+                // 调试用：当前局面静态评估的关键分项（与evaluate对应段口径一致），供复盘分析输出评分来源。
+                // 只读，不改动局面状态（内部会临时切换currentTurn并恢复）。
+                _scoreBreakdown() {
+                    const game = this.game;
+                    const color = this.color;
+                    const my = color === 'white' ? game.whitePieces : game.blackPieces;
+                    const opp = color === 'white' ? game.blackPieces : game.whitePieces;
+                    const out = {};
+                    // 子力
+                    let mm = 0, om = 0;
+                    for (const p of my) mm += this._pieceValue(p);
+                    for (const p of opp) om += this._pieceValue(p);
+                    out.material = Math.round(mm - om);
+                    // H 威胁（将军/将死）
+                    const myH = my.find(p => p.isHydrogenKing);
+                    const oppH = opp.find(p => p.isHydrogenKing);
+                    let hT = 0;
+                    for (const p of my) {
+                        if (p.row < 0 || p.col < 0 || !oppH || oppH.row < 0) continue;
+                        const d = Math.abs(p.row - oppH.row) + Math.abs(p.col - oppH.col);
+                        if (this._isChecking(p, oppH)) hT += this._isCheckmateLevel(p, p.row, p.col, oppH) ? 700 : 200;
+                        else if (d <= 1) hT += 30;
+                        else if (d <= 3) hT += (4 - d) * 8;
+                    }
+                    for (const p of opp) {
+                        if (p.row < 0 || p.col < 0 || !myH || myH.row < 0) continue;
+                        const d = Math.abs(p.row - myH.row) + Math.abs(p.col - myH.col);
+                        if (this._isChecking(p, myH)) hT -= this._isCheckmateLevel(p, p.row, p.col, myH) ? 700 : 200;
+                        else if (d <= 1) hT -= 30;
+                        else if (d <= 3) hT -= (4 - d) * 8;
+                    }
+                    out.hThreat = hT;
+                    // H 安全
+                    let hs = 0;
+                    if (myH && myH.row >= 0) {
+                        const n = game.getAdjacentPieces(myH.row, myH.col);
+                        const fr = n.filter(x => x.color === color).length;
+                        const fe = n.filter(x => x.color !== color).length;
+                        hs += fr * 12 - fe * 25;
+                        if (mm < om) hs += fr * 5 - fe * 10;
+                        if (fr === 0 && fe > 0) hs -= 30;
+                    }
+                    if (oppH && oppH.row >= 0) {
+                        const n = game.getAdjacentPieces(oppH.row, oppH.col);
+                        const oppColor = color === 'white' ? 'black' : 'white';
+                        const fr = n.filter(x => x.color === oppColor).length;
+                        const fe = n.filter(x => x.color === color).length;
+                        hs -= fr * 12 - fe * 25;
+                        if (om < mm) hs -= fr * 5 - fe * 10;
+                        if (fr === 0 && fe > 0) hs += 30;
+                    }
+                    out.hSafety = Math.round(hs);
+                    // 机动性
+                    let mob = 0;
+                    const savedTurn = game.currentTurn;
+                    game.currentTurn = color;
+                    for (const p of my) {
+                        if (p.row < 0 || p.col < 0 || p.stunned || p.totalElectrons <= 0) continue;
+                        mob += game.getLegalMoves(p).length * 0.55;
+                    }
+                    game.currentTurn = color === 'white' ? 'black' : 'white';
+                    for (const p of opp) {
+                        if (p.row < 0 || p.col < 0 || p.stunned || p.totalElectrons <= 0) continue;
+                        mob -= game.getLegalMoves(p).length * 0.55;
+                    }
+                    game.currentTurn = savedTurn;
+                    out.mobility = Math.round(mob);
+                    // 电子经济
+                    let el = 0;
+                    for (const p of my) { if (p.row < 0) continue; el += p.totalElectrons * 1.5 + Math.min(p.totalElectrons, 8) * 2 + p.totalElectrons; }
+                    for (const p of opp) { if (p.row < 0) continue; el -= p.totalElectrons * 1.5 + Math.min(p.totalElectrons, 8) * 2 + p.totalElectrons; }
+                    out.electrons = Math.round(el);
+                    return out;
                 }
 
                 // 检查两点之间直线是否无阻挡（用于判断是否可以直线到达对方H）
@@ -2976,25 +3115,33 @@
                     if (move.action === 'giveElectron') {
                         const nm = move.nonmetal;
                         if (nm) {
-                            // 基础分大幅降低（不再无条件给500+）：只有能形成威胁（吃子/将军/靠近敌H）的给电子才值得
-                            score += nm.Z * 10 + 60;
+                            const metal = piece;
+                            // 给电子步本身不额外加分（后果完全交给搜索评估）：只有能形成威胁
+                            // （吃子/将军/靠近敌H）才有排序权重，无收益的给电子自然排到后面
                             // 计算增强后的合法移动
                             const afterMoves = this.game.getLegalMoves(nm);
                             // 被增强的非金属离敌H近且有实际威胁才加分
                             const oppH = (this.color === 'white' ? this.game.blackPieces : this.game.whitePieces).find(p => p.isHydrogenKing);
+                            let canEatHAfter = false;
                             if (oppH && oppH.row >= 0 && nm.row >= 0) {
                                 const dist = Math.abs(nm.row - oppH.row) + Math.abs(nm.col - oppH.col);
-                                const canEatHAfter = afterMoves.some(m => m.isAttack && this.game.board[m.row][m.col]?.isHydrogenKing);
+                                canEatHAfter = afterMoves.some(m => m.isAttack && this.game.board[m.row][m.col]?.isHydrogenKing);
                                 if (canEatHAfter) {
                                     score += 80000; // 增强后能吃H → 极高奖励
                                 } else if (dist <= 3) {
-                                    // 不直接将军但距离近 → 温和奖励
-                                    score += (8 - dist) * 200;
+                                    score += (8 - dist) * 120;
                                 }
                             }
-                            // 增强后能吃子数（不含H，H已在上面单独加分）
+                            // 增强后能吃子数（不含H）
                             const captureCount = afterMoves.filter(m => m.isAttack && !this.game.board[m.row][m.col]?.isHydrogenKing).length;
-                            score += captureCount * 800;
+                            score += captureCount * 500;
+                            // 给电子的代价：金属失去1价电子。若给完后金属完全丧失机动性且无即时收益，
+                            // 大幅扣分，防止AI"不顾后果瞎给电子"（金属变成不能动的靶子）
+                            const afterValence = Math.max(0, metal.valence - 1);
+                            const afterElectrons = afterValence + (metal.sharedElectrons || 0) + (metal.bonusElectrons || 0);
+                            if (afterElectrons <= 0 && !canEatHAfter && captureCount === 0) {
+                                score -= 200;
+                            }
                         }
                         return score;
                     }
@@ -3256,33 +3403,66 @@
                     if (qDepth <= 0) return standPat;
                     if (standPat > alpha) alpha = standPat;
                     const allMoves = this.generateMoves();
-                    const captures = allMoves.filter(m => m.move.isAttack);
+                    // 被将军时必须扩展所有解将走法（含移H等非吃子）；否则只搜吃子会漏掉解将步，评估虚低。
+                    // 非将军时也扩展"能将军对方H"的走法：否则 quiescence 只吃子，看不到"走一步将军→无解→吃H"的
+                    // 将杀链，导致将杀前的局面被误评为优势（如复盘中将死前一步报白优）。
+                    const captures = inCheck ? allMoves : allMoves.filter(({ piece, move }) => move.isAttack || this._givesCheck(piece, move));
+                    // 被将军且无解将步 = 将死：返回±1e8，而不是静态评估（否则将死被掩盖，将死前评分失真）
+                    if (inCheck) {
+                        const side = this.game.currentTurn;
+                        let canEscape = false;
+                        for (const { piece, move } of allMoves) {
+                            const s = this._snapshot();
+                            this._executeTemp(piece, move);
+                            if (!this.isInCheck(side)) { canEscape = true; }
+                            this._restore(s);
+                            if (canEscape) break;
+                        }
+                        if (!canEscape) return isMaximizing ? -100000000 : 100000000;
+                    }
                     if (captures.length === 0) return standPat;
                     this._orderMoves(captures);
                     if (isMaximizing) {
                         for (const { piece, move } of captures) {
+                            // 防御：跳过坐标无效的move（给电子等无坐标动作不应混入），避免 board[undefined] 崩溃
+                            if (typeof move.row !== 'number' || typeof move.col !== 'number' || move.row < 0 || move.row > 7 || move.col < 0 || move.col > 7) continue;
                             const tgt = this.game.board[move.row][move.col];
-                            if (!tgt) continue;
-                            // Delta pruning: 跳过吃子价值太低的走法
-                            const tgtVal = this._pieceValue(tgt);
-                            if (tgtVal + 50 < alpha - standPat) continue;
+                            // 被将军时扩展非吃子解将步（移H等）；非将军时只搜吃子
+                            if (!tgt && !inCheck) {
+                                // 非吃子且非解将的走法跳过；但"将军走法"（非吃子移动将军对方H）必须扩展，
+                                // 否则与上方 filter 矛盾：将军走法被选入 captures 却在循环里被跳过，
+                                // 导致 beta 从不更新 → quiescence 返回 +Infinity
+                                if (!this._givesCheck(piece, move)) continue;
+                            }
+                            // Delta pruning 仅在非将军时对吃子使用（解将步必须完整搜索，否则误判无解）
+                            if (!inCheck && tgt) {
+                                const tgtVal = this._pieceValue(tgt);
+                                if (tgtVal + 50 < alpha - standPat) continue;
+                            }
                             const snapshot = this._snapshot();
                             this._executeTemp(piece, move);
-                            const score = this.quiescenceSearch(alpha, beta, false, qDepth - 1);
+                            const score = this.quiescenceSearch(alpha, beta, false, qDepth - 1, inCheck);
                             this._restore(snapshot);
                             if (score > alpha) alpha = score;
                             if (alpha >= beta) break;
                         }
                     } else {
                         for (const { piece, move } of captures) {
+                            if (typeof move.row !== 'number' || typeof move.col !== 'number' || move.row < 0 || move.row > 7 || move.col < 0 || move.col > 7) continue;
                             const tgt = this.game.board[move.row][move.col];
-                            if (!tgt) continue;
-                            // Delta pruning: 跳过吃子价值太低的走法
-                            const tgtVal = this._pieceValue(tgt);
-                            if (tgtVal + 50 < standPat - beta) continue;
+                            if (!tgt && !inCheck) {
+                                // 非吃子且非解将的走法跳过；但"将军走法"（非吃子移动将军对方H）必须扩展，
+                                // 否则与上方 filter 矛盾：将军走法被选入 captures 却在循环里被跳过，
+                                // 导致 beta 从不更新 → quiescence 返回 +Infinity
+                                if (!this._givesCheck(piece, move)) continue;
+                            }
+                            if (!inCheck && tgt) {
+                                const tgtVal = this._pieceValue(tgt);
+                                if (tgtVal + 50 < standPat - beta) continue;
+                            }
                             const snapshot = this._snapshot();
                             this._executeTemp(piece, move);
-                            const score = this.quiescenceSearch(alpha, beta, true, qDepth - 1);
+                            const score = this.quiescenceSearch(alpha, beta, true, qDepth - 1, inCheck);
                             this._restore(snapshot);
                             if (score < beta) beta = score;
                             if (alpha >= beta) break;
@@ -3301,13 +3481,16 @@
                     }
                     const boardKey = this._boardHash();
                     const ttEntry = this._transpositionTable.get(boardKey);
+                    // 被将军时必须应招：禁用 null-move/razoring/futility 等跳步剪枝。
+                    // 否则被将军方会被跳过回合 → 对手连走两步吃H → 误判"无解"报制胜分(±1e8)，实际对方有解将走法
+                    const inCheck = ply > 0 && this.isInCheck(this.game.currentTurn);
                     if (ttEntry && ttEntry.depth >= depth) {
                         if (ttEntry.flag === 'exact') return ttEntry.score;
                         if (ttEntry.flag === 'lower' && ttEntry.score >= beta) return ttEntry.score;
                         if (ttEntry.flag === 'upper' && ttEntry.score <= alpha) return ttEntry.score;
                     }
-                    // Null Move Pruning
-                    if (depth >= 3 && ply > 0 && !this._isZugzwangPosition()) {
+                    // Null Move Pruning（被将军时禁用）
+                    if (depth >= 3 && ply > 0 && !this._isZugzwangPosition() && !inCheck) {
                         const R = depth >= 6 ? 3 : 2;
                         const snapshot = this._snapshot();
                         this.game.currentTurn = (this.game.currentTurn === 'white' ? 'black' : 'white');
@@ -3316,8 +3499,8 @@
                         if (isMaximizing && nullScore >= beta) return beta;
                         if (!isMaximizing && nullScore <= alpha) return alpha;
                     }
-                    // Razoring: depth <= 3 时, 静态评估大幅低于alpha则跳过
-                    if (depth <= 3 && ply > 0) {
+                    // Razoring: depth <= 3 时, 静态评估大幅低于alpha则跳过（被将军时禁用）
+                    if (depth <= 3 && ply > 0 && !inCheck) {
                         const staticEval = this.evaluate();
                         const razorMargin = 200 + depth * 100;
                         if (isMaximizing && staticEval + razorMargin < alpha) {
@@ -3328,9 +3511,24 @@
                         }
                     }
                     if (depth <= 0) {
-                        return this.quiescenceSearch(alpha, beta, isMaximizing);
+                        return this.quiescenceSearch(alpha, beta, isMaximizing, 6, inCheck);
                     }
                     const moves = this.generateMoves();
+                    // 被将军且无解将步 = 被将死：返回±1e8制胜分。
+                    // 否则静态评估会掩盖将杀（_aiSearching跳过了将军过滤，被将军方总有非解将走法，
+                    // moves.length不为0，旧代码只能返回静态值 → 将死前一步评分仍报优势）
+                    if (this.isInCheck(this.game.currentTurn)) {
+                        const side = this.game.currentTurn;
+                        let canEscape = false;
+                        for (const { piece, move } of moves) {
+                            const s = this._snapshot();
+                            this._executeTemp(piece, move);
+                            if (!this.isInCheck(side)) { canEscape = true; }
+                            this._restore(s);
+                            if (canEscape) break;
+                        }
+                        if (!canEscape) return isMaximizing ? -100000000 : 100000000;
+                    }
                     if (moves.length === 0) return this.evaluate() * (isMaximizing ? 1 : -1);
                     this._orderMoves(moves);
                     let bestScore, originalAlpha = alpha;
@@ -3339,8 +3537,8 @@
                         bestScore = -Infinity;
                         for (let i = 0; i < moves.length; i++) {
                             const { piece, move } = moves[i];
-                            // Futility pruning: depth <= 3 时, 非PV走法跳过明显无用的
-                            if (i > 0 && depth <= 3 && !move.isAttack && !this._givesCheck(piece, move)) {
+                            // Futility pruning: depth <= 3 时, 非PV走法跳过明显无用的（被将军时禁用，解将步可能非吃子）
+                            if (i > 0 && depth <= 3 && !move.isAttack && !this._givesCheck(piece, move) && !inCheck) {
                                 const futilityMargin = 150 + depth * 100;
                                 if (bestScore > -50000 && this.evaluate() + futilityMargin < alpha) {
                                     continue;
@@ -3356,7 +3554,8 @@
                             } else {
                                 // Late Move Reduction (depth >= 3 时, 对靠后的非吃子不走降级)
                                 let reduction = 0;
-                                if (i >= 3 && depth >= 4 && !isCapture && !givesCheck) {
+                                if (i >= 3 && depth >= 4 && !isCapture && !givesCheck && !inCheck) {
+                                    // 被将军时禁用 LMR：解将步不能降级搜索，否则浅搜看不到防守 → 误报制胜
                                     reduction = 1 + Math.min(Math.floor(i / 6), 2);
                                 }
                                 const lmrDepth = Math.max(0, depth - 1 - reduction);
@@ -3392,8 +3591,8 @@
                         bestScore = Infinity;
                         for (let i = 0; i < moves.length; i++) {
                             const { piece, move } = moves[i];
-                            // Futility pruning (minimizing side)
-                            if (i > 0 && depth <= 3 && !move.isAttack && !this._givesCheck(piece, move)) {
+                            // Futility pruning (minimizing side)（被将军时禁用）
+                            if (i > 0 && depth <= 3 && !move.isAttack && !this._givesCheck(piece, move) && !inCheck) {
                                 const futilityMargin = 150 + depth * 100;
                                 if (bestScore < 50000 && this.evaluate() - futilityMargin > beta) {
                                     continue;
@@ -3409,7 +3608,8 @@
                             } else {
                                 // Late Move Reduction (depth >= 4 时对靠后的非吃子不走降级)
                                 let reduction = 0;
-                                if (i >= 3 && depth >= 4 && !isCapture && !givesCheck) {
+                                if (i >= 3 && depth >= 4 && !isCapture && !givesCheck && !inCheck) {
+                                    // 被将军时禁用 LMR：解将步不能降级搜索，否则浅搜看不到防守 → 误报制胜
                                     reduction = 1 + Math.min(Math.floor(i / 6), 2);
                                 }
                                 const lmrDepth = Math.max(0, depth - 1 - reduction);
@@ -3496,14 +3696,9 @@
                     const liPiece = myPieces.find(p => p.symbol === 'Li' && p.row >= 0 &&
                         (p.color === 'white' ? p.row === 0 : p.row === 7));
                     if (liPiece && !liPiece.stunned) {
-                        const AI_NUCLEAR_TARGETS = [
-                            'He','Ne','Ar','Kr','Xe','Rn',  // 稀有气体：免疫吃子，8方向8格
-                            'F','O','N','C',                 // 强非金属
-                            'U','Th','Pu','Np','Am','Cm',      // 可裂变重核
-                            'Fe','Cu','Ag'                    // 过渡金属
-                        ];
-                        for (const elemKey of AI_NUCLEAR_TARGETS) {
-                            if (!PIECE_DEFS[elemKey] || elemKey === 'H') continue;
+                        // 遍历所有元素（排除H/氢王），用 _nuclideValueScore 公式选最优升变目标（不限制候选集）
+                        for (const elemKey of Object.keys(PIECE_DEFS)) {
+                            if (elemKey === 'H' || PIECE_DEFS[elemKey].isHK) continue;
                             const isos = ISOTOPES[elemKey] || [];
                             // 稳定同位素优先；无稳定同位素时选半衰期最长者（AI不再自动选Lr262这类快速衰变核素）
                             const stableIso = isos.find(iso => iso.stable) ||
@@ -3546,23 +3741,39 @@
                                 moves.unshift(item);
                             }
                         }
-                        for (const { piece, move } of moves) {
-                            if (Date.now() > deadline && d > 1) break;
+                        for (let mi = 0; mi < moves.length; mi++) {
+                            const { piece, move } = moves[mi];
+                            // d=1 层也受 deadline 约束（但至少完成首个着法，保证有结果），
+                            // 防止复盘分析/箭头按预算调用时 d=1 层走完全部着法导致严重超时卡顿
+                            if (Date.now() > deadline && (d > 1 || mi > 0)) break;
                             const snapshot = this._snapshot();
                             this._executeTemp(piece, move);
                             let score;
                             if (move.action === 'giveElectron') {
-                                // giveElectron不消耗回合：同一方继续走棋，搜索最佳后续常规着法
+                                // giveElectron不消耗回合：同一方继续走棋。后续搜索深度提到 d-1（与常规着法同级），
+                                // 并加 PVS 零窗口剪枝，充分评估给电子的后果（金属变弱/被吃风险），避免盲目给电子
                                 const followMoves = this.generateMoves().filter(mv => mv.move.action !== 'giveElectron');
-                                if (followMoves.length > 0 && d >= 2) {
+                                if (followMoves.length > 0) {
                                     let bestFollow = -Infinity;
-                                    for (const { piece: fp, move: fm } of followMoves) {
+                                    let alphaG = -Infinity, betaG = Infinity;
+                                    for (let fi = 0; fi < followMoves.length; fi++) {
                                         if (Date.now() > deadline) break;
+                                        const { piece: fp, move: fm } = followMoves[fi];
                                         const snap2 = this._snapshot();
                                         this._executeTemp(fp, fm);
-                                        const fs = this.search(Math.max(0, d - 2), -Infinity, Infinity, false, 0);
+                                        let fs;
+                                        if (fi === 0) {
+                                            fs = this.search(Math.max(0, d - 1), alphaG, betaG, false, 0);
+                                        } else {
+                                            fs = this.search(Math.max(0, d - 1), alphaG, alphaG + 1, false, 0);
+                                            if (fs > alphaG && fs < betaG) {
+                                                fs = this.search(Math.max(0, d - 1), alphaG, betaG, false, 0);
+                                            }
+                                        }
                                         this._restore(snap2);
                                         if (fs > bestFollow) bestFollow = fs;
+                                        if (fs > alphaG) alphaG = fs;
+                                        if (alphaG >= betaG) break;
                                     }
                                     score = bestFollow > -Infinity ? bestFollow
                                         : this.search(Math.max(0, d - 1), -Infinity, Infinity, false, 0);
@@ -3595,8 +3806,10 @@
                         prevScore = localScore;
                         if (Math.abs(bestScore) >= 50000) break;
                     }
-                    // 核变优于常规走法时选用核变
-                    if (bestNuclear && bestNuclearScore > bestScore) {
+                    // 核变优于常规走法时选用核变。
+                    // 修复量纲：_nuclideValueScore 返回0~18的静态小分，bestScore是搜索评估(±400量级)，
+                    // 直接比较永远 false → AI 永不升变。放大50倍到搜索量纲后再比较。
+                    if (bestNuclear && bestNuclearScore * 50 > bestScore) {
                         this.game._aiSearching = false;
                         return bestNuclear;
                     }
@@ -3716,6 +3929,10 @@
                     this.game.updateAllBonds();
                     if (!this.game.gameOver) {
                         this.game.currentTurn = this.game.currentTurn === 'white' ? 'black' : 'white';
+                        // 模拟回合切换后的静电吸引：让AI能预测电荷吸引造成的位移/接近/吃子。
+                        // 与真实游戏endTurn一致（切换后调用）；AI搜索时_aiSearching=true跳过动画副作用
+                        this.game.resolveElectrostaticAttraction();
+                        this.game.updateAllBonds();
                     }
                 }
             }
@@ -3742,14 +3959,17 @@
                 _rawToCentipawns(raw) {
                     const abs = Math.abs(raw);
                     const sign = Math.sign(raw) || 1;
-                    if (abs <= 100) return raw * 2.5;
-                    if (abs <= 500) return sign * (250 + (abs - 100) * 4);
-                    if (abs <= 2000) return sign * (1850 + (abs - 500) * 6);
-                    return sign * (10850 + (abs - 2000) * 0.5);
+                    // 显示层温和映射，压缩胜率曲线方差：
+                    //  制胜分(±1e8)固定为杀棋分15000；局面分1:1不放大；战术/纵深分逐级收敛。
+                    //  此前100-2000区间放大4~6倍，将军(600)直接抛到2450cp→曲线瞬间90%+来回跳。
+                    if (abs >= 1000000) return sign * 15000;
+                    if (abs <= 500) return sign * abs; // 修复：原 sign*raw 对负值负负得正，把普通局面分符号整个翻转
+                    if (abs <= 3000) return sign * (500 + (abs - 500) * 0.3);
+                    return sign * (1250 + (abs - 3000) * 0.05);
                 }
                 _winProbability(cp) {
                     const clamped = Math.max(-5000, Math.min(5000, cp));
-                    return 50 + 50 * (2 / (1 + Math.exp(-0.0008 * clamped)) - 1);
+                    return 50 + 50 * (2 / (1 + Math.exp(-0.001 * clamped)) - 1);
                 }
                 analyze(onProgress, onComplete) {
                     this._onProgress = onProgress; this._onComplete = onComplete;
@@ -3777,19 +3997,24 @@
                                     const m = moves[i];
                                     if (m.boardState) this._restoreBoardForAnalysis(m.boardState);
                                     let ev;
+                                    // 给电子不消耗回合：视角仍是走子方本身，否则翻转为对手视角导致复盘评分/曲线错乱
+                                    const viewColor = m.isGiveElectron ? m.color : (m.color === 'white' ? 'black' : 'white');
                                     try {
-                                        const nextTurn = m.color === 'white' ? 'black' : 'white';
-                                        ai.game.currentTurn = nextTurn;
+                                        ai.game.currentTurn = viewColor;
                                         ai._killerMoves = [null, null];
                                         ai._transpositionTable.clear();
                                         ai._deadline = Date.now() + 30;
-                                        const isMax = nextTurn === 'white';
+                                        const isMax = viewColor === 'white';
                                         const s = ai.search(1, -Infinity, Infinity, isMax, 0);
                                         ev = isMax ? s : -s;
                                     } catch(x) { ev = ai.evaluate(); }
                                     m.evalRaw = ev; m.evalCentipawns = this._rawToCentipawns(ev);
                                     m.winProbability = this._winProbability(m.evalCentipawns);
                                     m.bestMoveScore = ev;
+                                    try {
+                                        const _bk = ai._scoreBreakdown();
+                                        console.log(`[评分] 走法${i+1}/${total}: ${m.pieceSymbol}→(${m.to[0]},${m.to[1]}) 视角=${viewColor} depth1 → raw=${ev.toFixed(0)} cp=${m.evalCentipawns.toFixed(1)} wp=${m.winProbability!=null?m.winProbability.toFixed(1):'-'}% | 子力=${_bk.material} 机动=${_bk.mobility} H威胁=${_bk.hThreat} H安全=${_bk.hSafety} 电子经济=${_bk.electrons}`);
+                                    } catch(_e2) {}
                                 } catch(e) {}
                             }
                             try {
@@ -3813,26 +4038,39 @@
                                     console.log(`[分析]  走法 ${i+1}/${total}: ${m.pieceSymbol} → (${m.to[0]},${m.to[1]})`);
                                     if (m.boardState) this._restoreBoardForAnalysis(m.boardState);
                                     let ev;
+                                    // 给电子不消耗回合：视角仍是走子方本身，否则翻转为对手视角导致复盘评分/曲线错乱。
+                                    // viewColor/_depthLog 提到 try 外，供评分来源日志使用（在 try 内声明会因作用域导致日志 ReferenceError 被吞）
+                                    const viewColor = m.isGiveElectron ? m.color : (m.color === 'white' ? 'black' : 'white');
+                                    let _depthLog = null;
                                     try {
-                                        const nextTurn = m.color === 'white' ? 'black' : 'white';
-                                        ai.game.currentTurn = nextTurn;
+                                        ai.game.currentTurn = viewColor;
                                         ai._killerMoves = [null, null];
                                         ai._historyTable = {};
                                         // 从浅到深迭代加深，确保即使超时也有结果
                                         const maxDepth = this.ANALYSIS_DEPTH;
-                                        const totalBudget = 30 + maxDepth * 25;
+                                        // 预算按棋盘棋子数自适应：棋子越多越复杂，需要更多时间才能到达一致深度。
+                                        // 曲线锯齿的根因就是深度不一致——简单局面depth5完整(值~200)，复杂局面depth1-2就超时，
+                                        // 而浅层quiescence只看到局部吃子/威胁(值可到700-2400)，相邻步值域突变→锯齿。
+                                        // 提高预算让复杂局面也能到depth3-4，值域收敛、曲线平滑。上限2500ms防极端局面拖死。
+                                        const _pc = this.game.pieces.filter(p => p.row >= 0).length;
+                                        const totalBudget = Math.min(2500, 200 + maxDepth * 70 + _pc * 20);
                                         ai._deadline = Date.now() + totalBudget;
-                                        const isMax = nextTurn === 'white';
+                                        const isMax = viewColor === 'white';
                                         if (maxDepth <= 2) { ev = ai.evaluate(); }
                                         else {
                                             let bestEval = ai.evaluate();
                                             ai._transpositionTable.clear();
                                             const moveStart = Date.now();
+                                            _depthLog = [];
                                             for (let d = 1; d <= maxDepth; d++) {
                                                 if (Date.now() > ai._deadline) break;
                                                 const s = ai.search(d, -Infinity, Infinity, isMax, 0);
-                                                bestEval = isMax ? s : -s;
-                                                console.log(`[分析]    depth=${d} 耗时=${Date.now()-moveStart}ms`);
+                                                const timedOut = Date.now() > ai._deadline;
+                                                // 本层因超时被截断时结果不可靠，保留上一完整层的评估，避免深浅混合导致曲线跳变
+                                                if (!timedOut) bestEval = isMax ? s : -s;
+                                                _depthLog.push(`d${d}=${(isMax?s:-s).toFixed(0)}${timedOut?'*':''}`);
+                                                console.log(`[分析]    depth=${d} 耗时=${Date.now()-moveStart}ms${timedOut?'(超时)':''}`);
+                                                if (timedOut) break;
                                             }
                                             ev = bestEval;
                                         }
@@ -3840,6 +4078,12 @@
                                     m.evalRaw = ev; m.evalCentipawns = this._rawToCentipawns(ev);
                                     m.winProbability = this._winProbability(m.evalCentipawns);
                                     m.bestMoveScore = ev;
+                                    // ===== 评分来源调试日志：视角 / 搜索深度序列 / 静态分项 / cp与胜率映射 =====
+                                    try {
+                                        const _bk = ai._scoreBreakdown();
+                                        console.log(`[评分] 走法${i+1}/${total}: ${m.pieceSymbol}→(${m.to[0]},${m.to[1]}) 视角=${viewColor}${m.isGiveElectron?'(给电子)':''} 深度[${_depthLog?_depthLog.join(' '):'-'}] → raw=${ev.toFixed(0)} cp=${m.evalCentipawns.toFixed(1)} wp=${m.winProbability!=null?m.winProbability.toFixed(1):'-'}%`);
+                                        console.log(`   [分项] 子力=${_bk.material} 机动=${_bk.mobility} H威胁=${_bk.hThreat} H安全=${_bk.hSafety} 电子经济=${_bk.electrons}  | 采用=${ev.toFixed(0)}（白方视角，正=白优，*表示该深度超时未采用）`);
+                                    } catch(_e2) {}
                                 } catch(e) { console.error(`[分析] 走法${i}出错:`, e); }
                             }
                             const pct = Math.min(99, Math.round((i / total) * 100));
@@ -3995,17 +4239,28 @@
                         const pct = Math.min(100, Math.round(99 + (ci / total) * 1));
                         if (this._onProgress && pct !== this._progress) { this._progress = pct; this._onProgress(pct); }
                         if (ci < total) { setTimeout(tick, 0); }
-                        else { if (onDone) onDone(); }
+                        else { if (onDone) onDone(); console.log(`[分析] 整理完成 共${total}步`); }
                     };
                     setTimeout(tick, 0);
                 }
                 // 分类单步：给电子跳过、将杀特殊处理、弃子检测、最优走法对比、归类
                 _classifyMove(moves, i, prevCp, prevBoardState) {
                     const move = moves[i];
-                    // 给电子步：辅助动作不消耗回合，跳过分类
-                    if (move.isGiveElectron) return { prevCp, prevBoardState };
-                    // 将杀
+                    // 给电子步：辅助动作不消耗回合，跳过分类；但局面已变（非金属增强），推进 prevBoardState 供后续步使用
+                    if (move.isGiveElectron) return { prevCp, prevBoardState: move.boardState };
+                    // 将杀：直接吃H
                     if (move.isCapture && move.targetSymbol === 'H') {
+                        move.classification = 'checkmate'; move.classificationIcon = '#';
+                        move.evalDiff = 999;
+                        move.winProbability = move.color === 'white' ? 100 : 0;
+                        return { prevCp: move.evalCentipawns, prevBoardState: move.boardState };
+                    }
+                    // 将死预测：本步未直接吃H，但搜索确认该步后对方已无解（下一步必吃H）。
+                    // |cp|≥14000 仅由 gameOver 制胜分(±1e8→±15000)映射而来，普通局面到不了。
+                    // evalCentipawns 为白方视角，走子方为白则胜方取正，黑则取负。
+                    const _cpCheck = move.evalCentipawns !== null ? move.evalCentipawns : 0;
+                    const _moverForcesWin = (move.color === 'white') ? _cpCheck >= 14000 : _cpCheck <= -14000;
+                    if (_moverForcesWin) {
                         move.classification = 'checkmate'; move.classificationIcon = '#';
                         move.evalDiff = 999;
                         move.winProbability = move.color === 'white' ? 100 : 0;
@@ -4013,36 +4268,15 @@
                     }
                     const rawDiff = move.evalCentipawns - prevCp;
                     move.evalDiff = move.color === 'white' ? rawDiff : -rawDiff;
-                    // 弃子检测：攻击方Z >> 被吃方Z
-                    let isSacrifice = false;
-                    if (move.isCapture && move.pieceSymbol && move.targetSymbol) {
-                        const aDef = PIECE_DEFS[move.pieceSymbol];
-                        const dDef = PIECE_DEFS[move.targetSymbol];
-                        if (aDef && dDef && aDef.Z > dDef.Z + 10) isSacrifice = true;
-                    }
-                    // 寻找理论最优走法的评估值 + 最佳走法坐标（带预算，避免长时间卡顿）
-                    let bestCp = null;
-                    let isExactBest = false;
-                    if (prevBoardState && this.ANALYSIS_DEPTH >= 3) {
-                        try {
-                            const full = this._findBestMoveFull(prevBoardState, move.color, 300);
-                            if (full) {
-                                // 缓存最佳走法供复盘箭头复用，翻棋步时不再重复搜索
-                                move._bestFull = full;
-                                bestCp = full.cp;
-                                if (full.fromR !== undefined && move.from && move.to) {
-                                    isExactBest = move.from[0] === full.fromR && move.from[1] === full.fromC
-                                        && move.to[0] === full.toR && move.to[1] === full.toC;
-                                }
-                            }
-                        } catch(e) {}
-                    }
-                    // 分类
+                    // 理论最优走法评估不再在分类阶段做全深度搜索（每步一次搜索×数十步=进度卡在99%"整理"）。
+                    // prevCp 即上一局面 root 评估，等价于"换人后最佳应对"的最优价值，故用 |evalDiff| < 120
+                    // 近似"当前走法接近最优"。最佳走法箭头改为导航显示时按需计算（_findBestMoveFull 惰性兜底）。
                     const ed = move.evalDiff;
-                    const isOptimal = isExactBest || (bestCp !== null && Math.abs(move.evalCentipawns - bestCp) < 120);
-                    if (ed > 500 && isSacrifice) {
+                    const isOptimal = Math.abs(move.evalCentipawns - prevCp) < 120;
+                    // 正面评价不再要求"弃子"特殊条件：评估值大幅改善即给 !! / !（此前必须吃高Z换低Z才标，导致几乎不出现）
+                    if (ed > 500) {
                         move.classification = 'brilliant'; move.classificationIcon = '!!';
-                    } else if (ed > 250 && isSacrifice) {
+                    } else if (ed > 250) {
                         move.classification = 'great'; move.classificationIcon = '!';
                     } else if (ed > 80 && isOptimal) {
                         move.classification = 'best'; move.classificationIcon = '★';
@@ -4140,6 +4374,7 @@
                     this.ai = null;
                     this._moveHistory = [];
                     this._aiDifficulty = 4;
+                    this.autoPlay = false; // AI自动对弈调试模式：双方由AI接管
                     this._undoStack = [];
                     this._gameRecord = { moves: [], createdAt: Date.now(), result: null, initialBoardState: null };
                     this._reviewController = null;
@@ -4844,13 +5079,16 @@
                     this.moveToward(p1, p2, s1);
                     this.moveToward(p2, p1, s2);
                     const _fieldSide = this.currentTurn === COLOR_WHITE ? COLOR_BLACK : COLOR_WHITE;
-                    if (p1.row !== fromR1 || p1.col !== fromC1) {
-                        this._animMovedInfos.push({pieceId:p1.id,sdx:(fromC1-p1.col)*100+'%',sdy:(fromR1-p1.row)*100+'%'});
-                        this._recordFieldDisplacement(p1, fromR1, fromC1, _fieldSide);
-                    }
-                    if (p2.row !== fromR2 || p2.col !== fromC2) {
-                        this._animMovedInfos.push({pieceId:p2.id,sdx:(fromC2-p2.col)*100+'%',sdy:(fromR2-p2.row)*100+'%'});
-                        this._recordFieldDisplacement(p2, fromR2, fromC2, _fieldSide);
+                    // AI搜索期间(_aiSearching)也执行电荷吸引以预测结果，但跳过动画/位移记录副作用
+                    if (!this._aiSearching) {
+                        if (p1.row !== fromR1 || p1.col !== fromC1) {
+                            this._animMovedInfos.push({pieceId:p1.id,sdx:(fromC1-p1.col)*100+'%',sdy:(fromR1-p1.row)*100+'%'});
+                            this._recordFieldDisplacement(p1, fromR1, fromC1, _fieldSide);
+                        }
+                        if (p2.row !== fromR2 || p2.col !== fromC2) {
+                            this._animMovedInfos.push({pieceId:p2.id,sdx:(fromC2-p2.col)*100+'%',sdy:(fromR2-p2.row)*100+'%'});
+                            this._recordFieldDisplacement(p2, fromR2, fromC2, _fieldSide);
+                        }
                     }
                     this.updateAllBonds();
                 }
@@ -4953,9 +5191,9 @@
                     }
                     nonmetal.chargeRounds = 3;
                     this._addBonusElectrons(nonmetal, 1, 3);
-                    this.addLog(`${metal.symbol} ${this._t('logGaveElectron')} ${nonmetal.symbol} → ${this._t('logCationAnion')}`);
-                    // 给电子单独计步
+                    // 给电子单独计步（搜索模拟时只改状态，不记日志/棋谱，避免AI搜索把日志面板刷屏）
                     if (!this._aiSearching) {
+                        this.addLog(`${metal.symbol} ${this._t('logGaveElectron')} ${nonmetal.symbol} → ${this._t('logCationAnion')}`);
                         const _cl = ['a','b','c','d','e','f','g','h'];
                         const _n = `${metal.symbol}${_cl[metal.col]}${8-metal.row}e-${nonmetal.symbol}${_cl[nonmetal.col]}${8-nonmetal.row}`;
                         const _mn = this.roundNumber;
@@ -5028,34 +5266,24 @@
 
                 // AI自动选择Li升变的最佳目标元素
                 _aiAutoNuclearTransform(piece) {
-                    // 收集所有可用元素（排除H）
-                    const candidates = [];
-                    for (const [key, def] of Object.entries(PIECE_DEFS)) {
-                        if (key === 'H' || def.isHK) continue; // 不能变为氢王
+                    // 遍历所有元素（排除H/氢王），用 _nuclideValueScore 公式选最优升变目标（不限制候选集）
+                    let bestKey = null, bestScore = -Infinity, bestIso = null;
+                    for (const elemKey of Object.keys(PIECE_DEFS)) {
+                        if (elemKey === 'H' || PIECE_DEFS[elemKey].isHK) continue;
+                        const def = PIECE_DEFS[elemKey];
                         // 找默认稳定同位素；无稳定同位素时选半衰期最长者（避免选Lr262这类快速衰变核素）
-                        const isos = ISOTOPES[key] || [];
+                        const isos = ISOTOPES[elemKey] || [];
                         const stable = isos.find(i => i.stable) ||
                             isos.reduce((a, b) => ((b.halfLife || 0) > (a.halfLife || 0) ? b : a), isos[0]) ||
                             { mass: def.mass || 1 };
-                        candidates.push({
-                            key,
-                            Z: def.Z,
-                            valence: def.valence,
-                            en: def.en,
-                            group: def.group,
-                            period: def.period,
-                            mass: stable.mass,
-                            radio: !stable.stable,
-                            halfLife: stable.halfLife || 0,
-                            decay: stable.decay || null
-                        });
+                        // 评分：目标核素静态价值（用户公式：吃子计分×机动性值×0.15 + 吃H加分 + 核变加分 + 放射扣分 + 控制加分）
+                        const sc = this._nuclideValueScore(elemKey);
+                        if (sc > bestScore) {
+                            bestScore = sc; bestKey = elemKey;
+                            bestIso = { mass: stable.mass, radio: !stable.stable, halfLife: stable.halfLife || 0, decay: stable.decay || null, name: null };
+                        }
                     }
-                    // 评分：目标核素静态价值（用户公式：吃子计分×机动性值×0.15 + 吃H加分 + 核变加分 + 放射扣分 + 控制加分）
-                    candidates.sort((a, b) => this._nuclideValueScore(b.key) - this._nuclideValueScore(a.key));
-                    const best = candidates[0];
-                    if (!best) return;
-                    const iso = { mass: best.mass, radio: best.radio, halfLife: best.halfLife, decay: best.decay, name: null };
-                    this.nuclearTransform(piece, best.key, iso);
+                    if (bestKey) this.nuclearTransform(piece, bestKey, bestIso);
                 }
 
                 // ========== 联机消息处理 ==========
@@ -5641,7 +5869,7 @@
                             jumpEl.innerHTML = `<span class="symbol">${ml}${np.symbol}</span><span class="info-tiny">${np.electroneg.toFixed(1)}</span>`;
                             jumpEl.style.cssText = `position:absolute;left:50%;top:50%;z-index:30;pointer-events:none;
                                 width:78%;height:78%;border-radius:var(--piece-radius);
-                                border:2px solid rgba(0,0,0,0.5);box-shadow:0 3px 8px rgba(0,0,0,0.4);
+                                border:2px solid rgba(0,0,0,0.5);box-shadow:0 1px 3px rgba(0,0,0,0.12),0 1px 2px rgba(0,0,0,0.08);
                                 display:flex;flex-direction:column;align-items:center;justify-content:center;
                                 font-weight:900;letter-spacing:-0.5px;text-shadow:0 1px 1px rgba(0,0,0,0.3);
                                 background:${np.color==='white'?'linear-gradient(145deg,#fff,#f0f0f0)':'linear-gradient(145deg,#222,#1a1a1a)'};
@@ -5781,11 +6009,8 @@
                         }
                     }
                     this.updateUI();
-                    // AI自动行棋
-                    if (this.aiMode && !this.gameOver && this.currentTurn === this.aiColor) {
-                        this._scheduleTimeout(() => this.triggerAIMove(), 500);
-                        return;
-                    }
+                    // AI自动行棋（人机/自动对弈）
+                    if (this._maybeAIMove()) return;
                     // 无步跳过循环（最多迭代8次防止无限循环）
                     let _skipIter = 0;
                     while (!this.gameOver && !this.hasAvailableSteps(this.currentTurn) && _skipIter < 8) {
@@ -5816,15 +6041,22 @@
                     }
                     this._skipNextEndTurnSend = false;
                     // AI自动行棋(处理无步跳过后的情况)
-                    if (this.aiMode && !this.gameOver && this.currentTurn === this.aiColor) {
-                        this._scheduleTimeout(() => this.triggerAIMove(), 500);
-                    }
+                    this._maybeAIMove();
                     if(this.gameOver) this.showVictory();
                 }
 
                 handleCellClick(row,col){
                     if(this.gameOver || this._animating) return;
                     if(this.onlineMode && this.onlineMyColor !== this.currentTurn) return;
+                    // 调试：自动对弈中点击棋盘即停止，玩家接管
+                    if (this.autoPlay) {
+                        this.autoPlay = false;
+                        this.aiMode = false;
+                        this.ai = null;
+                        const btnAP = document.getElementById('btnAutoPlay');
+                        if (btnAP) btnAP.classList.remove('active');
+                        this.addLog(this._t('autoPlayOff'));
+                    }
                     // ===== Debug模式：自由移动棋子 =====
                     if(this.debugMode){
                         const piece=this.board[row][col];
@@ -6467,6 +6699,7 @@
                     this.aiMode = false;
                     this.ai = null;
                     this.aiColor = 'black';
+                    this.autoPlay = false;
                     // 废弃所有挂起的定时器回调
                     this._resetGeneration++;
                     this._aiGeneration++;
@@ -6491,6 +6724,8 @@
                     // 重置UI按钮状态
                     const btnAI = document.getElementById('btnAI');
                     if (btnAI) btnAI.classList.remove('active');
+                    const btnAutoPlay = document.getElementById('btnAutoPlay');
+                    if (btnAutoPlay) btnAutoPlay.classList.remove('active');
                     const btnClock = document.getElementById('btnClock');
                     if (btnClock) btnClock.classList.remove('active');
                     const timerSection = document.getElementById('timerSection');
@@ -7264,6 +7499,21 @@
                 }
 
                 // ========== AI对战 ==========
+                // 判断是否轮到AI走棋（人机/自动对弈共用）。
+                // 自动对弈调试模式：AI接管双方，aiColor跟随当前回合，每次重建AI实例避免搜索状态串扰
+                _maybeAIMove() {
+                    if (this.gameOver) return false;
+                    if (this.autoPlay) {
+                        this.aiMode = true;
+                        this.aiColor = this.currentTurn;
+                        this.ai = new ChemissAI(this, this.aiColor, this._aiDifficulty);
+                    }
+                    if (this.aiMode && this.currentTurn === this.aiColor) {
+                        this._scheduleTimeout(() => this.triggerAIMove(), 500);
+                        return true;
+                    }
+                    return false;
+                }
                 async triggerAIMove() {
                     if (!this.ai || this.gameOver || this.currentTurn !== this.aiColor) return;
                     if (this._animating) { this._scheduleTimeout(() => this.triggerAIMove(), 200); return; }
@@ -7382,7 +7632,7 @@
                     this._dom = {};
                     this._bound = false;
                     this._analysisDepth = 5;
-                    this._useStaticAnalysis = false; // false=深度搜索, true=静态评估
+                    this._useStaticAnalysis = true; // true=静态评估(默认,快), false=深度搜索(慢)
                     this._showBestMove = false;
                     this._showThreat = false;
                 }
@@ -7416,6 +7666,11 @@
                     const modeStatic = document.getElementById('reviewModeStatic');
                     const modeSearch = document.getElementById('reviewModeSearch');
                     if (modeStatic && modeSearch) {
+                        // 初始同步UI状态（默认静态，避免进入复盘就慢速深搜）
+                        modeStatic.classList.toggle('active', this._useStaticAnalysis);
+                        modeSearch.classList.toggle('active', !this._useStaticAnalysis);
+                        const chips0 = this._dom.reviewDepthChips;
+                        if (chips0) chips0.style.opacity = this._useStaticAnalysis ? '0.4' : '1';
                         const switchMode = (useStatic) => {
                             this._useStaticAnalysis = useStatic;
                             modeStatic.classList.toggle('active', useStatic);
@@ -7482,6 +7737,7 @@
                     this._updateMoveInfo();
                     this._updateNavButtons();
                     this._highlightMoveList();
+                    this._highlightChartPoint(this._currentIdx);
                 }
                 _renderBoard() {
                     const boardEl = this._dom.reviewBoard;
@@ -7825,7 +8081,8 @@
                                 let rawEval;
                                 try { rawEval = quickAI.evaluate(); } finally { this.game._aiSearching = savedSearching; }
                                 const isMoverWhite = move.color === 'white';
-                                const cp = isMoverWhite ? rawEval * 5 : -rawEval * 5;
+                                // 终局局面 evaluate 会返回 ±1e8，×5 后成 5e8 逆天数字，clamp 到 ±20000 与复盘评分一致
+                                const cp = Math.max(-20000, Math.min(20000, (isMoverWhite ? rawEval * 5 : -rawEval * 5)));
                                 evalEl.innerHTML = `<span class="rm-cp" style="opacity:0.7">~${(cp>=0?'+':'')+cp.toFixed(0)}</span>`;
                                 evalEl.className = 'review-move-eval ' + (cp > 50 ? 'eval-positive' : cp < -50 ? 'eval-negative' : 'eval-neutral');
                                 this.game.board = savedB; this.game.pieces = savedP;
@@ -7994,15 +8251,17 @@
                     if (!this._result) return;
                     const moves = this._result.moves;
                     const svgW = 400, svgH = 150;
-                    const left = 30, right = 395, top = 10, bottom = 140;
+                    const left = 30, right = 395, top = 10, bottom = 135;
                     const cw = right - left, ch = bottom - top;
                     const wpToY = (wp) => bottom - (Math.max(0, Math.min(100, wp)) / 100) * ch;
                     let pathD = `M ${left} ${wpToY(50)}`;
                     let areaD = `M ${left} ${bottom} L ${left} ${wpToY(50)}`;
+                    const pts = [];
                     for (let i = 0; i < moves.length; i++) {
                         const x = left + ((i + 1) / Math.max(1, moves.length)) * cw;
                         const wp = moves[i].winProbability !== null ? moves[i].winProbability : 50;
                         const y = wpToY(wp);
+                        pts.push({ x, y, idx: i + 1 });
                         pathD += ` L ${x} ${y}`;
                         areaD += ` L ${x} ${y}`;
                     }
@@ -8010,6 +8269,61 @@
                     areaD += ` L ${lastX} ${bottom} Z`;
                     this._dom.reviewChartLine.setAttribute('d', pathD);
                     this._dom.reviewChartArea.setAttribute('d', areaD);
+                    // ===== X轴(步数刻度) + 可点击描点 =====
+                    const svg = document.getElementById('reviewChartSvg');
+                    if (!svg) return;
+                    const oldLayer = document.getElementById('chartDynamicLayer');
+                    if (oldLayer) oldLayer.remove();
+                    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    g.setAttribute('id', 'chartDynamicLayer');
+                    // X轴横线
+                    const axis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    axis.setAttribute('x1', left); axis.setAttribute('y1', bottom);
+                    axis.setAttribute('x2', right); axis.setAttribute('y2', bottom);
+                    axis.setAttribute('stroke', '#888'); axis.setAttribute('stroke-width', '0.6'); axis.setAttribute('opacity', '0.6');
+                    g.appendChild(axis);
+                    // 步数刻度（均分≤6格，标注棋步号）
+                    const nSteps = Math.min(6, Math.max(1, moves.length));
+                    for (let k = 0; k <= nSteps; k++) {
+                        const frac = k / nSteps;
+                        const x = left + frac * cw;
+                        const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        tick.setAttribute('x1', x); tick.setAttribute('y1', bottom);
+                        tick.setAttribute('x2', x); tick.setAttribute('y2', bottom + 3);
+                        tick.setAttribute('stroke', '#888'); tick.setAttribute('stroke-width', '0.5');
+                        g.appendChild(tick);
+                        const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        t.setAttribute('x', x); t.setAttribute('y', bottom + 10);
+                        t.setAttribute('fill', '#aaa'); t.setAttribute('font-size', '7');
+                        t.setAttribute('text-anchor', 'middle');
+                        t.textContent = String(Math.round(frac * moves.length));
+                        g.appendChild(t);
+                    }
+                    // 描点：每个走法一个圆点，点击跳到对应棋步；当前步由 goTo/_highlightChartPoint 高亮
+                    this._chartPoints = [];
+                    for (const pt of pts) {
+                        const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        c.setAttribute('cx', pt.x); c.setAttribute('cy', pt.y);
+                        c.setAttribute('r', 2.4); c.setAttribute('fill', '#b0908a');
+                        c.setAttribute('stroke', '#fff'); c.setAttribute('stroke-width', '0.6');
+                        c.style.cursor = 'pointer';
+                        c.addEventListener('click', (e) => { e.stopPropagation(); this.goTo(pt.idx); });
+                        this._chartPoints.push(c);
+                        g.appendChild(c);
+                    }
+                    svg.appendChild(g);
+                    this._highlightChartPoint(this._currentIdx);
+                }
+                // 高亮当前步对应的描点（翻棋步时联动）
+                _highlightChartPoint(idx) {
+                    if (!this._chartPoints) return;
+                    for (let i = 0; i < this._chartPoints.length; i++) {
+                        const c = this._chartPoints[i];
+                        const isCur = (i + 1) === idx;
+                        c.setAttribute('r', isCur ? 4 : 2.4);
+                        c.setAttribute('fill', isCur ? '#5d89b4' : '#b0908a');
+                        c.setAttribute('stroke-width', isCur ? '1.4' : '0.6');
+                    }
                 }
                 _renderAccuracy() {
                     if (!this._result) return;
@@ -8148,6 +8462,9 @@
                         aiColor: 'AI执子',
                         aiWhite: '白方',
                         aiBlack: '黑方',
+                        autoPlay: 'AI自动对弈',
+                        autoPlayOn: 'AI自动对弈开启：双方由AI接管',
+                        autoPlayOff: 'AI自动对弈已关闭',
                         aiColorAuto: '自动',
                         eachTime: '每人时间',
                         minutes: '分钟',
@@ -8301,6 +8618,9 @@
                         aiColor: 'AI Side',
                         aiWhite: 'White',
                         aiBlack: 'Black',
+                        autoPlay: 'AI auto-play',
+                        autoPlayOn: 'AI auto-play started: both sides controlled by AI',
+                        autoPlayOff: 'AI auto-play stopped',
                         aiColorAuto: 'Auto',
                         eachTime: 'Time per side',
                         minutes: 'min',
@@ -8421,6 +8741,7 @@
                 setTitle('btnOnline', 'onlineBattle');
                 setTitle('btnFlip', 'flipBoard');
                 setTitle('btnAI', 'aiBattle');
+                setTitle('btnAutoPlay', 'autoPlay');
                 setTitle('btnClock', 'timer');
                 // 主题弹窗标签
                 set('themeModalTitle', 'themeSettings');
@@ -8617,6 +8938,29 @@
                 game.updateUI();
             };
 
+            // ========== AI自动对弈（调试）：双方由AI接管 ==========
+            const toggleAutoPlay = () => {
+                game.autoPlay = !game.autoPlay;
+                const btnAP = document.getElementById('btnAutoPlay');
+                if (btnAP) btnAP.classList.toggle('active', game.autoPlay);
+                const L = I18N.data[I18N.lang];
+                if (game.autoPlay) {
+                    // 自动对弈与联机互斥
+                    if (game.onlineMode) { game.onlineMode = false; game.onlineMyColor = null; }
+                    game.aiMode = true;
+                    game._aiDifficulty = aiDifficultyGlobal;
+                    game.aiColor = game.currentTurn;
+                    game.ai = new ChemissAI(game, game.aiColor, aiDifficultyGlobal);
+                    game.addLog(L['autoPlayOn']);
+                    game._maybeAIMove();
+                } else {
+                    game.aiMode = false;
+                    game.ai = null;
+                    game.addLog(L['autoPlayOff']);
+                }
+                game.updateUI();
+            };
+
             // AI执子颜色选择
             let aiColorSelection = 'black'; // 默认AI执黑
             const aiColorRowGlobal = document.getElementById('aiColorRow');
@@ -8658,6 +9002,7 @@
                     { id: 'btnNotation', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-notation"/></svg>', title: '棋谱', handler: () => { game._notationVisible = !game._notationVisible; notationSection.style.display = game._notationVisible ? 'block' : 'none'; btnNotation.classList.toggle('active', game._notationVisible); } },
                 ];
                 btnDefs.push({ id: 'btnAI', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-robot"/></svg>', title: '人机对战', handler: () => toggleAI() });
+                btnDefs.push({ id: 'btnAutoPlay', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-autoplay"/></svg>', title: 'AI自动对弈', handler: () => toggleAutoPlay() });
                 btnDefs.push({ id: 'btnTheme', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-theme"/></svg>', title: '主题设置', handler: () => openThemeModal() });
                 btnDefs.push({ id: 'btnReview', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-review"/></svg>', title: '复盘分析', handler: () => { game.openReview(); } });
                 btnDefs.push({ id: 'btnLang', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-lang-zh"/></svg>', title: 'Language', handler: () => { const next = I18N.lang === 'zh' ? 'en' : 'zh'; I18N.switchLang(next); updateLangIcon(); updateLangPopupActive(); } });
@@ -8964,6 +9309,8 @@
             // ========== AI人机对战控制 ==========
             const btnAI = document.getElementById('btnAI');
             btnAI.addEventListener('click', () => toggleAI());
+            const btnAutoPlay = document.getElementById('btnAutoPlay');
+            if (btnAutoPlay) btnAutoPlay.addEventListener('click', () => toggleAutoPlay());
 
             function showRulesModal() {
                 const modal = document.getElementById('rulesModal');
@@ -9137,25 +9484,25 @@
             // ========== 主题管理器 ==========
             var ThemeManager = (() => {
                 const DEFAULTS = {
-                    whiteCell: '#ffffff', blackCell: '#f2f2f2', bodyBg: '#f9f9f9',
-                    boardBg: '#eaeaea', boardBorder: '#cccccc', legalMove: '#bfbfbf',
-                    wpStart: '#ffffff', wpEnd: '#f0f0f0', wpColor: '#1a1a1a',
-                    bpStart: '#222222', bpEnd: '#1a1a1a', bpColor: '#f0f0f0',
-                    dotWhite: '#1a1a1a', dotBlack: '#f2f2f2', selected: '#bfbfbf',
-                    panelBg: 'rgba(255,255,255,0.72)', panelColor: '#222222', panelHeading: '#333333', panelBorder: '#dddddd',
+                    whiteCell: '#FFFFFF', blackCell: '#F3F3F3', bodyBg: '#F3F3F3',
+                    boardBg: '#F3F3F3', boardBorder: '#E0E0E0', legalMove: '#CCCCCC',
+                    wpStart: '#FFFFFF', wpEnd: '#F3F3F3', wpColor: '#1A1A1A',
+                    bpStart: '#1F1F1F', bpEnd: '#2D2D2D', bpColor: '#FFFFFF',
+                    dotWhite: '#1A1A1A', dotBlack: '#FFFFFF', selected: '#b0908a',
+                    panelBg: 'rgba(255,255,255,0.78)', panelColor: '#1A1A1A', panelHeading: '#1A1A1A', panelBorder: '#E0E0E0',
                     bondGlow: '#666666',
                     shape: 'circle', radius: 12
                 };
                 const PRESETS = {
                     classic: { ...DEFAULTS },
                     dark: {
-                        whiteCell: '#2c2c2c', blackCell: '#3a3a3a', bodyBg: '#1a1a1a',
-                        boardBg: '#333333', boardBorder: '#555555', legalMove: '#888888',
-                        wpStart: '#e0e0e0', wpEnd: '#c8c8c8', wpColor: '#1a1a1a',
-                        bpStart: '#3a3a3a', bpEnd: '#1a1a1a', bpColor: '#e0e0e0',
-                        dotWhite: '#1a1a1a', dotBlack: '#e0e0e0', selected: '#888888',
-                        panelBg: 'rgba(42,42,42,0.78)', panelColor: '#eeeeee', panelHeading: '#dddddd', panelBorder: '#555555',
-                        bondGlow: '#bbbbbb',
+                        whiteCell: '#2D2D2D', blackCell: '#353535', bodyBg: '#1F1F1F',
+                        boardBg: '#2D2D2D', boardBorder: '#555555', legalMove: '#888888',
+                        wpStart: '#E8E8E8', wpEnd: '#D0D0D0', wpColor: '#1A1A1A',
+                        bpStart: '#3A3A3A', bpEnd: '#1F1F1F', bpColor: '#E8E8E8',
+                        dotWhite: '#1A1A1A', dotBlack: '#E8E8E8', selected: '#c4a48a',
+                        panelBg: 'rgba(45,45,45,0.84)', panelColor: '#FFFFFF', panelHeading: '#FFFFFF', panelBorder: '#555555',
+                        bondGlow: '#BBBBBB',
                         shape: 'circle', radius: 12, _darkMode: true
                     },
                     blue: {
