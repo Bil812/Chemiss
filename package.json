@@ -1,0 +1,59 @@
+{
+  "name": "chemisse",
+  "version": "1.0.0",
+  "description": "化学棋 Chemiss - 双人对战 Electron 桌面应用",
+  "main": "main.js",
+  "scripts": {
+    "start": ".\\node_modules\\electron\\dist\\electron.exe .",
+    "dev": ".\\node_modules\\electron\\dist\\electron.exe . --dev",
+    "build": "electron-builder",
+    "build:msi": "electron-builder --win msi --x64"
+  },
+  "author": "",
+  "license": "MIT",
+  "build": {
+    "appId": "com.chemisse.game",
+    "productName": "Chemiss",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "化学棋Chemiss.html",
+      "build/icon-512.png",
+      "temp/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "msi",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false
+    },
+    "msi": {
+      "oneClick": false,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Chemiss",
+      "menuCategory": "Chemiss",
+      "runAfterFinish": true,
+      "upgradeCode": "{844A7648-1042-49DB-8D40-75F9288E5377}"
+    }
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
+    "png-to-ico": "^3.0.2",
+    "sharp": "^0.35.3"
+  }
+}

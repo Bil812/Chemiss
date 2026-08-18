@@ -1,0 +1,8 @@
+{
+  "appId": "com.chemisse.game",
+  "appName": "Chemiss",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}

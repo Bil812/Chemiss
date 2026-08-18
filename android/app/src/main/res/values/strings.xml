@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Chemiss</string>
+    <string name="title_activity_main">Chemiss</string>
+    <string name="package_name">com.chemisse.game</string>
+    <string name="custom_url_scheme">com.chemisse.game</string>
+</resources>
