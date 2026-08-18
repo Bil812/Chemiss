@@ -4,6 +4,8 @@
 
 以化学原理为核心的本地双人对战策略棋类游戏
 
+**简体中文** | [English](./README.en.md)
+
 ![Release](https://img.shields.io/badge/Release-v1.6.0-b0908a)
 ![License](https://img.shields.io/github/license/Bil812/Chemiss)
 ![Platform](https://img.shields.io/badge/Platform-Web%20%7C%20Windows%20%7C%20Android-6a9a6a)
@@ -17,24 +19,41 @@
 
 ## 项目简介
 
-Chemiss（化学棋）是一款完全基于 HTML/CSS/JavaScript 实现的本地双人对战策略棋类游戏，无需服务器，打开浏览器即可游玩。棋子的移动、吃子、成键等机制模拟了真实的化学概念：离子键、共价键、金属键、电负性、放射性衰变、核裂变、同位素嬗变等。游戏目标为吃掉对方的氢王（H）棋子。
+Chemiss（化学棋）是一款完全基于 HTML/CSS/JavaScript 实现的本地双人对战策略棋类游戏，无需服务器，浏览器打开即玩。棋子的移动、吃子、成键等机制模拟真实化学概念：离子键、共价键、金属键、电负性、放射性衰变、核裂变、同位素嬗变等。游戏目标为吃掉对方的氢王（H）棋子。
 
 <img width="1279" height="731" alt="屏幕截图 2026-06-07 013400" src="https://github.com/user-attachments/assets/f8c65cff-cfd3-438b-b52d-ccd5efcd9f03" />
 
 ## 特性
 
-- 完整实现周期表 1–7 周期、103 种元素（H–Lr）及其常见同位素
-- 离子键 / 共价键 / 金属键三种成键与吃子机制
-- 电荷、电性吸引、金属给电子等战略元素
-- Li 到达对方底线可核变为任意元素（含同位素选择）
-- α/β/γ 射线与核裂变系统，射线可诱发嬗变或裂变
-- 射线路径动画、棋子状态视觉反馈
-- 内置元素查询工具（化学棋工具 v1.4）：按序号/符号/中文名查询，常用/全部模式、行显示开关、键合关系、放射性、嬗变、悬停信息卡
+### 化学机制（v1.6.0）
+
+- 完整实现周期表 1–7 周期、**103 种元素（H–Lr）** 及其常见同位素数据库
+- 三种成键与吃子机制：
+  - **离子键**：金属-非金属按例外表、电负性差、法扬斯规则判定，可直接吃子
+  - **共价键**：相邻异色自动成键，每原子最多一根，按电负性差降序贪心分配
+  - **金属键**：多原子簇共享电子海
+- 电负性、极化力参与键型判定
+- 电荷系统：电性吸引、金属给电子（阳离子/阴离子）
+- Li 到达对方底线可核变为任意非 H 元素（自选同位素）
+- α/β/γ 射线系统：半衰期衰变、吸收嬗变、电子扰动、眩晕、重核裂变
+
+### 对弈功能
+
+- 本地双人对战（纯前端，浏览器即玩）
+- 人机对战（AI 难度 1–6）与 AI 自动对弈
+- 复盘分析：胜率曲线、着法评价与分类
+- 棋谱记录与复制
+- 计时器（Bullet / Blitz / Rapid / Classical 等预设）
+- 联机对战（MQTT 房间码，无需服务器）
+
+### 界面与工具
+
+- 内置**元素查询工具**（化学棋工具 v1.4）：按序号/符号/中文名查询，常用/全部模式、行显示开关、键合关系、放射性、嬗变、悬停信息卡与点击跳转
 - 可视化侧边栏：选中棋子信息卡（棋子 + 方向点 + 统计网格 + 状态徽章）、键合关系棋子图标、事件日志
 - 规则弹窗内置初始棋子阵容与移动方向演示
-- 所有弹窗/浮层统一淡出动画；移动端给电子指示器同心且虚线端点圆头
-- 暗色模式与 Debug 模式（自由移动棋子）
-- 纯前端实现，可作为化学/棋类教学工具
+- 主题设置与暗色模式、棋盘坐标显示、Debug 编辑模式
+- 全弹窗统一淡出动画；移动端给电子指示器同心且虚线端点圆头
+- 中文 / English 界面切换，移动端适配
 
 ## 快速开始
 
@@ -50,21 +69,28 @@ Chemiss（化学棋）是一款完全基于 HTML/CSS/JavaScript 实现的本地�
 
 ## 安装包下载
 
-- Windows 安装包（MSI）与 Android APK：见 [Releases](https://github.com/Bil812/Chemiss/releases)
+Windows 安装包（MSI）与 Android APK 见 [Releases](https://github.com/Bil812/Chemiss/releases)。
 
 ## 开发与构建
 
-环境要求：Node.js、Electron、Capacitor CLI、JDK 21（Android 构建）。
+仓库已包含 Electron 与 Capacitor 构建所需文件（`package.json`、`main.js`、`preload.js`、`capacitor.config.json`、`build/`、`www/`、`android/`）。
+
+环境要求：Node.js、JDK 21（仅 Android 构建需要）。
 
 ```bash
+# 安装依赖
+npm install
+
 # Windows 安装包（MSI）
 npm run build:msi
 
 # Android APK
-Copy-Item 化学棋Chemiss.html www\index.html -Force
+Copy-Item 化学棋Chemiss.html www\index.html -Force   # Windows
+# cp 化学棋Chemiss.html www/index.html               # macOS / Linux
 npx cap sync android
 cd android
-gradlew.bat assembleDebug   # 需 JDK 21
+gradlew.bat assembleDebug   # Windows
+# ./gradlew assembleDebug   # macOS / Linux
 ```
 
 ## 技术栈
