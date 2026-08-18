@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -50,6 +50,7 @@
         }
         .game-container { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
         .board-wrapper {
+            --wrapper-padding: var(--spacing-xxs);
             border: 4px solid #cccccc; border: 4px solid var(--board-border-color); border-radius: 8px;
             background: #eaeaea; background: var(--board-wrapper-bg); padding: 4px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
@@ -125,21 +126,31 @@
             50% { opacity: 0.55; border-color: #666; }
         }
         /* 电子给体指示器：单格灰色虚线圆（选中金属时显示可给电子的非金属目标） */
+        /* overlay 与棋盘内容区严格重合，保证圆与棋子同心 */
         .electron-donor-overlay {
             position: absolute;
-            top: 4px; left: 4px;
-            width: calc(100% - 8px); height: calc(100% - 8px);
+            top: var(--wrapper-padding, 4px);
+            left: var(--wrapper-padding, 4px);
+            width: calc(100% - 2 * var(--wrapper-padding, 4px));
+            height: calc(100% - 2 * var(--wrapper-padding, 4px));
             pointer-events: none; z-index: 3;
         }
         .electron-donor-frame {
             position: absolute;
-            border: 2.5px dashed #999;
-            border: 2.5px dashed var(--bond-glow, #999);
-            border-radius: 50%;
             pointer-events: none;
             opacity: 0.6;
             animation: donor-pulse 1.5s ease-in-out infinite;
             transform-origin: center center;
+            overflow: visible;
+        }
+        .electron-donor-frame circle {
+            fill: none;
+            stroke: #999;
+            stroke: var(--bond-glow, #999);
+            stroke-width: 2.5;
+            stroke-dasharray: 7 5;
+            stroke-linecap: round;
+            vector-effect: non-scaling-stroke;
         }
         @keyframes donor-pulse {
             0%, 100% { opacity: 0.35; }
@@ -547,6 +558,7 @@
             justify-content:center; align-items:center; flex-direction:column; gap:0;
         }
         .victory-overlay.active { display:flex; }
+        .victory-overlay.closing { animation: modal-fade-out 0.2s ease-in forwards; }
         .victory-card {
             background: rgba(255,255,255,0.72); color: #222;
             backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
@@ -604,6 +616,7 @@
                 width: 100%; max-width: 500px;
             }
             .board-wrapper {
+                --wrapper-padding: 3px;
                 border-width: 3px; padding: 3px; border-radius: 6px;
                 order: 1;
             }
@@ -704,7 +717,7 @@
             :root {
                 --board-size: min(96vw, 54vh, 360px);
             }
-            .board-wrapper { border-width: 2px; padding: 2px; }
+            .board-wrapper { --wrapper-padding: 2px; border-width: 2px; padding: 2px; }
             .side-panel { padding: 8px 8px; font-size: 0.7em; gap: 4px; }
             .side-panel h2 { font-size: 0.8em; }
             button { padding: 6px 10px; font-size: 0.72em; min-height: 32px; }
@@ -1200,6 +1213,7 @@
             justify-content: center; align-items: center;
         }
         .review-overlay.active { display: flex; animation: modal-fade-in 0.3s ease-out; }
+        .review-overlay.closing { animation: modal-fade-out 0.2s ease-in forwards; }
         .review-container {
             background: var(--side-panel-bg, rgba(255,255,255,0.82)); backdrop-filter: blur(24px);
             -webkit-backdrop-filter: blur(24px); border-radius:14px;
@@ -1417,6 +1431,170 @@
             .review-controls { gap:3px; }
             .review-nav-btn { width:30px; height:30px; }
         }
+
+        /* ============================================================
+           v1.4 元素查询工具 + 可视化棋子面板
+           ============================================================ */
+        /* 通用迷你棋子（侧边栏 / 规则弹窗 / 元素查询共用）
+           直接复用棋盘 .piece-wrapper/.piece 的渲染结构，仅通过 --cell-size 缩放 */
+        .mini-piece-box {
+            position: relative;
+            display: inline-flex;
+            flex-shrink: 0;
+            line-height: 0;
+        }
+        .mini-piece-box .piece-wrapper {
+            width: 100%; height: 100%;
+        }
+        .mini-piece-box .piece {
+            cursor: default;
+        }
+
+        /* 侧边栏：选中棋子信息卡片 */
+        .sel-piece-card {
+            display: flex; flex-direction: column; gap: 8px;
+            padding: 4px 0;
+        }
+        .sel-piece-top { display: flex; align-items: center; gap: 10px; }
+        .sel-piece-head { min-width: 0; }
+        .sel-piece-name { font-weight: 700; font-size: 1.05em; color: var(--panel-text); }
+        .sel-piece-meta { font-size: 0.72em; color: var(--panel-text); opacity: 0.55; margin-top: 2px; line-height: 1.4; }
+        .sel-stat-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px;
+            background: var(--panel-bg); border: 1px solid var(--panel-border, #e8e4e0);
+            border-radius: 8px; padding: 8px 10px;
+        }
+        body.dark-mode .sel-stat-grid { background: #2D2D2D; border-color: #444; }
+        .sel-stat-item { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; font-size: 0.72em; }
+        .sel-stat-label { color: var(--panel-text); opacity: 0.55; white-space: nowrap; }
+        .sel-stat-value { font-weight: 700; color: var(--panel-text); }
+        .sel-status-row { display: flex; flex-wrap: wrap; gap: 4px; }
+        .sel-status-badge {
+            font-size: 0.66em; font-weight: 700; padding: 2px 8px; border-radius: 20px;
+            background: rgba(176,144,138,0.12); color: #b0908a; border: 1px solid rgba(176,144,138,0.3);
+        }
+        .sel-status-badge.stun { background: rgba(196,160,160,0.15); color: #c4a0a0; border-color: rgba(196,160,160,0.35); }
+        .sel-status-badge.noble { background: rgba(184,160,196,0.12); color: #a080b0; border-color: rgba(184,160,196,0.3); }
+        .sel-status-badge.radio { background: rgba(184,160,196,0.15); color: #b8a0c4; border-color: rgba(184,160,196,0.35); }
+        .sel-status-badge.cation { background: rgba(196,154,122,0.15); color: #c49a7a; border-color: rgba(196,154,122,0.35); }
+        .sel-status-badge.anion { background: rgba(138,159,184,0.15); color: #8a9fb8; border-color: rgba(138,159,184,0.35); }
+
+        /* 键合关系：可视化行 */
+        .bond-item.bond-row {
+            display: flex; align-items: center; gap: 6px;
+            border-left: 3px solid var(--panel-border, #c4b898);
+            padding: 4px 6px; margin: 3px 0;
+        }
+        .bond-item.bond-row .bond-link { color: var(--panel-text); opacity: 0.4; font-weight: 700; }
+        .bond-item.bond-row .bond-type { font-weight: 600; font-size: 0.92em; color: #b0908a; margin-left: 2px; }
+        .bond-item.bond-row .bond-shared { font-size: 0.78em; color: var(--panel-text); opacity: 0.6; margin-left: auto; white-space: nowrap; }
+
+        /* 规则弹窗：初始棋子阵容 */
+        .piece-lineup { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; margin: 8px 0; }
+        .lineup-group { display: flex; flex-direction: column; gap: 4px; }
+        .lineup-group-label { font-size: 0.7em; color: var(--panel-text); opacity: 0.55; }
+        .lineup-items { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-end; }
+        .lineup-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .lineup-count { font-size: 0.66em; font-weight: 700; color: #b0908a; }
+        .move-demo { display: flex; flex-wrap: wrap; gap: 16px; margin: 8px 0; }
+        .move-demo-item { display: flex; align-items: center; gap: 8px; }
+        .move-demo-label { font-size: 0.72em; color: var(--panel-text); opacity: 0.7; max-width: 160px; line-height: 1.5; }
+
+        /* 元素查询工具弹窗 */
+        .elem-modal { max-width: 780px; text-align: left; }
+        .elem-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+        .elem-modal-head h3 { margin: 0; font-size: 1.15em; color: #b0908a; }
+        .elem-top-btns { display: flex; gap: 6px; flex-shrink: 0; }
+        .elem-top-btn {
+            background: none; border: 1.5px solid var(--panel-border, #d0c8c0); border-radius: 30px;
+            padding: 3px 12px; font-size: 0.75em; color: #8a7a6a; cursor: pointer;
+            transition: all 0.2s; font-family: inherit; line-height: 1.6; white-space: nowrap;
+        }
+        .elem-top-btn:hover { border-color: #b0907a; color: #b0907a; background: rgba(176,144,122,0.06); }
+        body.dark-mode .elem-top-btn { color: #aaa; border-color: #555; }
+        body.dark-mode .elem-top-btn:hover { color: #c4a48a; border-color: #c4a48a; }
+        .elem-mode-toggle {
+            display: flex; gap: 8px; align-items: center; margin-bottom: 12px;
+            background: rgba(200,185,170,0.15); padding: 5px 12px; border-radius: 40px;
+            font-size: 0.82em; flex-wrap: wrap;
+        }
+        .elem-mode-label { color: #8a7a6a; margin-right: 2px; font-weight: 500; }
+        .elem-mode-btn {
+            background: none; border: none; padding: 3px 14px; border-radius: 30px;
+            font-size: 0.85em; color: #6a5a4a; cursor: pointer; font-family: inherit; transition: all 0.2s;
+        }
+        .elem-mode-btn:hover { background: rgba(176,144,122,0.12); }
+        .elem-mode-btn.active { background: #b0907a; color: #fff; box-shadow: 0 2px 6px rgba(176,144,122,0.3); }
+        body.dark-mode .elem-mode-label { color: #aaa; }
+        body.dark-mode .elem-mode-btn { color: #ccc; }
+        .elem-search-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+        .elem-search-row input {
+            flex: 1; min-width: 160px; padding: 10px 16px;
+            border: 1.5px solid var(--panel-border, #ddd6ce); border-radius: 40px; font-size: 0.95em;
+            background: var(--panel-bg); color: var(--panel-text); outline: none; transition: 0.2s;
+        }
+        .elem-search-row input:focus { border-color: #b0907a; box-shadow: 0 0 0 3px rgba(176,144,122,0.2); }
+        .elem-search-btn {
+            padding: 10px 26px; background: #b0907a; border: none; border-radius: 40px;
+            color: #fff; font-weight: 600; font-size: 0.9em; cursor: pointer;
+            transition: 0.15s; box-shadow: 0 2px 6px rgba(176,144,122,0.25); white-space: nowrap;
+        }
+        .elem-search-btn:hover { background: #a07a64; transform: translateY(-1px); }
+        .elem-result {
+            background: var(--panel-bg); border: 1px solid var(--panel-border, #e0d8d0);
+            border-radius: 16px; padding: 16px 18px; min-height: 120px;
+            font-size: 0.88em; line-height: 1.7; color: var(--panel-text);
+            max-height: 46vh; overflow-y: auto; scrollbar-width: thin;
+        }
+        .elem-empty { color: #b0a090; font-style: italic; text-align: center; padding: 30px 0; }
+        .elem-result-head { display: flex; align-items: center; gap: 12px; padding-bottom: 10px; border-bottom: 2px solid rgba(176,144,122,0.2); margin-bottom: 8px; }
+        .elem-result-title { font-size: 1.15em; font-weight: 700; color: var(--panel-text); }
+        .elem-result-title .elem-z { color: #b0908a; margin-left: 4px; }
+        .elem-result-meta { font-size: 0.72em; color: var(--panel-text); opacity: 0.55; margin-top: 2px; }
+        .elem-result-line {
+            display: flex; align-items: flex-start; gap: 10px; padding: 5px 0;
+            border-bottom: 1px dashed rgba(180,160,140,0.15); flex-wrap: wrap;
+        }
+        .elem-result-line:last-child { border-bottom: none; }
+        .elem-result-label { flex-shrink: 0; min-width: 56px; font-weight: 600; color: #b0908a; font-size: 0.85em; padding-top: 3px; }
+        .elem-result-val { color: var(--panel-text); }
+        .elem-chip-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+        .elem-chip { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; padding: 2px 8px 2px 2px; border-radius: 30px; background: rgba(176,144,122,0.08); border: 1px solid rgba(176,144,122,0.18); transition: all 0.15s; }
+        .elem-chip:hover { background: rgba(176,144,122,0.18); border-color: rgba(176,144,122,0.4); transform: translateY(-1px); }
+        .elem-chip .mini-piece-box { cursor: pointer; vertical-align: middle; }
+        .elem-chip .mini-piece-box .piece { cursor: pointer; }
+        .elem-chip-name { font-size: 0.78em; font-weight: 600; color: var(--panel-text); }
+        .elem-text-chip { display: inline-block; padding: 2px 10px; border-radius: 20px; background: rgba(200,185,170,0.2); font-size: 0.8em; font-weight: 600; color: var(--panel-text); }
+        .elem-iso-chip { display: inline-block; padding: 2px 8px; border-radius: 8px; background: rgba(138,159,184,0.12); border: 1px solid rgba(138,159,184,0.25); font-size: 0.75em; font-weight: 600; color: var(--panel-text); }
+        .elem-footer { margin-top: 12px; font-size: 0.72em; color: #b0a090; text-align: center; border-top: 1px solid rgba(200,185,170,0.2); padding-top: 10px; }
+        .elem-footer kbd { background: rgba(0,0,0,0.04); padding: 2px 8px; border-radius: 12px; font-family: inherit; font-size: 0.9em; color: #7a6a5a; }
+        body.dark-mode .elem-footer kbd { background: #3a3a3a; color: #aaa; }
+        .elem-tooltip {
+            position: fixed; z-index: 1200; min-width: 120px; max-width: 250px;
+            background: var(--panel-bg); color: var(--panel-text);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(176,144,122,0.4); border-radius: 12px;
+            padding: 10px 14px; box-shadow: var(--elevation-flyout);
+            font-size: 0.78em; line-height: 1.6; cursor: pointer; pointer-events: auto;
+        }
+        .elem-tooltip .tip-sym { font-weight: 700; font-size: 1.3em; }
+        .elem-tooltip .tip-sym .tip-z { font-weight: 600; color: #b0908a; }
+        .elem-tooltip .tip-detail { font-size: 0.85em; color: var(--panel-text); opacity: 0.8; }
+        .elem-tooltip .tip-label { color: #8a7a6a; }
+        .elem-tooltip .tip-click { font-size: 0.7em; color: #b0a090; margin-top: 4px; border-top: 1px solid var(--panel-border, #e0d8d0); padding-top: 4px; }
+        /* 元素查询设置弹窗 */
+        .elem-setting-item { display: flex; align-items: center; gap: 12px; padding: 4px 0; }
+        .elem-setting-item label { font-weight: 500; color: var(--panel-text); cursor: pointer; flex: 1; }
+        .elem-setting-item input[type="checkbox"] { width: 17px; height: 17px; accent-color: #b0907a; cursor: pointer; flex-shrink: 0; }
+        .elem-setting-item .status { font-size: 0.85em; color: #8a7a6a; margin-left: auto; }
+        .elem-setting-divider { margin: 8px 0 10px; border-top: 1px solid rgba(200,185,170,0.2); }
+        .elem-guide-body { font-size: 0.85em; line-height: 1.9; color: var(--panel-text); text-align: left; }
+        .elem-guide-body b { color: #b0908a; }
+        @media (max-width:768px) {
+            .elem-modal { width: 98%; padding: 14px; }
+            .elem-result { max-height: 46vh; padding: 12px; }
+            .sel-stat-grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
@@ -1516,6 +1694,12 @@
                 <line x1="5.5" y1="11.5" x2="8" y2="11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                 <line x1="5.5" y1="15" x2="8" y2="15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
             </g>
+            <g id="icon-atom">
+                <circle cx="12" cy="12" r="2.1" fill="currentColor"/>
+                <ellipse cx="12" cy="12" rx="10" ry="4.2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                <ellipse cx="12" cy="12" rx="10" ry="4.2" fill="none" stroke="currentColor" stroke-width="1.5" transform="rotate(60 12 12)"/>
+                <ellipse cx="12" cy="12" rx="10" ry="4.2" fill="none" stroke="currentColor" stroke-width="1.5" transform="rotate(120 12 12)"/>
+            </g>
             <g id="icon-first">
                 <polyline points="17 5 17 19 7 19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                 <polyline points="7 12 3 12 3 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1578,6 +1762,7 @@
             <button class="settings-icon-btn" id="btnAI" title="人机对战"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-robot"/></svg></button>
             <button class="settings-icon-btn" id="btnClock" title="计时器"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-clock"/></svg></button>
             <button class="settings-icon-btn" id="btnReview" title="复盘分析"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-review"/></svg></button>
+            <button class="settings-icon-btn" id="btnElements" title="元素查询"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-atom"/></svg></button>
             <button class="settings-icon-btn" id="btnNotation" title="棋谱"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-notation"/></svg></button>
             <button class="settings-icon-btn" id="btnCoords" title="显示坐标"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-grid"/></svg></button>
             <button class="settings-icon-btn" id="btnLang" title="Language"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-lang"/></svg></button>
@@ -1738,6 +1923,90 @@
             <button class="btn-disconnect" id="btnDisconnect" style="width:100%;margin-top:12px;display:none;">断开连接</button>
         </div>
     </div>
+
+    <!-- ============ 元素查询工具（化学棋工具 v1.4 集成） ============ -->
+    <div class="modal-overlay" id="elementsModal">
+        <div class="modal elem-modal">
+            <div class="elem-modal-head">
+                <h3 id="elementsModalTitle">化学棋 · 元素查询</h3>
+                <div class="elem-top-btns">
+                    <button class="elem-top-btn" id="elementsGuideBtn">指南</button>
+                    <button class="elem-top-btn" id="elementsSettingsBtn">设置</button>
+                    <button class="elem-top-btn" id="elementsCloseBtn">✕</button>
+                </div>
+            </div>
+            <div class="elem-mode-toggle" id="elementsModeToggle">
+                <span class="elem-mode-label">显示模式</span>
+                <button class="elem-mode-btn active" data-mode="common">常用</button>
+                <button class="elem-mode-btn" data-mode="full">全部</button>
+            </div>
+            <div class="elem-search-row">
+                <input type="text" id="elementsSearchInput" placeholder="例如：6 或 C 或 碳" autocomplete="off">
+                <button class="elem-search-btn" id="elementsSearchBtn">查询</button>
+            </div>
+            <div class="elem-result" id="elementsResultBox"><div class="elem-empty">输入元素后点击查询，或直接按 Enter</div></div>
+            <div class="elem-footer"><kbd>↵</kbd> 回车查询 · 数据基于化学棋 v1.0 规则</div>
+        </div>
+    </div>
+
+    <!-- 元素查询：指南 -->
+    <div class="modal-overlay" id="elementsGuideModal">
+        <div class="modal" style="max-width:560px;text-align:left;">
+            <div class="elem-modal-head">
+                <h3 style="margin:0;">使用指南</h3>
+                <button class="elem-top-btn" id="elementsGuideClose">✕</button>
+            </div>
+            <div class="elem-guide-body">
+                1. <b>常用模式 vs 全部模式</b><br>
+                常用：只显示与化学棋初始棋子（Na、Li、H、F、O、N、P、Si、S、C）的键合关系，不化简。<br>
+                全部：显示与所有元素的键合关系，结果会合并化简（如“所有金属”）。<br><br>
+                2. <b>放射性两行</b><br>
+                α 衰变在第一行，β 衰变在第二行（只有一种时只显示一行）。<br>
+                [] 内是本行内同位素的衰变产物，同位素格式：元素符号-质量数（半衰期）衰变类型（α或β）。<br><br>
+                3. <b>嬗变 vs 放射性</b><br>
+                放射性：同位素自身衰变（α: Z-2，β: Z+1）。<br>
+                嬗变：同位素吸收 α 粒子后转变（Z+2，质量数+4），所有同位素（包括稳定的）都会计算。<br><br>
+                4. <b>悬停与点击</b><br>
+                鼠标悬停：弹出该元素的简要信息卡片。<br>
+                点击卡片或元素符号：自动跳转查询该元素。<br><br>
+                5. <b>走法说明</b><br>
+                [] 内数字为初始电子数，后面的走法是以本方左侧棋子为例（本方指靠近自己的一方）。<br><br>
+                作者：B站扣分也记三国杀账上（UID：3546393322982225）<br>
+                特别鸣谢：B站Bill812（化学棋作者）（UID：555581086），deepseek
+            </div>
+            <div class="elem-footer">点击弹窗外或右上角 ✕ 关闭</div>
+        </div>
+    </div>
+
+    <!-- 元素查询：设置 -->
+    <div class="modal-overlay" id="elementsSettingsModal">
+        <div class="modal" style="max-width:480px;text-align:left;">
+            <div class="elem-modal-head">
+                <h3 style="margin:0;">设置</h3>
+                <button class="elem-top-btn" id="elementsSettingsClose">✕</button>
+            </div>
+            <div style="margin-bottom:8px;font-weight:500;color:#b0908a;">显示行开关</div>
+            <div class="elem-setting-item"><input type="checkbox" id="qShowElectroneg" checked><label for="qShowElectroneg">电负性</label></div>
+            <div class="elem-setting-item"><input type="checkbox" id="qShowIsotopes" checked><label for="qShowIsotopes">同位素</label></div>
+            <div class="elem-setting-item"><input type="checkbox" id="qShowDirections" checked><label for="qShowDirections">走法</label></div>
+            <div class="elem-setting-item"><input type="checkbox" id="qShowIonic" checked><label for="qShowIonic">离子键</label></div>
+            <div class="elem-setting-item"><input type="checkbox" id="qShowCovalent" checked><label for="qShowCovalent">共价键</label></div>
+            <div class="elem-setting-item"><input type="checkbox" id="qShowMetallic" checked><label for="qShowMetallic">金属键</label></div>
+            <div class="elem-setting-item"><input type="checkbox" id="qShowRadioactive" checked><label for="qShowRadioactive">放射性</label></div>
+            <div class="elem-setting-item"><input type="checkbox" id="qShowTransmutation" checked><label for="qShowTransmutation">嬗变</label></div>
+            <div class="elem-setting-divider"></div>
+            <div class="elem-setting-item">
+                <input type="checkbox" id="qMergeToggle" checked>
+                <label for="qMergeToggle">启用合并化简</label>
+                <span class="status" id="qMergeStatus">开启</span>
+            </div>
+            <div style="font-size:0.8em;color:#8a7a6a;margin-top:4px;">
+                开启后，全部模式将自动合并同类键合伙伴（如“所有金属”）；关闭后，全部模式将逐项列出所有元素。
+            </div>
+            <div class="elem-footer">点击弹窗外或右上角 ✕ 关闭</div>
+        </div>
+    </div>
+
     <div class="victory-overlay" id="victoryOverlay">
         <div class="victory-card">
             <div class="victory-icon" id="victoryIcon"></div>
@@ -5917,7 +6186,7 @@
                     this.addLog(this._t('logUndoDone'));
                     this.updateUI();
                     if (this.gameOver) {
-                        document.getElementById('victoryOverlay').classList.remove('active');
+                        closeModal(document.getElementById('victoryOverlay'));
                         this.gameOver = false; this.winner = null;
                     }
                     return true;
@@ -6380,7 +6649,7 @@
                 }
 
                 _doReset(){
-                    document.getElementById('victoryOverlay').classList.remove('active');
+                    closeModal(document.getElementById('victoryOverlay'));
                     document.getElementById('victoryReviewBtn').style.display = 'none';
                     document.getElementById('aiDiffRow').style.display = 'none';
                     document.getElementById('aiColorRow').style.display = 'none';
@@ -6951,15 +7220,27 @@
                     const pct = 100 / 8;
                     const inset = 0.5;
                     const adaptive = ThemeManager && ['darkwood','forest'].includes(ThemeManager.getActivePreset());
+                    const NS = 'http://www.w3.org/2000/svg';
                     for (const t of targets) {
-                        const frame = document.createElement('div');
-                        frame.className = 'electron-donor-frame';
-                        frame.style.left = (t.col * pct + inset) + '%';
-                        frame.style.top = (t.row * pct + inset) + '%';
-                        frame.style.width = (pct - 2 * inset) + '%';
-                        frame.style.height = (pct - 2 * inset) + '%';
-                        if (adaptive) frame.style.borderColor = (t.row + t.col) % 2 === 0 ? 'var(--black-cell)' : 'var(--white-cell)';
-                        overlay.appendChild(frame);
+                        // SVG 虚线圆：stroke-linecap:round 使虚线端点呈圆头
+                        const svg = document.createElementNS(NS, 'svg');
+                        svg.setAttribute('class', 'electron-donor-frame');
+                        svg.setAttribute('viewBox', '0 0 100 100');
+                        svg.style.left = (t.col * pct + inset) + '%';
+                        svg.style.top = (t.row * pct + inset) + '%';
+                        svg.style.width = (pct - 2 * inset) + '%';
+                        svg.style.height = (pct - 2 * inset) + '%';
+                        const circle = document.createElementNS(NS, 'circle');
+                        circle.setAttribute('cx', '50');
+                        circle.setAttribute('cy', '50');
+                        circle.setAttribute('r', '46');
+                        circle.setAttribute('fill', 'none');
+                        circle.setAttribute('vector-effect', 'non-scaling-stroke');
+                        if (adaptive) {
+                            circle.style.stroke = (t.row + t.col) % 2 === 0 ? 'var(--black-cell)' : 'var(--white-cell)';
+                        }
+                        svg.appendChild(circle);
+                        overlay.appendChild(svg);
                     }
                 }
 
@@ -7077,18 +7358,38 @@
                     if(this.selectedPiece){
                         const p=this.selectedPiece;
                         const en = I18N.lang === 'en';
+                        const meta = (typeof ELEM_META !== 'undefined' && ELEM_META[p.symbol]) ? ELEM_META[p.symbol] : null;
+                        const elemName = meta ? meta[0] : p.symbol;
+                        const groupCol = (typeof PT_POS !== 'undefined' && PT_POS[p.symbol]) ? PT_POS[p.symbol][1] : '—';
+                        const colorName = p.color === 'white' ? (en ? 'White' : '白方') : (en ? 'Black' : '黑方');
                         const isotopeInfo = p.radioactive ? ` ${this.nuclideText(p.symbol,p.mass)}` : (p.isotopeName ? ` ${this.nuclideText(p.symbol,p.mass)}(${p.isotopeName})` : '');
-                        const colorName = p.color === 'white' ? (en ? 'White' : '白') : (en ? 'Black' : '黑');
-                        selInfo.innerHTML = (en ? 'Selected: ' : '选中: ') + `<b>${p.symbol}</b> (${colorName}) Z=${p.Z}${isotopeInfo}<br>` +
-                            (en ? 'Val: ' : '价:') + p.valence + (en ? ' Tot e⁻: ' : ' 总电子:') + p.totalElectrons + ' EN:' + p.electroneg.toFixed(2) + '<br>' +
-                            (en ? 'Dirs: ' : '方向:') + p.effectiveMoveDirs + (en ? ' Steps: ' : ' 步数:') + p.effectiveMoveSteps + '<br>' +
-                            (en ? 'Charge: ' : '电荷:') + (p.charge > 0 ? '+' + p.charge : p.charge < 0 ? String(p.charge) : '0') +
-                            (p.charge !== 0 ? (en ? '(' + p.chargeRounds + 'r)' : '(' + p.chargeRounds + '回合)') : '') +
-                            (p.stunned ? (en ? ' [Stun]' : ' [眩晕]') : '') +
-                            (p.noble ? (en ? ' [Noble]' : ' [稀有气体]') : '') + '<br>' +
-                            (en ? 'Bonus e⁻: ' : '额外电子:') + p.bonusElectrons +
-                            (p.bonusElectrons > 0 ? (en ? '(' + p.bonusElectronRounds + 'r)' : '(' + p.bonusElectronRounds + '回合)') : '(0)') +
-                            (p.radioactive ? ' [' + p.decayMode + (en ? 'decay t½:' : '衰变 t½:') + p.halfLifeRounds + 'r ' + this.nuclideText(p.symbol, p.mass) + ']' : '');
+                        const chargeTxt = p.charge > 0 ? '+' + p.charge : p.charge < 0 ? String(p.charge) : '0';
+                        const dirs = (typeof p.getPriorityDirections === 'function') ? p.getPriorityDirections() : [];
+                        const badges = [];
+                        if (p.charge > 0) badges.push(`<span class="sel-status-badge cation">${en?'Cation':'阳离子'} ${chargeTxt}</span>`);
+                        if (p.charge < 0) badges.push(`<span class="sel-status-badge anion">${en?'Anion':'阴离子'} ${chargeTxt}</span>`);
+                        if (p.stunned) badges.push(`<span class="sel-status-badge stun">${en?'Stunned':'眩晕'}</span>`);
+                        if (p.noble) badges.push(`<span class="sel-status-badge noble">${en?'Noble gas':'稀有气体'}</span>`);
+                        if (p.radioactive) badges.push(`<span class="sel-status-badge radio">${en?'Radioactive':'放射性'} ${p.decayMode||''} t½=${p.halfLifeRounds||0}r</span>`);
+                        selInfo.innerHTML = `
+                            <div class="sel-piece-card">
+                                <div class="sel-piece-top">
+                                    ${miniPieceWithDotsHTML(p.symbol, p.color, 64, dirs)}
+                                    <div class="sel-piece-head">
+                                        <div class="sel-piece-name">${elemName}（${p.symbol}）${isotopeInfo}</div>
+                                        <div class="sel-piece-meta">Z=${p.Z} · ${en?'Period':'第'}${p.period}${en?'':'周期'} · ${groupCol}${en?' Group':'族'} · ${colorName}</div>
+                                    </div>
+                                </div>
+                                <div class="sel-stat-grid">
+                                    <div class="sel-stat-item"><span class="sel-stat-label">${en?'Valence':'价电子'}</span><span class="sel-stat-value">${p.valence}</span></div>
+                                    <div class="sel-stat-item"><span class="sel-stat-label">${en?'Total e⁻':'总电子'}</span><span class="sel-stat-value">${p.totalElectrons}</span></div>
+                                    <div class="sel-stat-item"><span class="sel-stat-label">EN</span><span class="sel-stat-value">${p.electroneg.toFixed(2)}</span></div>
+                                    <div class="sel-stat-item"><span class="sel-stat-label">${en?'Dirs/Steps':'方向/步数'}</span><span class="sel-stat-value">${p.effectiveMoveDirs}/${p.effectiveMoveSteps}</span></div>
+                                    <div class="sel-stat-item"><span class="sel-stat-label">${en?'Charge':'电荷'}</span><span class="sel-stat-value">${chargeTxt}${p.charge!==0 ? ' ('+p.chargeRounds+(en?'r':'回合')+')' : ''}</span></div>
+                                    <div class="sel-stat-item"><span class="sel-stat-label">${en?'Bonus e⁻':'额外电子'}</span><span class="sel-stat-value">${p.bonusElectrons}${p.bonusElectrons>0?' ('+p.bonusElectronRounds+(en?'r':'回合')+')':''}</span></div>
+                                </div>
+                                ${badges.length ? `<div class="sel-status-row">${badges.join('')}</div>` : ''}
+                            </div>`;
                     } else selInfo.textContent = I18N.lang==='en' ? 'No piece selected' : '未选中棋子';
                     const bl=document.getElementById('bondList');
                     const enBond = I18N.lang === 'en';
@@ -7096,9 +7397,13 @@
                         const p1=this.getPieceById(b.p1), p2=this.getPieceById(b.p2);
                         if(!p1||!p2)return'';
                         const typeName = b.type==='metallic' ? (enBond ? 'Metallic' : '金属键') : (enBond ? 'Covalent' : '共价键');
-                        const c1 = p1.color==='white' ? (enBond ? 'W' : '白') : (enBond ? 'B' : '黑');
-                        const c2 = p2.color==='white' ? (enBond ? 'W' : '白') : (enBond ? 'B' : '黑');
-                        return `<div class="bond-item">${typeName}: ${p1.symbol}(${c1})↔${p2.symbol}(${c2}) [+${b.shared}e⁻]</div>`;
+                        return `<div class="bond-item bond-row">
+                            ${miniPieceHTML(p1.symbol, p1.color==='white'?'white':'black', 26)}
+                            <span class="bond-link">↔</span>
+                            ${miniPieceHTML(p2.symbol, p2.color==='white'?'white':'black', 26)}
+                            <span class="bond-type">${typeName}</span>
+                            <span class="bond-shared">+${b.shared}e⁻</span>
+                        </div>`;
                     }).filter(s=>s).join('') : (enBond ? 'No bonds' : '暂无键合');
                     const lp=document.getElementById('logPanel');
                     lp.innerHTML=this.logEntries.slice(-25).map(l=>`<div class="log-entry">[R${l.round}] ${l.msg}</div>`).join('');
@@ -7147,7 +7452,6 @@
                     }
                     if (extraInfo) {
                         if (extraInfo.promotion) notation += `=${extraInfo.promotion}`;
-                        if (extraInfo.fieldDisp) notation += `⚡`;
                     }
                     if (checkSuffix) notation += checkSuffix;
                     const moveNum = this.roundNumber;
@@ -7394,7 +7698,7 @@
                 }
                 close() {
                     if (this.analyzer) { this.analyzer.cancel(); this.analyzer = null; }
-                    this._dom.reviewOverlay.classList.remove('active');
+                    closeModal(this._dom.reviewOverlay);
                     this._dom.reviewProgress.classList.remove('active');
                     this.game._restoreReviewBoard();
                 }
@@ -8102,6 +8406,7 @@
                         logMQTTFailed: '所有MQTT服务器连接失败，请检查网络',
                         sidebarHide: '隐藏侧边栏',
                         sidebarShow: '显示侧边栏',
+                        elementQuery: '元素查询',
                     },
                     en: {
                         gameTitle: 'Chemiss',
@@ -8255,6 +8560,7 @@
                         logMQTTFailed: 'All MQTT brokers failed, check network',
                         sidebarHide: 'Hide Sidebar',
                         sidebarShow: 'Show Sidebar',
+                        elementQuery: 'Elements',
                     }
                 },
                 t(key) { return this.data[this.lang][key] || this.data['zh'][key] || key; },
@@ -8305,6 +8611,10 @@
                         } else if (game._debugAddTarget) {
                             setTimeout(() => game.showNuclearChoices(null), 20);
                         }
+                    }
+                    const elemModalOpen = document.getElementById('elementsModal');
+                    if (elemModalOpen && elemModalOpen.classList.contains('active') && typeof qReRenderOpen === 'function') {
+                        qReRenderOpen();
                     }
                 }
             };
@@ -8381,6 +8691,7 @@
                 setTitle('btnCoords', 'coords');
                 setTitle('btnReview', 'reviewTitle');
                 setTitle('btnLang', 'language');
+                setTitle('btnElements', 'elementQuery');
                 setTitle('btnSidebar', 'sidebarHide');
                 set('aiDiffLabel', 'aiDifficulty');
                 set('aiColorLabel', 'aiColor');
@@ -8464,10 +8775,10 @@
                 modalObserver.observe(el, { attributes: true, attributeFilter: ['class'] });
             });
 
-            document.getElementById('victoryOverlay').addEventListener('click',function(e){ if(e.target===this){ this.classList.remove('active'); game.resetGame(); } });
+            document.getElementById('victoryOverlay').addEventListener('click',function(e){ if(e.target===this){ closeModal(this); game.resetGame(); } });
             document.getElementById('victoryReviewBtn').addEventListener('click', function(e){
                 e.stopPropagation();
-                document.getElementById('victoryOverlay').classList.remove('active');
+                closeModal(document.getElementById('victoryOverlay'));
                 game.openReview();
             });
             document.getElementById('nuclearModal').addEventListener('click',function(e){ if(e.target===this) closeModal(this); });
@@ -8575,6 +8886,7 @@
                 btnDefs.push({ id: 'btnAI', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-robot"/></svg>', title: '人机对战', handler: () => toggleAI() });
                 btnDefs.push({ id: 'btnTheme', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-theme"/></svg>', title: '主题设置', handler: () => openThemeModal() });
                 btnDefs.push({ id: 'btnReview', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-review"/></svg>', title: '复盘分析', handler: () => { game.openReview(); } });
+                btnDefs.push({ id: 'btnElements', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-atom"/></svg>', title: '元素查询', handler: () => openElementQuery() });
                 btnDefs.push({ id: 'btnLang', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-lang-zh"/></svg>', title: 'Language', handler: () => { const next = I18N.lang === 'zh' ? 'en' : 'zh'; I18N.switchLang(next); updateLangIcon(); updateLangPopupActive(); } });
                 btnDefs.push({ id: 'btnSidebar', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-panel"/></svg>', title: '隐藏侧边栏', handler: () => toggleSidebar() });
                 btnDefs.forEach(def => {
@@ -8885,15 +9197,30 @@
                 if (modal.classList.contains('active')) { closeModal(modal); return; }
                 const content = document.getElementById('rulesModalContent');
                 const en = I18N.lang === 'en';
+                const initialLineup = [['H',1],['C',1],['N',1],['O',1],['F',1],['Si',1],['P',1],['S',1],['Li',4],['Na',4]];
+                const lineupRow = (side) => `<div class="lineup-group"><span class="lineup-group-label">${en ? (side==='white'?'White':'Black') : (side==='white'?'白方':'黑方')}</span><div class="lineup-items">${initialLineup.map(([sym,count])=>`<div class="lineup-item">${miniPieceHTML(sym, side, 34)}<span class="lineup-count">×${count}</span></div>`).join('')}</div></div>`;
+                const lineupHTML = `<div class="piece-lineup">${lineupRow('white')}${lineupRow('black')}</div>`;
+                const demoDirs = (sym) => {
+                    const d = (typeof QUERY_ELEMENTS !== 'undefined') ? QUERY_ELEMENTS[sym] : null;
+                    if (!d) return [];
+                    const n = Math.min(d.valence, 8);
+                    return (d.period % 2 === 0 ? PRIORITY_EVEN : PRIORITY_ODD).slice(0, n);
+                };
+                const moveDemoHTML = `<div class="move-demo">
+                    <div class="move-demo-item">${miniPieceWithDotsHTML('Li','white',48,demoDirs('Li'))}<span class="move-demo-label">${en?'Li: 1 direction (straight ahead)':'Li：1方向（正前）'}</span></div>
+                    <div class="move-demo-item">${miniPieceWithDotsHTML('O','white',48,demoDirs('O'))}<span class="move-demo-label">${en?'O: 6 directions (4 straight + 2 diagonal)':'O：6方向（4直向+2斜向）'}</span></div>
+                </div>`;
                 content.innerHTML = en ? `<h3>Chemiss Rules</h3>
 <div style="text-align:left;font-size:0.82em;line-height:1.7;max-height:70vh;overflow-y:auto;padding-right:4px;">
 <h4 style="color:#b0908a;margin:10px 0 4px;">I. Objective</h4>
 <p>Capture the opponent's <b>Hydrogen King (H)</b> to win. Draw by mutual agreement. If a side has no legal moves for 4 consecutive turns, the game is a draw.</p>
 <h4 style="color:#b0908a;margin:10px 0 4px;">II. Board & Pieces</h4>
-<p>8&times;8 board. White (bottom) moves first. Each side starts with 16 pieces: H&times;1, C&times;1, N&times;1, O&times;1, F&times;1, Si&times;1, P&times;1, S&times;1, Li&times;4, Na&times;4.</p>
+<p>8&times;8 board. White (bottom) moves first. Each side starts with 16 pieces:</p>
+${lineupHTML}
 <h4 style="color:#b0908a;margin:10px 0 4px;">III. Movement</h4>
 <p>Move 1 piece per turn. Direction count = min(total electrons, 8). Step count = total electrons. Direction priority: even-period pieces move orthogonally first (up/left/right/down), odd-period move diagonally first. Chirality (left/right mirror) depends on starting column. Forward/backward flips by color.</p>
 <p>Dots around a piece show its move directions.</p>
+${moveDemoHTML}
 <h4 style="color:#b0908a;margin:10px 0 4px;">IV. Bonds & Captures</h4>
 <p><b>Ionic capture</b>: Metal vs nonmetal — bond type determined by: (1) hardcoded exceptions (e.g. Li-H, Na-H always ionic; Be-H, Mg-H always covalent), (2) EN diff > 2.0 → ionic, < 0.8 → covalent, (3) Fajans rule (polarizing power = valence/period vs anion softness), (4) default threshold EN diff > 1.7 → ionic, else covalent. Attacker gains defender's electrons up to octet deficit (8 − current total; 2 for H-king), lasting 3 turns. Unabsorbed defender electrons emit beta rays (up to 8).</p>
 <p><b>Covalent/Metallic capture</b>: Target must be bonded, attacker not a bond partner. Adjacent opposite-color pieces auto-bond. Covalent: 1 bond per atom max, sorted by EN diff descending. Metallic: multi-atom clusters share an electron sea (⌈total valence / N⌉ + 1).</p>
@@ -8915,10 +9242,12 @@
 <h4 style="color:#b0908a;margin:10px 0 4px;">一、游戏目标</h4>
 <p>吃掉对方的<b>氢王(H)</b>棋子即获胜。双方可协商和棋。一方连续4回合无子可走则判和。</p>
 <h4 style="color:#b0908a;margin:10px 0 4px;">二、棋盘与棋子</h4>
-<p>8&times;8棋盘。白方（下方）先行。初始各16枚棋子：H&times;1, C&times;1, N&times;1, O&times;1, F&times;1, Si&times;1, P&times;1, S&times;1, Li&times;4, Na&times;4。</p>
+<p>8&times;8棋盘。白方（下方）先行。初始各16枚棋子：</p>
+${lineupHTML}
 <h4 style="color:#b0908a;margin:10px 0 4px;">三、移动规则</h4>
 <p>每回合移动己方1枚棋子。方向数=min(总电子数,8)，步数=总电子数。方向优先级：偶数周期先走直向(上/左/右/下)，奇数周期先走斜向。手性(左右镜像)由棋子的生成列位决定且固定不变。前后方向由阵营（白/黑）翻转。</p>
 <p>棋子周围圆点表示当前可移动方向。</p>
+${moveDemoHTML}
 <h4 style="color:#b0908a;margin:10px 0 4px;">四、成键与吃子</h4>
 <p><b>离子键吃子</b>：金属-非金属判定流程：①硬编码例外表(Li-H,Na-H等=离子型；Be-H,Mg-H等=共价型)；②电负性差&gt;2.0&rarr;离子型，&lt;0.8&rarr;共价型；③法扬斯规则(极化力=价电子数/周期 vs 阴离子软度)；④默认阈值电负性差&gt;1.7&rarr;离子型，否则共价型。攻击方获得防御方电子至八隅体上限(8&minus;当前总电子；氢王上限2)，持续3回合。未吸收的防御方电子转化为&beta;射线(最多8条)。</p>
 <p><b>共价/金属键吃子</b>：目标必须已键合，攻击者不能是键合伙伴。相邻异色棋子自动成键，共价键按电负性差降序贪心分配、每原子限1根。金属键可形成多原子簇，共享电子海(&lceil;总价电子/N&rceil;+1)。</p>
@@ -9299,8 +9628,7 @@
                 document.body.classList.add('modal-open');
             }
             function closeThemeModal() {
-                document.getElementById('themeModal').classList.remove('active');
-                document.body.classList.remove('modal-open');
+                closeModal(document.getElementById('themeModal'));
             }
             document.getElementById('themeModal').addEventListener('click', function(e) {
                 if (e.target === this) closeThemeModal();
@@ -9376,6 +9704,525 @@
 
             // 加载已保存主题
             if (typeof ThemeManager !== 'undefined') ThemeManager.load();
+
+            // ==================== 化学棋工具 v1.4 集成：元素查询 ====================
+            // 元素中文名与类别（移植自 化学棋工具v1.4）
+            const ELEM_META = {
+                'H':['氢','nonmetal'], 'He':['氦','noble'], 'Li':['锂','metal'], 'Be':['铍','metal'],
+                'B':['硼','nonmetal'], 'C':['碳','nonmetal'], 'N':['氮','nonmetal'], 'O':['氧','nonmetal'],
+                'F':['氟','nonmetal'], 'Ne':['氖','noble'], 'Na':['钠','metal'], 'Mg':['镁','metal'],
+                'Al':['铝','metal'], 'Si':['硅','nonmetal'], 'P':['磷','nonmetal'], 'S':['硫','nonmetal'],
+                'Cl':['氯','nonmetal'], 'Ar':['氩','noble'], 'K':['钾','metal'], 'Ca':['钙','metal'],
+                'Sc':['钪','metal'], 'Ti':['钛','metal'], 'V':['钒','metal'], 'Cr':['铬','metal'],
+                'Mn':['锰','metal'], 'Fe':['铁','metal'], 'Co':['钴','metal'], 'Ni':['镍','metal'],
+                'Cu':['铜','metal'], 'Zn':['锌','metal'], 'Ga':['镓','metal'], 'Ge':['锗','nonmetal'],
+                'As':['砷','nonmetal'], 'Se':['硒','nonmetal'], 'Br':['溴','nonmetal'], 'Kr':['氪','noble'],
+                'Rb':['铷','metal'], 'Sr':['锶','metal'], 'Y':['钇','metal'], 'Zr':['锆','metal'],
+                'Nb':['铌','metal'], 'Mo':['钼','metal'], 'Tc':['锝','metal'], 'Ru':['钌','metal'],
+                'Rh':['铑','metal'], 'Pd':['钯','metal'], 'Ag':['银','metal'], 'Cd':['镉','metal'],
+                'In':['铟','metal'], 'Sn':['锡','metal'], 'Sb':['锑','nonmetal'], 'Te':['碲','nonmetal'],
+                'I':['碘','nonmetal'], 'Xe':['氙','noble'], 'Cs':['铯','metal'], 'Ba':['钡','metal'],
+                'La':['镧','metal'], 'Ce':['铈','metal'], 'Pr':['镨','metal'], 'Nd':['钕','metal'],
+                'Pm':['钷','metal'], 'Sm':['钐','metal'], 'Eu':['铕','metal'], 'Gd':['钆','metal'],
+                'Tb':['铽','metal'], 'Dy':['镝','metal'], 'Ho':['钬','metal'], 'Er':['铒','metal'],
+                'Tm':['铥','metal'], 'Yb':['镱','metal'], 'Lu':['镥','metal'], 'Hf':['铪','metal'],
+                'Ta':['钽','metal'], 'W':['钨','metal'], 'Re':['铼','metal'], 'Os':['锇','metal'],
+                'Ir':['铱','metal'], 'Pt':['铂','metal'], 'Au':['金','metal'], 'Hg':['汞','metal'],
+                'Tl':['铊','metal'], 'Pb':['铅','metal'], 'Bi':['铋','metal'], 'Po':['钋','metal'],
+                'At':['砹','nonmetal'], 'Rn':['氡','noble'], 'Fr':['钫','metal'], 'Ra':['镭','metal'],
+                'Ac':['锕','metal'], 'Th':['钍','metal'], 'Pa':['镤','metal'], 'U':['铀','metal'],
+                'Np':['镎','metal'], 'Pu':['钚','metal'], 'Am':['镅','metal'], 'Cm':['锔','metal'],
+                'Bk':['锫','metal'], 'Cf':['锎','metal'], 'Es':['锿','metal'], 'Fm':['镄','metal'],
+                'Md':['钔','metal'], 'No':['锘','metal'], 'Lr':['铹','metal']
+            };
+
+            // 合并 PIECE_DEFS / ISOTOPES / ELEM_META → 查询用元素库
+            const QUERY_ELEMENTS = {};
+            for (const qKey of Object.keys(PIECE_DEFS)) {
+                const qDef = PIECE_DEFS[qKey];
+                const qMeta = ELEM_META[qKey] || { name: qKey, type: qDef.noble ? 'noble' : qDef.group };
+                const qIsos = (ISOTOPES[qKey] || []).map(i => ({ mass: i.mass, halfLife: i.halfLife || 0, decay: i.decay || '', stable: !!i.stable }));
+                QUERY_ELEMENTS[qKey] = {
+                    Z: qDef.Z, symbol: qDef.symbol, name: qMeta[0] || qKey, period: qDef.period,
+                    valence: qDef.valence, en: qDef.en,
+                    type: qMeta[1] || (qDef.noble ? 'noble' : qDef.group),
+                    isotopes: qIsos.map(i => String(i.mass)),
+                    radio: qIsos.filter(i => !i.stable).map(i => ({ mass: i.mass, halfLife: i.halfLife, decay: i.decay === 'alpha' ? 'α' : i.decay === 'beta' ? 'β' : (i.decay || '') }))
+                };
+            }
+
+            const QUERY_INITIAL = ['Na','Li','H','F','O','N','P','Si','S','C'];
+            const QUERY_NOBLE = ['He','Ne','Ar','Kr','Xe','Rn'];
+            const QUERY_EXCEPTIONS = {
+                'Li-H':'ionic','Na-H':'ionic','K-H':'ionic','Rb-H':'ionic','Cs-H':'ionic','Fr-H':'ionic',
+                'Ca-H':'ionic','Sr-H':'ionic','Ba-H':'ionic','Ra-H':'ionic',
+                'Be-H':'covalent','Mg-H':'covalent','Na-P':'covalent','Al-Cl':'covalent',
+                'Fe-Cl':'covalent','Cu-Cl':'covalent','Ag-I':'covalent'
+            };
+            let currentQueryMode = 'common';
+            const QSETTINGS = {
+                mergeEnabled: true,
+                show: { electroneg:true, isotopes:true, directions:true, ionic:true, covalent:true, metallic:true, radioactive:true, transmutation:true }
+            };
+
+            // ---------- 迷你棋子组件（侧边栏 / 规则弹窗 / 查询工具复用） ----------
+            // 直接复用棋盘渲染结构（.piece-wrapper + .piece + .direction-dot），
+            // 仅通过 --cell-size 缩放，保证电子点/质量数/电负性位置与棋盘完全一致。
+            function miniPieceHTML(symbol, color, sizePx) {
+                const cell = sizePx || 64;
+                const qDef = PIECE_DEFS[symbol] || {};
+                const massLabel = qDef.mass ? `<sup style="font-size:0.5em;">${qDef.mass}</sup>` : '';
+                const pieceClass = 'piece ' + (color === 'black' ? 'black-piece' : 'white-piece');
+                return `<div class="mini-piece-box" style="--cell-size:${cell}px;width:${cell}px;height:${cell}px;"><div class="piece-wrapper"><div class="${pieceClass}"><span class="symbol">${massLabel}${symbol}</span><span class="info-tiny">${(qDef.en||0).toFixed(1)}</span></div></div></div>`;
+            }
+            function miniPieceWithDotsHTML(symbol, color, sizePx, dirs) {
+                const cell = sizePx || 64;
+                const qDef = PIECE_DEFS[symbol] || {};
+                const massLabel = qDef.mass ? `<sup style="font-size:0.5em;">${qDef.mass}</sup>` : '';
+                const pieceClass = 'piece ' + (color === 'black' ? 'black-piece' : 'white-piece');
+                let dotsHtml = '';
+                if (dirs && dirs.length) {
+                    // 与棋盘 renderBoard 中方向点定位完全相同的算法
+                    const rootStyle = getComputedStyle(document.documentElement);
+                    const radiusVal = (rootStyle.getPropertyValue('--piece-radius') || '50%').trim();
+                    const isCircle = radiusVal === '50%';
+                    const radiusPct = isCircle ? 50 : parseFloat(radiusVal) || 12;
+                    const radPct = 38;
+                    const dotCls = 'direction-dot ' + (color === 'black' ? 'black-dot' : 'white-dot');
+                    dotsHtml = dirs.map(([dr, dc]) => {
+                        const angle = -Math.atan2(-dr, dc);
+                        let dx, dy;
+                        if (!isCircle) {
+                            const halfSide = 39;
+                            const cosA = Math.abs(Math.cos(angle));
+                            const sinA = Math.abs(Math.sin(angle));
+                            const rectDist = Math.min(cosA < 0.005 ? 99 : halfSide / cosA, sinA < 0.005 ? 99 : halfSide / sinA);
+                            const t = Math.min(1, radiusPct / 50);
+                            const dist = rectDist + (halfSide - rectDist) * t - 2;
+                            dx = Math.cos(angle) * dist;
+                            dy = Math.sin(angle) * dist;
+                        } else {
+                            dx = Math.cos(angle) * radPct;
+                            dy = Math.sin(angle) * radPct;
+                        }
+                        return `<div class="${dotCls}" style="left:${50+dx}%;top:${50+dy}%;"></div>`;
+                    }).join('');
+                }
+                return `<div class="mini-piece-box" style="--cell-size:${cell}px;width:${cell}px;height:${cell}px;"><div class="piece-wrapper">${dotsHtml}<div class="${pieceClass}"><span class="symbol">${massLabel}${symbol}</span><span class="info-tiny">${(qDef.en||0).toFixed(1)}</span></div></div></div>`;
+            }
+
+            // ---------- 元素查询核心逻辑（移植自 v1.4） ----------
+            function qGetGroup(elem) {
+                const pos = PT_POS[elem.symbol];
+                return pos ? pos[1] : '—';
+            }
+            function qGetDirections(elem) {
+                const n = Math.min(elem.valence, 8);
+                const evenFirst = ['正前','正右','正左','正后','右前','左前','右后','左后'];
+                const oddFirst = ['右前','左前','右后','左后','正前','正右','正左','正后'];
+                const base = (elem.period % 2 === 0) ? evenFirst : oddFirst;
+                return base.slice(0, n);
+            }
+            function qJudgeBondType(metalSym, nonmetalSym) {
+                const key = metalSym + '-' + nonmetalSym;
+                if (QUERY_EXCEPTIONS[key]) return QUERY_EXCEPTIONS[key];
+                const metal = QUERY_ELEMENTS[metalSym], nonmetal = QUERY_ELEMENTS[nonmetalSym];
+                if (!metal || !nonmetal) return 'covalent';
+                const enDiff = Math.abs(metal.en - nonmetal.en);
+                if (enDiff > 2.0) return 'ionic';
+                if (enDiff < 0.8) return 'covalent';
+                const polarizingPower = metal.valence / metal.period;
+                const anionSoftness = nonmetal.period;
+                if (polarizingPower > 0.6 && anionSoftness >= 3) return 'covalent';
+                if (polarizingPower > 0.6 && anionSoftness <= 2) return 'ionic';
+                if (polarizingPower <= 0.5 && enDiff > 1.0) return 'ionic';
+                return enDiff > 1.7 ? 'ionic' : 'covalent';
+            }
+            function qGetCommonBonds(elem) {
+                const result = { ionic: [], covalent: [], metallic: [] };
+                if (elem.type === 'noble') return result;
+                const candidates = new Set(QUERY_INITIAL);
+                candidates.add(elem.symbol);
+                if (elem.type === 'metal') {
+                    const metallicList = [];
+                    for (const k of candidates) {
+                        if (k === elem.symbol || QUERY_ELEMENTS[k].type !== 'metal') continue;
+                        metallicList.push(k);
+                    }
+                    metallicList.sort((a, b) => QUERY_ELEMENTS[a].Z - QUERY_ELEMENTS[b].Z);
+                    result.metallic = metallicList.length ? metallicList : ['无'];
+                    const ionicList = [], covalentList = [];
+                    for (const k of candidates) {
+                        if (k === elem.symbol || QUERY_ELEMENTS[k].type !== 'nonmetal') continue;
+                        const type = qJudgeBondType(elem.symbol, k);
+                        if (type === 'ionic') ionicList.push(k);
+                        else if (type === 'covalent') covalentList.push(k);
+                    }
+                    ionicList.sort((a, b) => QUERY_ELEMENTS[a].Z - QUERY_ELEMENTS[b].Z);
+                    covalentList.sort((a, b) => QUERY_ELEMENTS[a].Z - QUERY_ELEMENTS[b].Z);
+                    result.ionic = ionicList.length ? ionicList : ['无'];
+                    result.covalent = covalentList.length ? covalentList : ['无'];
+                } else if (elem.type === 'nonmetal') {
+                    const metalIonic = [], metalCovalent = [], nonmetalPartners = [];
+                    for (const k of candidates) {
+                        if (k === elem.symbol) continue;
+                        if (QUERY_ELEMENTS[k].type === 'metal') {
+                            const type = qJudgeBondType(k, elem.symbol);
+                            if (type === 'ionic') metalIonic.push(k);
+                            else if (type === 'covalent') metalCovalent.push(k);
+                        } else if (QUERY_ELEMENTS[k].type === 'nonmetal') {
+                            nonmetalPartners.push(k);
+                        }
+                    }
+                    metalIonic.sort((a, b) => QUERY_ELEMENTS[a].Z - QUERY_ELEMENTS[b].Z);
+                    metalCovalent.sort((a, b) => QUERY_ELEMENTS[a].Z - QUERY_ELEMENTS[b].Z);
+                    nonmetalPartners.sort((a, b) => QUERY_ELEMENTS[a].Z - QUERY_ELEMENTS[b].Z);
+                    let covList = [];
+                    if (nonmetalPartners.length) covList = covList.concat(nonmetalPartners);
+                    if (metalCovalent.length) covList = covList.concat(metalCovalent);
+                    result.covalent = covList.length ? covList : ['无'];
+                    result.ionic = metalIonic.length ? metalIonic : ['无'];
+                    result.metallic = [];
+                }
+                return result;
+            }
+            function qGetFullBonds(elem) {
+                const result = { ionic: [], covalent: [], metallic: [] };
+                if (elem.type === 'noble') return result;
+                const allKeys = Object.keys(QUERY_ELEMENTS);
+                const allMetals = allKeys.filter(k => QUERY_ELEMENTS[k].type === 'metal' && !QUERY_NOBLE.includes(k));
+                const allNonmetals = allKeys.filter(k => QUERY_ELEMENTS[k].type === 'nonmetal' && !QUERY_NOBLE.includes(k));
+                const mergeList = (list, allItems, typeName) => {
+                    if (!QSETTINGS.mergeEnabled || list.length === 0) return list;
+                    const total = allItems.length;
+                    if (list.length > total / 2) {
+                        const excluded = allItems.filter(item => !list.includes(item));
+                        if (excluded.length === 0) return [`所有${typeName}`];
+                        else return [`所有${typeName}（除 ${excluded.join('、')}）`];
+                    }
+                    return list;
+                };
+                if (elem.type === 'metal') {
+                    const otherMetals = allMetals.filter(k => k !== elem.symbol);
+                    result.metallic = mergeList(otherMetals, allMetals.filter(k => k !== elem.symbol), '金属');
+                    const ionicList = [], covalentList = [];
+                    for (const k of allNonmetals) {
+                        if (k === elem.symbol) continue;
+                        const type = qJudgeBondType(elem.symbol, k);
+                        if (type === 'ionic') ionicList.push(k);
+                        else if (type === 'covalent') covalentList.push(k);
+                    }
+                    ionicList.sort((a, b) => QUERY_ELEMENTS[a].Z - QUERY_ELEMENTS[b].Z);
+                    covalentList.sort((a, b) => QUERY_ELEMENTS[a].Z - QUERY_ELEMENTS[b].Z);
+                    result.ionic = mergeList(ionicList, allNonmetals, '非金属');
+                    result.covalent = mergeList(covalentList, allNonmetals, '非金属');
+                } else if (elem.type === 'nonmetal') {
+                    const ionicList = [], covalentList = [];
+                    for (const k of allMetals) {
+                        if (k === elem.symbol) continue;
+                        const type = qJudgeBondType(k, elem.symbol);
+                        if (type === 'ionic') ionicList.push(k);
+                        else if (type === 'covalent') covalentList.push(k);
+                    }
+                    ionicList.sort((a, b) => QUERY_ELEMENTS[a].Z - QUERY_ELEMENTS[b].Z);
+                    covalentList.sort((a, b) => QUERY_ELEMENTS[a].Z - QUERY_ELEMENTS[b].Z);
+                    result.ionic = mergeList(ionicList, allMetals, '金属');
+                    const metalCovalentList = covalentList;
+                    const totalMetals = allMetals.length;
+                    const metalHalf = totalMetals / 2;
+                    const metalOverHalf = QSETTINGS.mergeEnabled && (metalCovalentList.length > metalHalf);
+                    let covDisplay = [];
+                    if (metalOverHalf) {
+                        const allElements = Object.keys(QUERY_ELEMENTS);
+                        const nonmetalPartners = allNonmetals.filter(k => k !== elem.symbol && !QUERY_NOBLE.includes(k));
+                        const partnerSet = new Set([...nonmetalPartners, ...metalCovalentList]);
+                        const excludedMetals = allMetals.filter(k => k !== elem.symbol && !metalCovalentList.includes(k));
+                        const nobleGases = QUERY_NOBLE;
+                        let excludeParts = [];
+                        if (nobleGases.length > 0) excludeParts.push('稀有气体');
+                        if (excludedMetals.length > 0) excludeParts = excludeParts.concat(excludedMetals);
+                        if (excludeParts.length === 0) covDisplay.push('所有元素');
+                        else covDisplay.push('所有元素（除 '+ excludeParts.join('、') + '）');
+                    } else {
+                        covDisplay.push('所有非金属（除稀有气体）');
+                        if (metalCovalentList.length > 0) {
+                            if (QSETTINGS.mergeEnabled && metalCovalentList.length > metalHalf) {
+                                const excludedMetals = allMetals.filter(m => !metalCovalentList.includes(m));
+                                if (excludedMetals.length === 0) covDisplay.push('所有金属');
+                                else covDisplay.push('所有金属（除 ' + excludedMetals.join('、') + '）');
+                            } else {
+                                covDisplay = covDisplay.concat(metalCovalentList);
+                            }
+                        }
+                    }
+                    result.covalent = covDisplay.length ? covDisplay : ['无'];
+                    result.metallic = [];
+                }
+                return result;
+            }
+            function qGetDecayProduct(elem, decay) {
+                let newZ;
+                if (decay === 'α') newZ = elem.Z - 2;
+                else if (decay === 'β') newZ = elem.Z + 1;
+                else return null;
+                for (const key of Object.keys(QUERY_ELEMENTS)) {
+                    if (QUERY_ELEMENTS[key].Z === newZ) {
+                        const isoList = QUERY_ELEMENTS[key].isotopes || [];
+                        const defaultMass = isoList.length > 0 ? parseInt(isoList[0]) : 0;
+                        return { symbol: QUERY_ELEMENTS[key].symbol, mass: defaultMass };
+                    }
+                }
+                return null;
+            }
+            function qFindClosestIsotope(elementKey, targetMass) {
+                const isos = QUERY_ELEMENTS[elementKey]?.isotopes || [];
+                if (isos.length === 0) return null;
+                let best = parseInt(isos[0]);
+                let bestDiff = Math.abs(best - targetMass);
+                for (const m of isos) {
+                    const mi = parseInt(m);
+                    const diff = Math.abs(mi - targetMass);
+                    if (diff < bestDiff) { bestDiff = diff; best = mi; }
+                }
+                return best;
+            }
+            function qGetTransmutationProduct(elem, mass) {
+                if (elem.Z === 102 || elem.Z === 103) return null;
+                const newZ = elem.Z + 2;
+                let targetKey = null;
+                for (const key of Object.keys(QUERY_ELEMENTS)) {
+                    if (QUERY_ELEMENTS[key].Z === newZ) { targetKey = key; break; }
+                }
+                if (!targetKey) return null;
+                const targetMass = mass + 4;
+                const bestMass = qFindClosestIsotope(targetKey, targetMass);
+                if (bestMass === null) return null;
+                return { symbol: QUERY_ELEMENTS[targetKey].symbol, mass: bestMass };
+            }
+            function qQueryElement(input) {
+                const trimmed = (input || '').trim();
+                if (!trimmed) return null;
+                const num = parseInt(trimmed);
+                if (!isNaN(num) && num >= 1 && num <= 103) {
+                    for (const key of Object.keys(QUERY_ELEMENTS)) {
+                        if (QUERY_ELEMENTS[key].Z === num) return QUERY_ELEMENTS[key];
+                    }
+                }
+                const upper = trimmed.toUpperCase();
+                for (const key of Object.keys(QUERY_ELEMENTS)) {
+                    if (key.toUpperCase() === upper) return QUERY_ELEMENTS[key];
+                }
+                for (const key of Object.keys(QUERY_ELEMENTS)) {
+                    if (QUERY_ELEMENTS[key].name === trimmed) return QUERY_ELEMENTS[key];
+                }
+                return null;
+            }
+
+            // ---------- 查询结果渲染（可视化棋子芯片） ----------
+            function qChip(sym) {
+                const el = QUERY_ELEMENTS[sym];
+                if (!el) return `<span class="elem-text-chip">${sym}</span>`;
+                return `<span class="elem-chip" data-elem="${sym}">${miniPieceHTML(sym, 'white', 26)}<span class="elem-chip-name">${el.name}</span></span>`;
+            }
+            function qRenderResult(elem) {
+                const en = I18N.lang === 'en';
+                const group = qGetGroup(elem);
+                const typeName = elem.type === 'metal' ? (en?'Metal':'金属') : elem.type === 'noble' ? (en?'Noble gas':'稀有气体') : (en?'Nonmetal':'非金属');
+                const dirs = qGetDirections(elem);
+                const bonds = currentQueryMode === 'common' ? qGetCommonBonds(elem) : qGetFullBonds(elem);
+                const none = en ? 'None' : '无';
+                const bondLine = (label, items) => {
+                    if (!items || !items.length || items[0] === '无') {
+                        return `<div class="elem-result-line"><span class="elem-result-label">${label}</span><span class="elem-result-val">${none}</span></div>`;
+                    }
+                    const list = items.map(it => (typeof it === 'string' && it.includes('所有')) ? `<span class="elem-text-chip">${it}</span>` : qChip(it)).join('');
+                    return `<div class="elem-result-line"><span class="elem-result-label">${label}</span><div class="elem-chip-row">${list}</div></div>`;
+                };
+                let html = `<div class="elem-result-head">${miniPieceHTML(elem.symbol,'white',52)}<div><div class="elem-result-title">${elem.name}（${elem.symbol}）<span class="elem-z">${elem.Z}</span></div><div class="elem-result-meta">${en?'Period':'第'}${elem.period}${en?'':'周期'} · ${group}${en?' group':'族'} · ${typeName}</div></div></div>`;
+                if (QSETTINGS.show.electroneg) html += `<div class="elem-result-line"><span class="elem-result-label">${en?'EN':'电负性'}</span><span class="elem-result-val">${elem.en.toFixed(2)}</span></div>`;
+                if (QSETTINGS.show.isotopes) html += `<div class="elem-result-line"><span class="elem-result-label">${en?'Isotopes':'同位素'}</span><div class="elem-chip-row">${elem.isotopes.map(m=>`<span class="elem-iso-chip">${elem.symbol}-${m}</span>`).join('')}</div></div>`;
+                if (QSETTINGS.show.directions) html += `<div class="elem-result-line"><span class="elem-result-label">${en?'Moves':'走法'}</span><span class="elem-result-val">[${elem.valence}] ${dirs.join('、')}</span></div>`;
+                if (QSETTINGS.show.ionic) html += bondLine(en?'Ionic bonds':'离子键', bonds.ionic);
+                if (QSETTINGS.show.covalent) html += bondLine(en?'Covalent bonds':'共价键', bonds.covalent);
+                if (QSETTINGS.show.metallic) html += bondLine(en?'Metallic bonds':'金属键', bonds.metallic);
+                if (QSETTINGS.show.radioactive && elem.radio && elem.radio.length) {
+                    const buildRadio = (items, decayType) => {
+                        if (!items.length) return '';
+                        const product = qGetDecayProduct(elem, decayType);
+                        const prodHtml = (product && product.mass > 0) ? qChip(product.symbol) : '<span class="elem-text-chip">[—]</span>';
+                        const parts = items.map(r => `${elem.symbol}-${r.mass} (${r.halfLife}) ${r.decay}`);
+                        return `<div class="elem-result-line"><span class="elem-result-label">${decayType} ${en?'decay':'衰变'}</span><div class="elem-chip-row">${prodHtml}<span class="elem-result-val">${parts.join('、')}</span></div></div>`;
+                    };
+                    html += buildRadio(elem.radio.filter(r => r.decay === 'α'), 'α');
+                    html += buildRadio(elem.radio.filter(r => r.decay === 'β'), 'β');
+                }
+                if (QSETTINGS.show.transmutation && elem.Z !== 102 && elem.Z !== 103) {
+                    const transEntries = [];
+                    for (const m of elem.isotopes) {
+                        const mass = parseInt(m);
+                        const product = qGetTransmutationProduct(elem, mass);
+                        if (product) transEntries.push(`<span class="elem-result-val">${elem.symbol}-${mass} → </span>${qChip(product.symbol)}<span class="elem-result-val">-${product.mass}</span>`);
+                    }
+                    if (transEntries.length) html += `<div class="elem-result-line"><span class="elem-result-label">${en?'Transmutation':'嬗变'}</span><div class="elem-chip-row">${transEntries.join('<span class="elem-result-val">、</span>')}</div></div>`;
+                }
+                return html;
+            }
+            function qDoSearch() {
+                const input = document.getElementById('elementsSearchInput');
+                const box = document.getElementById('elementsResultBox');
+                const elem = qQueryElement(input.value);
+                if (!elem) {
+                    box.innerHTML = `<div class="elem-empty">${I18N.lang==='en'?'Element not found':'未找到元素'} “${input.value || '…'}”，${I18N.lang==='en'?'please check input':'请检查输入'}</div>`;
+                    return;
+                }
+                box.innerHTML = qRenderResult(elem);
+            }
+            function qReRenderOpen() {
+                const input = document.getElementById('elementsSearchInput');
+                const box = document.getElementById('elementsResultBox');
+                if (!input || !box || !input.value.trim()) return;
+                const elem = qQueryElement(input.value);
+                if (elem) box.innerHTML = qRenderResult(elem);
+            }
+
+            // ---------- 悬停卡片 / 点击跳转 ----------
+            let qTooltipTimer = null, qTooltipEl = null;
+            function qShowTooltip(e, elemKey) {
+                const elem = QUERY_ELEMENTS[elemKey];
+                if (!elem) return;
+                qHideTooltip();
+                const tip = document.createElement('div');
+                tip.className = 'elem-tooltip';
+                tip._key = elemKey;
+                tip.innerHTML = `<div class="tip-sym">${elem.symbol} <span class="tip-z">${elem.Z}</span></div>
+                    <div class="tip-detail">${elem.name} · ${I18N.lang==='en'?'Period':'第'}${elem.period}${I18N.lang==='en'?'':'周期'} · ${qGetGroup(elem)}${I18N.lang==='en'?' group':'族'}</div>
+                    <div class="tip-detail"><span class="tip-label">${I18N.lang==='en'?'Valence':'价电子'}</span> ${elem.valence} · <span class="tip-label">EN</span> ${elem.en}</div>
+                    <div class="tip-detail"><span class="tip-label">${I18N.lang==='en'?'Type':'类型'}</span> ${elem.type==='metal'?(I18N.lang==='en'?'Metal':'金属'):elem.type==='noble'?(I18N.lang==='en'?'Noble gas':'稀有气体'):(I18N.lang==='en'?'Nonmetal':'非金属')}</div>
+                    <div class="tip-click">${I18N.lang==='en'?'Click to query':'点击查询'} ${elem.name}</div>`;
+                const rect = e.target.getBoundingClientRect();
+                let left = rect.right + 10, top = rect.top;
+                if (left + 250 > window.innerWidth) left = rect.left - 260;
+                if (top + 150 > window.innerHeight) top = window.innerHeight - 160;
+                tip.style.left = left + 'px';
+                tip.style.top = top + 'px';
+                document.body.appendChild(tip);
+                qTooltipEl = tip;
+                tip.addEventListener('click', (ev) => {
+                    ev.stopPropagation();
+                    document.getElementById('elementsSearchInput').value = elemKey;
+                    qDoSearch();
+                    qHideTooltip();
+                });
+                tip.addEventListener('mouseleave', () => { qTooltipTimer = setTimeout(qHideTooltip, 200); });
+                tip.addEventListener('mouseenter', () => { if (qTooltipTimer) { clearTimeout(qTooltipTimer); qTooltipTimer = null; } });
+            }
+            function qHideTooltip() {
+                if (qTooltipTimer) { clearTimeout(qTooltipTimer); qTooltipTimer = null; }
+                if (qTooltipEl && qTooltipEl.parentNode) qTooltipEl.parentNode.removeChild(qTooltipEl);
+                qTooltipEl = null;
+            }
+
+            // ---------- 弹窗控制与绑定 ----------
+            function openElementQuery() {
+                const modal = document.getElementById('elementsModal');
+                if (modal.classList.contains('active')) { closeElementQuery(); return; }
+                modal.classList.add('active');
+                document.body.classList.add('modal-open');
+                setTimeout(() => { const inp = document.getElementById('elementsSearchInput'); if (inp) inp.focus(); }, 60);
+            }
+            function closeElementQuery() {
+                closeModal(document.getElementById('elementsModal'));
+                qHideTooltip();
+            }
+            function openElementsGuide() { document.getElementById('elementsGuideModal').classList.add('active'); }
+            function closeElementsGuide() { closeModal(document.getElementById('elementsGuideModal')); }
+            function openElementsSettings() {
+                document.getElementById('elementsSettingsModal').classList.add('active');
+                const st = document.getElementById('qMergeStatus');
+                if (st) st.textContent = QSETTINGS.mergeEnabled ? '开启' : '关闭';
+            }
+            function closeElementsSettings() { closeModal(document.getElementById('elementsSettingsModal')); }
+
+            const btnElements = document.getElementById('btnElements');
+            if (btnElements) btnElements.addEventListener('click', openElementQuery);
+            const elementsModal = document.getElementById('elementsModal');
+            const elementsGuideModal = document.getElementById('elementsGuideModal');
+            const elementsSettingsModal = document.getElementById('elementsSettingsModal');
+            const elementsSearchInput = document.getElementById('elementsSearchInput');
+            const elementsResultBox = document.getElementById('elementsResultBox');
+
+            document.getElementById('elementsCloseBtn').addEventListener('click', closeElementQuery);
+            elementsModal.addEventListener('click', (e) => { if (e.target === elementsModal) closeElementQuery(); });
+            document.getElementById('elementsGuideBtn').addEventListener('click', openElementsGuide);
+            document.getElementById('elementsGuideClose').addEventListener('click', closeElementsGuide);
+            elementsGuideModal.addEventListener('click', (e) => { if (e.target === elementsGuideModal) closeElementsGuide(); });
+            document.getElementById('elementsSettingsBtn').addEventListener('click', openElementsSettings);
+            document.getElementById('elementsSettingsClose').addEventListener('click', closeElementsSettings);
+            elementsSettingsModal.addEventListener('click', (e) => { if (e.target === elementsSettingsModal) closeElementsSettings(); });
+            document.getElementById('elementsSearchBtn').addEventListener('click', qDoSearch);
+            elementsSearchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); qDoSearch(); } });
+
+            document.querySelectorAll('#elementsModeToggle .elem-mode-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('#elementsModeToggle .elem-mode-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentQueryMode = btn.dataset.mode;
+                    if (elementsSearchInput.value.trim()) qDoSearch();
+                });
+            });
+
+            const qBindShow = (id, key) => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('change', () => {
+                    QSETTINGS.show[key] = el.checked;
+                    if (elementsSearchInput.value.trim()) qDoSearch();
+                });
+            };
+            qBindShow('qShowElectroneg','electroneg');
+            qBindShow('qShowIsotopes','isotopes');
+            qBindShow('qShowDirections','directions');
+            qBindShow('qShowIonic','ionic');
+            qBindShow('qShowCovalent','covalent');
+            qBindShow('qShowMetallic','metallic');
+            qBindShow('qShowRadioactive','radioactive');
+            qBindShow('qShowTransmutation','transmutation');
+            const qMergeToggle = document.getElementById('qMergeToggle');
+            if (qMergeToggle) qMergeToggle.addEventListener('change', () => {
+                QSETTINGS.mergeEnabled = qMergeToggle.checked;
+                const st = document.getElementById('qMergeStatus');
+                if (st) st.textContent = qMergeToggle.checked ? '开启' : '关闭';
+                if (elementsSearchInput.value.trim()) qDoSearch();
+            });
+
+            elementsResultBox.addEventListener('mouseover', (e) => {
+                const chip = e.target.closest('.elem-chip');
+                if (chip && chip.dataset.elem) {
+                    if (qTooltipEl && qTooltipEl._key === chip.dataset.elem) return;
+                    qTooltipTimer = setTimeout(() => qShowTooltip(e, chip.dataset.elem), 350);
+                }
+            });
+            elementsResultBox.addEventListener('mouseout', () => {
+                if (qTooltipTimer) { clearTimeout(qTooltipTimer); qTooltipTimer = null; }
+                setTimeout(() => { if (qTooltipEl && !qTooltipEl.matches(':hover')) qHideTooltip(); }, 150);
+            });
+            elementsResultBox.addEventListener('click', (e) => {
+                const chip = e.target.closest('.elem-chip');
+                if (chip && chip.dataset.elem) {
+                    e.stopPropagation();
+                    elementsSearchInput.value = chip.dataset.elem;
+                    qDoSearch();
+                    qHideTooltip();
+                }
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    if (elementsGuideModal.classList.contains('active')) closeElementsGuide();
+                    if (elementsSettingsModal.classList.contains('active')) closeElementsSettings();
+                    if (elementsModal.classList.contains('active')) closeElementQuery();
+                }
+            });
+            // ==================== 元素查询工具集成结束 ====================
 
             console.log('Chemiss ready.');
         })();
