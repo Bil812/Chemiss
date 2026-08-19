@@ -1656,6 +1656,10 @@
                 <polyline points="3 5 3 10 8 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M5 14a7 7 0 1 0 1.5-7.5L3 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
             </g>
+            <g id="icon-autoplay">
+                <path d="M12.84 6.17Q12.7 5.93 12.41 5.83Q12.12 5.74 11.84 5.82Q11.57 5.9 11.47 6.17L7.06 16.54Q6.94 16.82 7.06 17.12Q7.18 17.42 7.46 17.52Q7.8 17.62 8.06 17.51Q8.33 17.4 8.45 17.11L9.7 14.16L14.59 14.16L15.84 17.11Q15.96 17.4 16.22 17.51Q16.49 17.62 16.82 17.52Q17.14 17.42 17.24 17.12Q17.35 16.82 17.23 16.54L12.84 6.17ZM12.14 8.38L13.97 12.65L10.34 12.65Z" fill="currentColor"/>
+                <path d="M22.99 12.07Q22.99 9.19 21.6 6.71Q20.21 4.22 17.81 2.69Q15.41 1.15 12.53 1.01Q9.55 0.86 6.95 2.22Q4.34 3.58 2.75 6.04Q1.15 8.5 1.01 11.47Q0.86 14.45 2.22 17.04Q3.58 19.63 6.04 21.24Q8.5 22.85 11.47 22.99Q13.78 22.99 15.66 22.38Q17.54 21.77 19.22 20.28Q19.46 20.11 19.48 19.79Q19.49 19.46 19.3 19.25Q19.1 19.01 18.79 18.98Q18.48 18.96 18.24 19.18Q16.85 20.38 15.11 20.98Q13.37 21.58 11.54 21.48Q8.98 21.36 6.85 19.98Q4.73 18.6 3.56 16.36Q2.4 14.11 2.52 11.54Q2.64 8.93 4.03 6.8Q5.42 4.68 7.66 3.53Q9.89 2.38 12.46 2.5Q14.95 2.62 17.02 3.92Q19.08 5.23 20.28 7.37Q21.48 9.5 21.48 12L19.87 12Q19.75 12 19.66 12.08Q19.56 12.17 19.54 12.29Q19.51 12.41 19.56 12.53L21.65 15.89Q21.7 15.98 21.82 16.03Q21.94 16.08 22.06 16.04Q22.18 16.01 22.22 15.91Q22.25 15.89 22.25 15.88Q22.25 15.86 22.27 15.84Q22.61 15 22.8 13.98Q22.99 12.96 22.99 12.07Z" fill="currentColor"/>
+            </g>
             <g id="icon-robot">
                 <rect x="3" y="7.5" width="18" height="12.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M8 3.5v4m8-4v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
@@ -1788,6 +1792,7 @@
             <button class="settings-icon-btn" id="btnOnline" title="联机对战"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-link"/></svg></button>
             <button class="settings-icon-btn" id="btnFlip" title="翻转棋盘"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-flip"/></svg></button>
             <button class="settings-icon-btn" id="btnAI" title="人机对战"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-robot"/></svg></button>
+            <button class="settings-icon-btn" id="btnAutoPlay" title="AI自动对弈"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-autoplay"/></svg></button>
             <button class="settings-icon-btn" id="btnClock" title="计时器"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-clock"/></svg></button>
             <button class="settings-icon-btn" id="btnReview" title="复盘分析"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-review"/></svg></button>
             <button class="settings-icon-btn" id="btnElements" title="元素查询"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-atom"/></svg></button>
@@ -3757,7 +3762,8 @@
                             const tgt = this.game.board[move.row][move.col];
                             if (tgt && tgt.isHydrogenKing) {
                                 this.game._aiSearching = false;
-                                return { piece, move, evalScore: 100000000 };
+                                // evalScore 供分析使用，须为白方视角：白吃H=白胜(+1e8)，黑吃H=黑胜=白视角(-1e8)
+                                return { piece, move, evalScore: piece.color === COLOR_WHITE ? 100000000 : -100000000 };
                             }
                         }
                     }
@@ -4046,7 +4052,7 @@
                     this._onProgress = null;
                     this._onComplete = null;
                 }
-                cancel() { this._canceled = true; this._gen++; }
+                cancel() { this._canceled = true; this._gen++; if (this.game) this.game._aiSearching = false; }
                 _rawToCentipawns(raw) {
                     const abs = Math.abs(raw);
                     const sign = Math.sign(raw) || 1;
@@ -4070,7 +4076,6 @@
                     if (moves.length === 0) { this.game._aiSearching = false; if (onComplete) onComplete(this._buildResult()); return; }
                     const cleanup = () => { this.game._aiSearching = false; };
                     try {
-                        const ai = new ChemissAI(this.game, 'white', this.ANALYSIS_DEPTH);
                         this._restoreBoardForAnalysis(this.record.initialBoardState);
                         let i = 0;
                         const total = moves.length;
@@ -4082,16 +4087,42 @@
                                     const m = moves[i];
                                     if (m.boardState) this._restoreBoardForAnalysis(m.boardState);
                                     let ev;
-                                    try {
-                                        const nextTurn = m.color === 'white' ? 'black' : 'white';
-                                        ai.game.currentTurn = nextTurn;
-                                        ai._killerMoves = [null, null];
-                                        ai._transpositionTable.clear();
-                                        ai._deadline = Date.now() + 30;
-                                        const isMax = nextTurn === 'white';
-                                        const s = ai.search(1, -Infinity, Infinity, isMax, 0);
-                                        ev = isMax ? s : -s;
-                                    } catch(x) { ev = ai.evaluate(); }
+                                    const nextTurn = m.color === 'white' ? 'black' : 'white';
+                                    // 终局局面：直接按胜者给白方视角 ±1e8（search 的 gameOver 分支视角依赖 AI.color，统一特判避免反号）
+                                    if (this.game.gameOver) {
+                                        ev = this.game.winner === COLOR_WHITE ? 100000000 : (this.game.winner === COLOR_BLACK ? -100000000 : 0);
+                                    } else if (m.noMove) {
+                                        // 无走法回合：直接吃H → ±1e8；否则 depth-1 同色搜索（白方视角），避免漏报强制胜势
+                                        try {
+                                            if (this._hasDirectHKill(nextTurn)) {
+                                                ev = nextTurn === 'white' ? 100000000 : -100000000;
+                                            } else {
+                                                const nmAI = new ChemissAI(this.game, nextTurn, 1);
+                                                nmAI.game.currentTurn = nextTurn;
+                                                nmAI._transpositionTable.clear();
+                                                nmAI._deadline = null;
+                                                const ns = nmAI.search(1, -Infinity, Infinity, nextTurn === 'white', 0);
+                                                ev = nextTurn === 'white' ? ns : -ns;
+                                            }
+                                        } catch(x) {
+                                            const nmAI = new ChemissAI(this.game, nextTurn, 1);
+                                            ev = nextTurn === 'white' ? nmAI.evaluate() : -nmAI.evaluate();
+                                        }
+                                    } else {
+                                        try {
+                                            // 同色AI（走子方=nextTurn）+ isMax：search 返回该方视角，isMax?s:-s 归一为白方视角
+                                            const ai = new ChemissAI(this.game, nextTurn, 1);
+                                            ai.game.currentTurn = nextTurn;
+                                            ai._killerMoves = [null, null];
+                                            ai._transpositionTable.clear();
+                                            ai._deadline = null;
+                                            const s = ai.search(1, -Infinity, Infinity, nextTurn === 'white', 0);
+                                            ev = nextTurn === 'white' ? s : -s;
+                                        } catch(x) {
+                                            const nmAI = new ChemissAI(this.game, nextTurn, 1);
+                                            ev = nextTurn === 'white' ? nmAI.evaluate() : -nmAI.evaluate();
+                                        }
+                                    }
                                     m.evalRaw = ev; m.evalCentipawns = this._rawToCentipawns(ev);
                                     m.winProbability = this._winProbability(m.evalCentipawns);
                                     m.bestMoveScore = ev;
@@ -4111,33 +4142,64 @@
                                 if (this._canceled || gen !== this._gen) return;
                                 try {
                                     const m = moves[i];
-                                    console.log(`[分析]  走法 ${i+1}/${total}: ${m.pieceSymbol} → (${m.to[0]},${m.to[1]})`);
+                                    console.log(`[分析]  走法 ${i+1}/${total}: ${m.pieceSymbol} → (${m.to ? m.to[0] : '--'},${m.to ? m.to[1] : '--'})`);
                                     if (m.boardState) this._restoreBoardForAnalysis(m.boardState);
                                     let ev;
-                                    try {
-                                        const nextTurn = m.color === 'white' ? 'black' : 'white';
-                                        ai.game.currentTurn = nextTurn;
-                                        ai._killerMoves = [null, null];
-                                        ai._historyTable = {};
-                                        // 从浅到深迭代加深，确保即使超时也有结果
-                                        const maxDepth = this.ANALYSIS_DEPTH;
-                                        const totalBudget = 30 + maxDepth * 25;
-                                        ai._deadline = Date.now() + totalBudget;
-                                        const isMax = nextTurn === 'white';
-                                        if (maxDepth <= 2) { ev = ai.evaluate(); }
-                                        else {
-                                            let bestEval = ai.evaluate();
-                                            ai._transpositionTable.clear();
-                                            const moveStart = Date.now();
-                                            for (let d = 1; d <= maxDepth; d++) {
-                                                if (Date.now() > ai._deadline) break;
-                                                const s = ai.search(d, -Infinity, Infinity, isMax, 0);
-                                                bestEval = isMax ? s : -s;
-                                                console.log(`[分析]    depth=${d} 耗时=${Date.now()-moveStart}ms`);
+                                    const nextTurn = m.color === 'white' ? 'black' : 'white';
+                                    // 终局局面：直接按胜者给白方视角 ±1e8（search 的 gameOver 分支视角依赖 AI.color，统一特判避免反号）
+                                    if (this.game.gameOver) {
+                                        ev = this.game.winner === COLOR_WHITE ? 100000000 : (this.game.winner === COLOR_BLACK ? -100000000 : 0);
+                                    } else if (m.noMove) {
+                                        // 无走法回合：直接吃H → ±1e8；否则 depth-1 同色搜索（白方视角），避免漏报强制胜势
+                                        try {
+                                            if (this._hasDirectHKill(nextTurn)) {
+                                                ev = nextTurn === 'white' ? 100000000 : -100000000;
+                                            } else {
+                                                const nmAI = new ChemissAI(this.game, nextTurn, 1);
+                                                nmAI.game.currentTurn = nextTurn;
+                                                nmAI._transpositionTable.clear();
+                                                nmAI._deadline = null;
+                                                const ns = nmAI.search(1, -Infinity, Infinity, nextTurn === 'white', 0);
+                                                ev = nextTurn === 'white' ? ns : -ns;
                                             }
-                                            ev = bestEval;
+                                        } catch(x) {
+                                            const nmAI = new ChemissAI(this.game, nextTurn, 1);
+                                            ev = nextTurn === 'white' ? nmAI.evaluate() : -nmAI.evaluate();
                                         }
-                                    } catch(x) { ev = ai.evaluate(); }
+                                    } else {
+                                        try {
+                                            // 从浅到深迭代加深，确保即使超时也有结果
+                                            const maxDepth = this.ANALYSIS_DEPTH;
+                                            // 同色AI（走子方=nextTurn）+ isMax：search 返回该方视角，isMax?s:-s 归一为白方视角
+                                            const ai = new ChemissAI(this.game, nextTurn, maxDepth);
+                                            ai.game.currentTurn = nextTurn;
+                                            ai._killerMoves = [null, null];
+                                            ai._historyTable = {};
+                                            if (maxDepth <= 2) { ev = nextTurn === 'white' ? ai.evaluate() : -ai.evaluate(); }
+                                            else {
+                                                let bestEval = ai.evaluate();
+                                                bestEval = nextTurn === 'white' ? bestEval : -bestEval;
+                                                ai._transpositionTable.clear();
+                                                const moveStart = Date.now();
+                                                for (let d = 1; d <= maxDepth; d++) {
+                                                    // 每层完全冷搜（TT/killer/history 全清）：浅层地平线假象（±1e8）不污染深层；
+                                                    // 且消除启发式剪枝（null-move/razoring/futility）对走子顺序的敏感性，结果与独立冷搜逐位一致
+                                                    ai._transpositionTable.clear();
+                                                    ai._killerMoves = [null, null];
+                                                    ai._historyTable = {};
+                                                    // 不设 deadline：完整搜索，保证与独立冷搜/复算结果一致（取消由 _canceled/_gen 机制处理）
+                                                    ai._deadline = null;
+                                                    const s = ai.search(d, -Infinity, Infinity, nextTurn === 'white', 0);
+                                                    bestEval = nextTurn === 'white' ? s : -s;
+                                                    console.log(`[分析]    depth=${d} 耗时=${Date.now()-moveStart}ms`);
+                                                }
+                                                ev = bestEval;
+                                            }
+                                        } catch(x) {
+                                            const nmAI = new ChemissAI(this.game, nextTurn, 1);
+                                            ev = nextTurn === 'white' ? nmAI.evaluate() : -nmAI.evaluate();
+                                        }
+                                    }
                                     m.evalRaw = ev; m.evalCentipawns = this._rawToCentipawns(ev);
                                     m.winProbability = this._winProbability(m.evalCentipawns);
                                     m.bestMoveScore = ev;
@@ -4184,8 +4246,31 @@
                             (p.color === COLOR_WHITE ? this.game.whitePieces : this.game.blackPieces).push(p);
                         }
                     }
-                    this.game.rebuildAllBonds();
-                    this.game.gameOver = false; this.game.winner = null;
+                    this.game._applyBondedInfo(b);
+                    // 终局检测：H 王被吃后局面应视为已结束，让 evaluate() 的 ±1e8 分支生效
+                    // （否则吃 H 后的终局局面被当作普通局面评估，漏检强制胜势）
+                    const hasWhiteH = this.game.whitePieces.some(p => p.isHydrogenKing);
+                    const hasBlackH = this.game.blackPieces.some(p => p.isHydrogenKing);
+                    if (!hasWhiteH || !hasBlackH) {
+                        this.game.gameOver = true;
+                        this.game.winner = hasWhiteH ? COLOR_WHITE : (hasBlackH ? COLOR_BLACK : 'draw');
+                    } else {
+                        this.game.gameOver = false; this.game.winner = null;
+                    }
+                }
+                // 当前局面下 color 方是否有直接吃H王的走法（findBestMove 捷径的轻量版，供 noMove 步评估使用）
+                _hasDirectHKill(color) {
+                    const ps = color === 'white' ? this.game.whitePieces : this.game.blackPieces;
+                    for (const p of ps) {
+                        if (p.row < 0 || p.stunned || p.totalElectrons <= 0) continue;
+                        for (const mv of this.game.getLegalMoves(p)) {
+                            if (mv.isAttack) {
+                                const tgt = this.game.board[mv.row][mv.col];
+                                if (tgt && tgt.isHydrogenKing) return true;
+                            }
+                        }
+                    }
+                    return false;
                 }
                 // 快速搜索找出指定局面的最佳走法评估值 + 坐标
                 _findBestMoveCp(boardState, colorToMove) {
@@ -4251,31 +4336,59 @@
                 _classifyAllMoves(moves) {
                     if (moves.length === 0) return;
                     let prevCp = 0, prevBoardState = this.record.initialBoardState || (moves[0] ? moves[0].boardState : null);
-                    const classifyAI = new ChemissAI(this.game, 'white', this.ANALYSIS_DEPTH);
                     if (prevBoardState && moves.length > 0) {
                         this._restoreBoardForAnalysis(prevBoardState);
                         // 使用搜索评估（非静态eval），与走法评估深度一致，避免第一着evalDiff因评估方式不同而失真
                         const firstColor = moves[0].color;
                         const nextTurn = firstColor === 'white' ? 'black' : 'white';
+                        // 同色AI（走子方=nextTurn）+ isMax：search 返回该方视角，isMax?s:-s 归一为白方视角
+                        const classifyAI = new ChemissAI(this.game, nextTurn, this.ANALYSIS_DEPTH);
                         classifyAI.game.currentTurn = nextTurn;
-                        classifyAI._deadline = Date.now() + 300;
-                        const isMax = nextTurn === 'white';
-                        const s = classifyAI.search(Math.min(3, this.ANALYSIS_DEPTH), -Infinity, Infinity, isMax, 0);
-                        const ev = isMax ? s : -s;
+                        classifyAI._deadline = null;
+                        const s = classifyAI.search(Math.min(3, this.ANALYSIS_DEPTH), -Infinity, Infinity, nextTurn === 'white', 0);
+                        const ev = nextTurn === 'white' ? s : -s;
                         prevCp = this._rawToCentipawns(ev);
                     }
                     for (let i = 0; i < moves.length; i++) {
                         const move = moves[i];
-                        // 给电子步：辅助动作不消耗回合，跳过分类
-                        if (move.isGiveElectron) continue;
                         // 将杀
                         if (move.isCapture && move.targetSymbol === 'H') {
                             move.classification = 'checkmate'; move.classificationIcon = '#';
                             move.evalDiff = 999;
                             move.winProbability = move.color === 'white' ? 100 : 0;
+                            move.bestMoveInfo = null;
                             prevCp = move.evalCentipawns; prevBoardState = move.boardState;
                             continue;
                         }
+                        // 无走法回合（将死/无步跳过）：不参与最优判定与分类，仅推进 prev 状态（B3）
+                        if (move.noMove) {
+                            if (move.evalCentipawns !== null && move.evalCentipawns !== undefined) prevCp = move.evalCentipawns;
+                            prevBoardState = move.boardState;
+                            continue;
+                        }
+                        // ===== 最优着法统一判定：在走前局面搜索理论最优，结果存入 bestMoveInfo =====
+                        // （复盘箭头渲染直接复用该结果，不再重复搜索）
+                        let bestCp = null;
+                        let isExactBest = false;
+                        let bestInfo = null;
+                        if (prevBoardState && this.ANALYSIS_DEPTH >= 3) {
+                            try {
+                                const full = this._findBestMoveFull(prevBoardState, move.color);
+                                if (full) {
+                                    // full.cp 已是白方视角（findBestMove evalScore 实测恒为白方视角，黑走子时亦然），与 evalCentipawns 同基准
+                                    const bestCpWhite = full.cp;
+                                    bestCp = bestCpWhite;
+                                    if (full.fromR !== undefined && move.from && move.to) {
+                                        isExactBest = move.from[0] === full.fromR && move.from[1] === full.fromC
+                                            && move.to[0] === full.toR && move.to[1] === full.toC;
+                                    }
+                                    bestInfo = { fromR: full.fromR, fromC: full.fromC, toR: full.toR, toC: full.toC, giveInfo: full.giveInfo, followInfo: full.followInfo };
+                                }
+                            } catch(e) {}
+                        }
+                        move.bestMoveInfo = bestInfo;
+                        // 给电子步：辅助动作不消耗回合，跳过分类
+                        if (move.isGiveElectron) continue;
                         const rawDiff = move.evalCentipawns - prevCp;
                         move.evalDiff = move.color === 'white' ? rawDiff : -rawDiff;
                         // 弃子检测：攻击方Z >> 被吃方Z
@@ -4284,21 +4397,6 @@
                             const aDef = PIECE_DEFS[move.pieceSymbol];
                             const dDef = PIECE_DEFS[move.targetSymbol];
                             if (aDef && dDef && aDef.Z > dDef.Z + 10) isSacrifice = true;
-                        }
-                        // 寻找理论最优走法的评估值 + 最佳走法坐标
-                        let bestCp = null;
-                        let isExactBest = false;
-                        if (prevBoardState && this.ANALYSIS_DEPTH >= 3) {
-                            try {
-                                const full = this._findBestMoveFull(prevBoardState, move.color);
-                                if (full) {
-                                    bestCp = full.cp;
-                                    if (full.fromR !== undefined && move.from && move.to) {
-                                        isExactBest = move.from[0] === full.fromR && move.from[1] === full.fromC
-                                            && move.to[0] === full.toR && move.to[1] === full.toC;
-                                    }
-                                }
-                            } catch(e) {}
                         }
                         // 分类
                         const ed = move.evalDiff;
@@ -4402,6 +4500,7 @@
                     this.aiMode = false;
                     this.aiColor = 'black';
                     this.ai = null;
+                    this.autoPlay = false; // AI自动对弈调试模式：双方由AI接管
                     this._moveHistory = [];
                     this._aiDifficulty = 4;
                     this._undoStack = [];
@@ -4495,11 +4594,29 @@
                                 sc:p._spawnCol
                             });
                         }
-                    return JSON.stringify(data);
+                    // B4: 附带键合详情（type/shared），复盘/分析恢复时与实战完全一致
+                    const bonds = (this.bonds || []).map(b => ({ p1: b.p1, p2: b.p2, type: b.type, shared: b.shared }));
+                    return JSON.stringify({ cells: data, bonds });
                 }
 
                 deserializeBoard(stateStr) {
                     if (!stateStr) return Array.from({length:8},()=>Array(8).fill(null));
+                    if (stateStr.startsWith('{')) {
+                        // 新格式：{ cells:[...], bonds:[...] }
+                        const d = JSON.parse(stateStr);
+                        const cells = Array.isArray(d.cells) ? d.cells : [];
+                        const board = Array.from({length:8},()=>Array(8).fill(null));
+                        for (const x of cells) board[x.r][x.c] = {
+                            defKey:x.k, color:x.cl==='w'?'white':'black',
+                            id: x.id !== undefined ? x.id : (x.r * 8 + x.c),
+                            valence:x.v, sharedElectrons:x.se||0, bonusElectrons:x.be||0,
+                            bonusElectronRounds:x.br||0, electronsGiven:x.eg||0,
+                            chargeRounds:x.cr||0, stunned:x.st===1, stunRounds:x.sr||0,
+                            _spawnCol: x.sc !== undefined ? x.sc : x.c
+                        };
+                        board._bonds = Array.isArray(d.bonds) ? d.bonds.map(b => ({ p1: b.p1, p2: b.p2, type: b.type, shared: b.shared })) : null;
+                        return board;
+                    }
                     if (stateStr.startsWith('[')) {
                         const d = JSON.parse(stateStr);
                         const board = Array.from({length:8},()=>Array(8).fill(null));
@@ -4525,6 +4642,21 @@
                         board[r][c]={defKey,color:colorChar==='w'?'white':'black'};
                     }
                     return board;
+                }
+
+                // 从 deserializeBoard 的结果恢复键合（b._bonds 存在则精确恢复，否则重建）
+                _applyBondedInfo(b) {
+                    if (!b || !b._bonds) { this.rebuildAllBonds(); return; }
+                    this.bonds = b._bonds;
+                    for (const p of this.pieces) p.bondedWith = null;
+                    for (const bond of this.bonds) {
+                        const p1 = this.getPieceById(bond.p1), p2 = this.getPieceById(bond.p2);
+                        if (!p1 || !p2) continue;
+                        if (!p1.bondedWith) p1.bondedWith = [];
+                        if (!p2.bondedWith) p2.bondedWith = [];
+                        if (!p1.bondedWith.includes(p2.id)) p1.bondedWith.push(p2.id);
+                        if (!p2.bondedWith.includes(p1.id)) p2.bondedWith.push(p1.id);
+                    }
                 }
 
                 // 与rebuildAllBonds共价键贪心排序完全一致：enDiff降序→最右端列(max)→行(max)→位置升序
@@ -6003,11 +6135,8 @@
                         }
                     }
                     this.updateUI();
-                    // AI自动行棋
-                    if (this.aiMode && !this.gameOver && this.currentTurn === this.aiColor) {
-                        this._scheduleTimeout(() => this.triggerAIMove(), 500);
-                        return;
-                    }
+                    // AI自动行棋（人机/自动对弈）
+                    if (this._maybeAIMove()) return;
                     // 无步跳过循环（最多迭代8次防止无限循环）
                     let _skipIter = 0;
                     while (!this.gameOver && !this.hasAvailableSteps(this.currentTurn) && _skipIter < 8) {
@@ -6023,6 +6152,8 @@
                             this.addLog(drawMsg);
                             this.updateUI(); break;
                         }
+                        // 无合法走法但未到和棋次数：记录到棋谱，保持复盘时间线连续（B3）
+                        if (!this._aiSearching) this._recordNoMoveEntry(this.currentTurn);
                         this.currentTurn = this.currentTurn === COLOR_WHITE ? COLOR_BLACK : COLOR_WHITE;
                         if (this.currentTurn === COLOR_WHITE){ this.roundNumber++; this.decrementTimers(); }
                         this.selectedPiece = null; this.legalMoves = [];
@@ -6038,15 +6169,22 @@
                     }
                     this._skipNextEndTurnSend = false;
                     // AI自动行棋(处理无步跳过后的情况)
-                    if (this.aiMode && !this.gameOver && this.currentTurn === this.aiColor) {
-                        this._scheduleTimeout(() => this.triggerAIMove(), 500);
-                    }
+                    this._maybeAIMove();
                     if(this.gameOver) this.showVictory();
                 }
 
                 handleCellClick(row,col){
                     if(this.gameOver || this._animating) return;
                     if(this.onlineMode && this.onlineMyColor !== this.currentTurn) return;
+                    // 调试：自动对弈中点击棋盘即停止，玩家接管
+                    if (this.autoPlay) {
+                        this.autoPlay = false;
+                        this.aiMode = false;
+                        this.ai = null;
+                        const btnAP = document.getElementById('btnAutoPlay');
+                        if (btnAP) btnAP.classList.remove('active');
+                        this.addLog(this._t('autoPlayOff'));
+                    }
                     // ===== Debug模式：自由移动棋子 =====
                     if(this.debugMode){
                         const piece=this.board[row][col];
@@ -6685,6 +6823,9 @@
                     this.aiMode = false;
                     this.ai = null;
                     this.aiColor = 'black';
+                    this.autoPlay = false;
+                    const btnAP0 = document.getElementById('btnAutoPlay');
+                    if (btnAP0) btnAP0.classList.remove('active');
                     // 废弃所有挂起的定时器回调
                     this._resetGeneration++;
                     this._aiGeneration++;
@@ -7489,6 +7630,23 @@
                     }
                     this.updateNotationDisplay();
                 }
+                // 记录"无合法走法"回合到棋谱（将死/无步跳过时不消耗回合但保留时间线，复盘不会出现连走）
+                _recordNoMoveEntry(color) {
+                    if (this._aiSearching) return;
+                    this._gameRecord.moves.push({
+                        moveIndex: this._gameRecord.moves.length + 1,
+                        roundNumber: this.roundNumber,
+                        color: color,
+                        pieceSymbol: null, pieceId: null,
+                        from: null, to: null,
+                        isCapture: false, targetSymbol: null,
+                        notation: '--',
+                        noMove: true,
+                        boardState: this.serializeBoard(),
+                        evalRaw: null, evalCentipawns: null, winProbability: null,
+                        bestMoveScore: null, classification: null, classificationIcon: null, evalDiff: null
+                    });
+                }
                 // 记录电场位移到棋谱（静电吸引导致的棋子移动，不消耗回合，追加到上一条记谱）
                 _recordFieldDisplacement(piece, fromRow, fromCol, sideColor) {
                     const colLabels = ['a','b','c','d','e','f','g','h'];
@@ -7517,6 +7675,19 @@
                 }
 
                 // ========== AI对战 ==========
+                _maybeAIMove() {
+                    if (this.gameOver) return false;
+                    if (this.autoPlay) {
+                        this.aiMode = true;
+                        this.aiColor = this.currentTurn;
+                        this.ai = new ChemissAI(this, this.aiColor, this._aiDifficulty);
+                    }
+                    if (this.aiMode && this.currentTurn === this.aiColor) {
+                        this._scheduleTimeout(() => this.triggerAIMove(), 500);
+                        return true;
+                    }
+                    return false;
+                }
                 async triggerAIMove() {
                     if (!this.ai || this.gameOver || this.currentTurn !== this.aiColor) return;
                     if (this._animating) { this._scheduleTimeout(() => this.triggerAIMove(), 200); return; }
@@ -7545,6 +7716,8 @@
                     ti.style.opacity = '';
                     if (!bestMove) {
                         this.addLog(this._t('logAINoMoves'));
+                        // 无合法走法：记录到棋谱，保持复盘时间线连续（B3）
+                        this._recordNoMoveEntry(this.currentTurn);
                         this.endTurn();
                         return;
                     }
@@ -7735,6 +7908,7 @@
                     this._updateMoveInfo();
                     this._updateNavButtons();
                     this._highlightMoveList();
+                    this._highlightChartPoint(this._currentIdx);
                 }
                 _renderBoard() {
                     const boardEl = this._dom.reviewBoard;
@@ -7791,7 +7965,8 @@
                     this.game.pieces = tempPieces;
                     this.game.whitePieces = tempPieces.filter(p => p.color === 'white');
                     this.game.blackPieces = tempPieces.filter(p => p.color === 'black');
-                    this.game.rebuildAllBonds();
+                    // B4: 有精确键合数据则直接恢复（与实战一致），否则重建
+                    this.game._applyBondedInfo(b);
                     const tempBonds = [...this.game.bonds];
 
                     // 在恢复前渲染键合（_renderMetallicClusters 需要 this.getPieceById 能找到 temp pieces）
@@ -7922,7 +8097,7 @@
                                 board[r][c] = p; pieces.push(p);
                             }
                         }
-                        return { board, pieces };
+                        return { board, pieces, _bonds: b._bonds };
                     };
                     const applyState = (s, turn) => {
                         if (!s) return;
@@ -7930,7 +8105,21 @@
                         this.game.pieces = s.pieces;
                         this.game.whitePieces = s.pieces.filter(p => p.color === 'white');
                         this.game.blackPieces = s.pieces.filter(p => p.color === 'black');
-                        this.game.rebuildAllBonds();
+                        // B4: 有精确键合数据则直接恢复（与实战一致），否则重建
+                        if (s._bonds) {
+                            this.game.bonds = s._bonds;
+                            for (const p of this.game.pieces) p.bondedWith = null;
+                            for (const bond of this.game.bonds) {
+                                const p1 = this.game.getPieceById(bond.p1), p2 = this.game.getPieceById(bond.p2);
+                                if (!p1 || !p2) continue;
+                                if (!p1.bondedWith) p1.bondedWith = [];
+                                if (!p2.bondedWith) p2.bondedWith = [];
+                                if (!p1.bondedWith.includes(p2.id)) p1.bondedWith.push(p2.id);
+                                if (!p2.bondedWith.includes(p1.id)) p2.bondedWith.push(p1.id);
+                            }
+                        } else {
+                            this.game.rebuildAllBonds();
+                        }
                         this.game.gameOver = false; this.game.winner = null;
                         if (turn) this.game.currentTurn = turn;
                     };
@@ -7952,45 +8141,40 @@
                         this.game.winner = savedWinner;
                         this.game.currentTurn = savedTurn;
                     };
-                    // 最优着法（蓝色虚线箭头+给电子圆圈）：调用统一的_findBestMoveFull
-                    if (this._showBestMove && this._currentIdx > 0) {
+                    // 最优着法（蓝色虚线箭头+给电子圆圈）：复用分析结果
+                    // （_classifyAllMoves 已在分析时统一判定并存入 move.bestMoveInfo，无需再次搜索）
+                    if (this._showBestMove && this._currentIdx > 0 && this._result) {
                         try {
-                            const prevMove = record.moves[this._currentIdx - 1];
-                            const prevColor = prevMove?.color || 'white';
-                            const prevStateStr = this._currentIdx <= 1 ? record.initialBoardState : (record.moves[this._currentIdx - 2]?.boardState || '');
-                            if (prevStateStr) {
-                                const tempAnalyzer = new PostGameAnalyzer(this.game, record, this._analysisDepth, this._useStaticAnalysis);
-                                const full = tempAnalyzer._findBestMoveFull(prevStateStr, prevColor);
-                                if (full) {
-                                    // 给电子标记（圆圈+短箭头）
-                                    if (full.giveInfo) {
-                                        const cr = pct * 0.38;
-                                        const circle = document.createElementNS('http://www.w3.org/2000/svg','ellipse');
-                                        circle.setAttribute('cx', full.giveInfo.toC*pct+half); circle.setAttribute('cy', full.giveInfo.toR*pct+half);
-                                        circle.setAttribute('rx', cr); circle.setAttribute('ry', cr);
-                                        circle.setAttribute('fill','none'); circle.setAttribute('stroke','#8a9fb8');
-                                        circle.setAttribute('stroke-width','0.9'); circle.setAttribute('stroke-opacity','0.5');
-                                        circle.setAttribute('stroke-dasharray','3,3');
-                                        svg.appendChild(circle);
-                                        const gl = document.createElementNS('http://www.w3.org/2000/svg','line');
-                                        gl.setAttribute('x1', full.giveInfo.fromC*pct+half); gl.setAttribute('y1', full.giveInfo.fromR*pct+half);
-                                        gl.setAttribute('x2', full.giveInfo.toC*pct+half); gl.setAttribute('y2', full.giveInfo.toR*pct+half);
-                                        gl.setAttribute('stroke','#8a9fb8'); gl.setAttribute('stroke-width','0.9');
-                                        gl.setAttribute('stroke-opacity','0.45'); gl.setAttribute('stroke-linecap','round');
-                                        gl.setAttribute('stroke-dasharray','2,3'); gl.setAttribute('marker-end','url(#arrowBlueTiny)');
-                                        svg.appendChild(gl);
-                                    }
-                                    // 移动箭头（给电子后的后续移动，或直接最佳移动）
-                                    const use = full.followInfo || (full.giveInfo ? null : full);
-                                    if (use && use.fromR !== undefined) {
-                                        const line = document.createElementNS('http://www.w3.org/2000/svg','line');
-                                        line.setAttribute('x1', use.fromC*pct+half); line.setAttribute('y1', use.fromR*pct+half);
-                                        line.setAttribute('x2', use.toC*pct+half); line.setAttribute('y2', use.toR*pct+half);
-                                        line.setAttribute('stroke','#8a9fb8'); line.setAttribute('stroke-width','2.5');
-                                        line.setAttribute('stroke-opacity','0.85'); line.setAttribute('stroke-linecap','round');
-                                        line.setAttribute('stroke-dasharray','7,5'); line.setAttribute('marker-end','url(#arrowBlueH)');
-                                        svg.appendChild(line);
-                                    }
+                            const bestInfo = record.moves[this._currentIdx - 1]?.bestMoveInfo || null;
+                            if (bestInfo) {
+                                // 给电子标记（圆圈+短箭头）
+                                if (bestInfo.giveInfo) {
+                                    const cr = pct * 0.38;
+                                    const circle = document.createElementNS('http://www.w3.org/2000/svg','ellipse');
+                                    circle.setAttribute('cx', bestInfo.giveInfo.toC*pct+half); circle.setAttribute('cy', bestInfo.giveInfo.toR*pct+half);
+                                    circle.setAttribute('rx', cr); circle.setAttribute('ry', cr);
+                                    circle.setAttribute('fill','none'); circle.setAttribute('stroke','#8a9fb8');
+                                    circle.setAttribute('stroke-width','0.9'); circle.setAttribute('stroke-opacity','0.5');
+                                    circle.setAttribute('stroke-dasharray','3,3');
+                                    svg.appendChild(circle);
+                                    const gl = document.createElementNS('http://www.w3.org/2000/svg','line');
+                                    gl.setAttribute('x1', bestInfo.giveInfo.fromC*pct+half); gl.setAttribute('y1', bestInfo.giveInfo.fromR*pct+half);
+                                    gl.setAttribute('x2', bestInfo.giveInfo.toC*pct+half); gl.setAttribute('y2', bestInfo.giveInfo.toR*pct+half);
+                                    gl.setAttribute('stroke','#8a9fb8'); gl.setAttribute('stroke-width','0.9');
+                                    gl.setAttribute('stroke-opacity','0.45'); gl.setAttribute('stroke-linecap','round');
+                                    gl.setAttribute('stroke-dasharray','2,3'); gl.setAttribute('marker-end','url(#arrowBlueTiny)');
+                                    svg.appendChild(gl);
+                                }
+                                // 移动箭头（给电子后的后续移动，或直接最佳移动）
+                                const use = bestInfo.followInfo || (bestInfo.giveInfo ? null : bestInfo);
+                                if (use && use.fromR !== undefined) {
+                                    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+                                    line.setAttribute('x1', use.fromC*pct+half); line.setAttribute('y1', use.fromR*pct+half);
+                                    line.setAttribute('x2', use.toC*pct+half); line.setAttribute('y2', use.toR*pct+half);
+                                    line.setAttribute('stroke','#8a9fb8'); line.setAttribute('stroke-width','2.5');
+                                    line.setAttribute('stroke-opacity','0.85'); line.setAttribute('stroke-linecap','round');
+                                    line.setAttribute('stroke-dasharray','7,5'); line.setAttribute('marker-end','url(#arrowBlueH)');
+                                    svg.appendChild(line);
                                 }
                             }
                         } catch(e) {}
@@ -8066,7 +8250,8 @@
                                         (p.color===COLOR_WHITE?this.game.whitePieces:this.game.blackPieces).push(p);
                                     }
                                 }
-                                this.game.rebuildAllBonds();
+                                // B4: 有精确键合数据则直接恢复（与实战一致），否则重建
+                                this.game._applyBondedInfo(b);
                                 const quickAI = new ChemissAI(this.game, 'white', 1);
                                 const rawEval = quickAI.evaluate();
                                 const isMoverWhite = move.color === 'white';
@@ -8244,10 +8429,12 @@
                     const wpToY = (wp) => bottom - (Math.max(0, Math.min(100, wp)) / 100) * ch;
                     let pathD = `M ${left} ${wpToY(50)}`;
                     let areaD = `M ${left} ${bottom} L ${left} ${wpToY(50)}`;
+                    const pts = [];
                     for (let i = 0; i < moves.length; i++) {
                         const x = left + ((i + 1) / Math.max(1, moves.length)) * cw;
                         const wp = moves[i].winProbability !== null ? moves[i].winProbability : 50;
                         const y = wpToY(wp);
+                        pts.push({ x, y, idx: i + 1 });
                         pathD += ` L ${x} ${y}`;
                         areaD += ` L ${x} ${y}`;
                     }
@@ -8255,6 +8442,60 @@
                     areaD += ` L ${lastX} ${bottom} Z`;
                     this._dom.reviewChartLine.setAttribute('d', pathD);
                     this._dom.reviewChartArea.setAttribute('d', areaD);
+                    // ===== X轴(步数刻度) + 可点击描点 =====
+                    const svg = document.getElementById('reviewChartSvg');
+                    if (!svg) return;
+                    const oldLayer = document.getElementById('chartDynamicLayer');
+                    if (oldLayer) oldLayer.remove();
+                    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    g.setAttribute('id', 'chartDynamicLayer');
+                    // X轴横线
+                    const axis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    axis.setAttribute('x1', left); axis.setAttribute('y1', bottom);
+                    axis.setAttribute('x2', right); axis.setAttribute('y2', bottom);
+                    axis.setAttribute('stroke', '#888'); axis.setAttribute('stroke-width', '0.6'); axis.setAttribute('opacity', '0.6');
+                    g.appendChild(axis);
+                    // 步数刻度（均分≤6格，标注棋步号）
+                    const nSteps = Math.min(6, Math.max(1, moves.length));
+                    for (let k = 0; k <= nSteps; k++) {
+                        const frac = k / nSteps;
+                        const x = left + frac * cw;
+                        const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        tick.setAttribute('x1', x); tick.setAttribute('y1', bottom);
+                        tick.setAttribute('x2', x); tick.setAttribute('y2', bottom + 3);
+                        tick.setAttribute('stroke', '#888'); tick.setAttribute('stroke-width', '0.5');
+                        g.appendChild(tick);
+                        const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        t.setAttribute('x', x); t.setAttribute('y', bottom + 8);
+                        t.setAttribute('fill', '#aaa'); t.setAttribute('font-size', '7');
+                        t.setAttribute('text-anchor', 'middle');
+                        t.textContent = String(Math.round(frac * moves.length));
+                        g.appendChild(t);
+                    }
+                    // 描点：每个走法一个圆点，点击跳到对应棋步；当前步由 goTo/_highlightChartPoint 高亮
+                    this._chartPoints = [];
+                    for (const pt of pts) {
+                        const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        c.setAttribute('cx', pt.x); c.setAttribute('cy', pt.y);
+                        c.setAttribute('r', 2.4); c.setAttribute('fill', '#b0908a');
+                        c.setAttribute('stroke', '#fff'); c.setAttribute('stroke-width', '0.6');
+                        c.style.cursor = 'pointer';
+                        c.addEventListener('click', (e) => { e.stopPropagation(); this.goTo(pt.idx); });
+                        this._chartPoints.push(c);
+                        g.appendChild(c);
+                    }
+                    svg.appendChild(g);
+                    this._highlightChartPoint(this._currentIdx);
+                }
+                _highlightChartPoint(idx) {
+                    if (!this._chartPoints) return;
+                    for (let i = 0; i < this._chartPoints.length; i++) {
+                        const c = this._chartPoints[i];
+                        const isCur = (i + 1) === idx;
+                        c.setAttribute('r', isCur ? 4 : 2.4);
+                        c.setAttribute('fill', isCur ? '#5d89b4' : '#b0908a');
+                        c.setAttribute('stroke-width', isCur ? '1.4' : '0.6');
+                    }
                 }
                 _renderAccuracy() {
                     if (!this._result) return;
@@ -8385,6 +8626,9 @@
                         onlineTitle: '联机对战',
                         flipBoard: '翻转棋盘',
                         aiBattle: '人机对战',
+                        autoPlay: 'AI自动对弈',
+                        autoPlayOn: 'AI自动对弈开启：双方由AI接管',
+                        autoPlayOff: 'AI自动对弈已关闭',
                         timer: '计时器',
                         notation: '棋谱',
                         coords: '显示坐标',
@@ -8539,6 +8783,9 @@
                         onlineTitle: 'Online Battle',
                         flipBoard: 'Flip',
                         aiBattle: 'vs AI',
+                        autoPlay: 'AI auto-play',
+                        autoPlayOn: 'AI auto-play started: both sides controlled by AI',
+                        autoPlayOff: 'AI auto-play stopped',
                         timer: 'Clock',
                         notation: 'Notation',
                         coords: 'Coords',
@@ -8672,6 +8919,7 @@
                 setTitle('btnOnline', 'onlineBattle');
                 setTitle('btnFlip', 'flipBoard');
                 setTitle('btnAI', 'aiBattle');
+                setTitle('btnAutoPlay', 'autoPlay');
                 setTitle('btnClock', 'timer');
                 // 主题弹窗标签
                 set('themeModalTitle', 'themeSettings');
@@ -8840,6 +9088,29 @@
                     game.addLog(`${L['aiDiffChanged']} ${aiDifficultyGlobal}`);
                 }
             });
+            // ========== AI自动对弈（调试）：双方由AI接管 ==========
+            const toggleAutoPlay = () => {
+                game.autoPlay = !game.autoPlay;
+                const btnAP = document.getElementById('btnAutoPlay');
+                if (btnAP) btnAP.classList.toggle('active', game.autoPlay);
+                const L = I18N.data[I18N.lang];
+                if (game.autoPlay) {
+                    // 自动对弈与联机互斥
+                    if (game.onlineMode) { game.onlineMode = false; game.onlineMyColor = null; }
+                    game.aiMode = true;
+                    game._aiDifficulty = aiDifficultyGlobal;
+                    game.aiColor = game.currentTurn;
+                    game.ai = new ChemissAI(game, game.aiColor, aiDifficultyGlobal);
+                    game.addLog(L['autoPlayOn']);
+                    game._maybeAIMove();
+                } else {
+                    game.aiMode = false;
+                    game.ai = null;
+                    game.addLog(L['autoPlayOff']);
+                }
+                game.updateUI();
+            };
+
             const toggleAI = () => {
                 game.aiMode = !game.aiMode;
                 const btnAIEl = document.getElementById('btnAI');
@@ -8910,6 +9181,7 @@
                     { id: 'btnNotation', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-notation"/></svg>', title: '棋谱', handler: () => { game._notationVisible = !game._notationVisible; notationSection.style.display = game._notationVisible ? 'block' : 'none'; btnNotation.classList.toggle('active', game._notationVisible); } },
                 ];
                 btnDefs.push({ id: 'btnAI', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-robot"/></svg>', title: '人机对战', handler: () => toggleAI() });
+                btnDefs.push({ id: 'btnAutoPlay', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-autoplay"/></svg>', title: 'AI自动对弈', handler: () => toggleAutoPlay() });
                 btnDefs.push({ id: 'btnTheme', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-theme"/></svg>', title: '主题设置', handler: () => openThemeModal() });
                 btnDefs.push({ id: 'btnReview', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-review"/></svg>', title: '复盘分析', handler: () => { game.openReview(); } });
                 btnDefs.push({ id: 'btnElements', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-atom"/></svg>', title: '元素查询', handler: () => openElementQuery() });
@@ -9217,6 +9489,10 @@
             // ========== AI人机对战控制 ==========
             const btnAI = document.getElementById('btnAI');
             btnAI.addEventListener('click', () => toggleAI());
+
+            // ========== AI自动对弈控制 ==========
+            const btnAutoPlay = document.getElementById('btnAutoPlay');
+            if (btnAutoPlay) btnAutoPlay.addEventListener('click', () => toggleAutoPlay());
 
             function showRulesModal() {
                 const modal = document.getElementById('rulesModal');
