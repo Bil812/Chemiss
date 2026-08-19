@@ -535,6 +535,14 @@
         .iso-card .iso-nuclide sup {
             font-size: 0.55em; font-weight: 600; vertical-align: super;
         }
+        .iso-card .iso-piece {
+            display: flex; justify-content: center; margin: 0 0 2px;
+        }
+        .iso-card .iso-piece .mini-piece-box { display: block; }
+        .iso-card .iso-name {
+            font-size: 0.62em; font-weight: 700; letter-spacing: 0.5px; margin-top: 1px;
+            color: var(--panel-text, #222); opacity: 0.75;
+        }
         .iso-card .iso-detail {
             font-size: 0.58em; color: var(--panel-text, #222); opacity: 0.5; margin-top: 3px;
             line-height: 1.3; text-align: center;
@@ -1495,6 +1503,7 @@
         .lineup-group-label { font-size: 0.7em; color: var(--panel-text); opacity: 0.55; }
         .lineup-items { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-end; }
         .lineup-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .lineup-mass { font-size: 0.6em; font-weight: 700; color: var(--panel-text); opacity: 0.6; line-height: 1; }
         .lineup-count { font-size: 0.66em; font-weight: 700; color: #b0908a; }
         .move-demo { display: flex; flex-wrap: wrap; gap: 16px; margin: 8px 0; }
         .move-demo-item { display: flex; align-items: center; gap: 8px; }
@@ -1565,7 +1574,26 @@
         .elem-chip .mini-piece-box .piece { cursor: pointer; }
         .elem-chip-name { font-size: 0.78em; font-weight: 600; color: var(--panel-text); }
         .elem-text-chip { display: inline-block; padding: 2px 10px; border-radius: 20px; background: rgba(200,185,170,0.2); font-size: 0.8em; font-weight: 600; color: var(--panel-text); }
-        .elem-iso-chip { display: inline-block; padding: 2px 8px; border-radius: 8px; background: rgba(138,159,184,0.12); border: 1px solid rgba(138,159,184,0.25); font-size: 0.75em; font-weight: 600; color: var(--panel-text); }
+        .elem-iso-chip {
+            display: inline-flex; align-items: center; justify-content: center;
+            position: relative; padding: 2px 3px; border-radius: 10px;
+            background: rgba(138,159,184,0.12); border: 1px solid rgba(138,159,184,0.25);
+            font-size: 0.75em; font-weight: 600; color: var(--panel-text);
+            transition: all 0.15s;
+        }
+        .elem-iso-chip:hover { background: rgba(138,159,184,0.22); border-color: rgba(138,159,184,0.45); transform: translateY(-1px); }
+        .elem-iso-chip.iso-radio-chip { background: rgba(196,160,160,0.1); border-color: rgba(196,160,160,0.35); }
+        .elem-iso-chip.iso-radio-chip:hover { background: rgba(196,160,160,0.2); border-color: rgba(196,160,160,0.5); }
+        .elem-iso-chip .mini-piece-box { vertical-align: middle; }
+        .iso-chip-mass {
+            font-size: 0.72em; font-weight: 700; color: var(--panel-text); opacity: 0.8;
+            margin-left: 1px; line-height: 1; white-space: nowrap;
+        }
+        .iso-radio-dot {
+            position: absolute; top: -1px; right: -1px;
+            width: 8px; height: 8px; border-radius: 50%;
+            background: #c46060; border: 1.5px solid var(--panel-bg, #fff);
+        }
         .elem-footer { margin-top: 12px; font-size: 0.72em; color: #b0a090; text-align: center; border-top: 1px solid rgba(200,185,170,0.2); padding-top: 10px; }
         .elem-footer kbd { background: rgba(0,0,0,0.04); padding: 2px 8px; border-radius: 12px; font-family: inherit; font-size: 0.9em; color: #7a6a5a; }
         body.dark-mode .elem-footer kbd { background: #3a3a3a; color: #aaa; }
@@ -6587,11 +6615,9 @@
                         const isStable=iso.stable||false;
                         const card=document.createElement('div');
                         card.className='iso-card '+(isStable?'iso-stable':'iso-radio');
-                        const symHTML=iso.name
-                            ? `<sup>${iso.mass}</sup>${d.symbol}<span style="font-size:0.6em;">(${iso.name})</span>`
-                            : `<sup>${iso.mass}</sup>${d.symbol}`;
                         card.innerHTML=`
-                            <div class="iso-nuclide">${symHTML}</div>
+                            <div class="iso-piece">${miniPieceHTML(d.symbol, 'white', 40, iso.mass)}</div>
+                            ${iso.name?`<div class="iso-name">${iso.name}</div>`:''}
                             <div class="iso-detail">${isStable ? (I18N.lang==='en'?'Stable':'稳定') : (iso.decay||'?') + (I18N.lang==='en'?' decay':'衰变')}</div>
                             ${!isStable?`<div class="iso-detail">t½:${iso.halfLife||'?'}r</div>`:''}
                             <div class="iso-mass-badge">A=${iso.mass}</div>
@@ -7374,7 +7400,7 @@
                         selInfo.innerHTML = `
                             <div class="sel-piece-card">
                                 <div class="sel-piece-top">
-                                    ${miniPieceWithDotsHTML(p.symbol, p.color, 64, dirs)}
+                                    ${miniPieceWithDotsHTML(p.symbol, p.color, 64, dirs, p.mass)}
                                     <div class="sel-piece-head">
                                         <div class="sel-piece-name">${elemName}（${p.symbol}）${isotopeInfo}</div>
                                         <div class="sel-piece-meta">Z=${p.Z} · ${en?'Period':'第'}${p.period}${en?'':'周期'} · ${groupCol}${en?' Group':'族'} · ${colorName}</div>
@@ -7398,9 +7424,9 @@
                         if(!p1||!p2)return'';
                         const typeName = b.type==='metallic' ? (enBond ? 'Metallic' : '金属键') : (enBond ? 'Covalent' : '共价键');
                         return `<div class="bond-item bond-row">
-                            ${miniPieceHTML(p1.symbol, p1.color==='white'?'white':'black', 26)}
+                            ${miniPieceHTML(p1.symbol, p1.color==='white'?'white':'black', 26, p1.mass)}
                             <span class="bond-link">↔</span>
-                            ${miniPieceHTML(p2.symbol, p2.color==='white'?'white':'black', 26)}
+                            ${miniPieceHTML(p2.symbol, p2.color==='white'?'white':'black', 26, p2.mass)}
                             <span class="bond-type">${typeName}</span>
                             <span class="bond-shared">+${b.shared}e⁻</span>
                         </div>`;
@@ -9198,7 +9224,7 @@
                 const content = document.getElementById('rulesModalContent');
                 const en = I18N.lang === 'en';
                 const initialLineup = [['H',1],['C',1],['N',1],['O',1],['F',1],['Si',1],['P',1],['S',1],['Li',4],['Na',4]];
-                const lineupRow = (side) => `<div class="lineup-group"><span class="lineup-group-label">${en ? (side==='white'?'White':'Black') : (side==='white'?'白方':'黑方')}</span><div class="lineup-items">${initialLineup.map(([sym,count])=>`<div class="lineup-item">${miniPieceHTML(sym, side, 34)}<span class="lineup-count">×${count}</span></div>`).join('')}</div></div>`;
+                const lineupRow = (side) => `<div class="lineup-group"><span class="lineup-group-label">${en ? (side==='white'?'White':'Black') : (side==='white'?'白方':'黑方')}</span><div class="lineup-items">${initialLineup.map(([sym,count])=>{ const m=(PIECE_DEFS[sym]||{}).mass; return `<div class="lineup-item">${miniPieceHTML(sym, side, 34)}<span class="lineup-mass">${m||''}</span><span class="lineup-count">×${count}</span></div>`; }).join('')}</div></div>`;
                 const lineupHTML = `<div class="piece-lineup">${lineupRow('white')}${lineupRow('black')}</div>`;
                 const demoDirs = (sym) => {
                     const d = (typeof QUERY_ELEMENTS !== 'undefined') ? QUERY_ELEMENTS[sym] : null;
@@ -9768,17 +9794,20 @@ ${moveDemoHTML}
             // ---------- 迷你棋子组件（侧边栏 / 规则弹窗 / 查询工具复用） ----------
             // 直接复用棋盘渲染结构（.piece-wrapper + .piece + .direction-dot），
             // 仅通过 --cell-size 缩放，保证电子点/质量数/电负性位置与棋盘完全一致。
-            function miniPieceHTML(symbol, color, sizePx) {
+            // mass 参数：传入棋子实际质量数（同位素），缺省用元素默认质量数
+            function miniPieceHTML(symbol, color, sizePx, mass) {
                 const cell = sizePx || 64;
                 const qDef = PIECE_DEFS[symbol] || {};
-                const massLabel = qDef.mass ? `<sup style="font-size:0.5em;">${qDef.mass}</sup>` : '';
+                const m = mass || qDef.mass;
+                const massLabel = m ? `<sup style="font-size:0.5em;">${m}</sup>` : '';
                 const pieceClass = 'piece ' + (color === 'black' ? 'black-piece' : 'white-piece');
                 return `<div class="mini-piece-box" style="--cell-size:${cell}px;width:${cell}px;height:${cell}px;"><div class="piece-wrapper"><div class="${pieceClass}"><span class="symbol">${massLabel}${symbol}</span><span class="info-tiny">${(qDef.en||0).toFixed(1)}</span></div></div></div>`;
             }
-            function miniPieceWithDotsHTML(symbol, color, sizePx, dirs) {
+            function miniPieceWithDotsHTML(symbol, color, sizePx, dirs, mass) {
                 const cell = sizePx || 64;
                 const qDef = PIECE_DEFS[symbol] || {};
-                const massLabel = qDef.mass ? `<sup style="font-size:0.5em;">${qDef.mass}</sup>` : '';
+                const m = mass || qDef.mass;
+                const massLabel = m ? `<sup style="font-size:0.5em;">${m}</sup>` : '';
                 const pieceClass = 'piece ' + (color === 'black' ? 'black-piece' : 'white-piece');
                 let dotsHtml = '';
                 if (dirs && dirs.length) {
@@ -10040,7 +10069,17 @@ ${moveDemoHTML}
                 };
                 let html = `<div class="elem-result-head">${miniPieceHTML(elem.symbol,'white',52)}<div><div class="elem-result-title">${elem.name}（${elem.symbol}）<span class="elem-z">${elem.Z}</span></div><div class="elem-result-meta">${en?'Period':'第'}${elem.period}${en?'':'周期'} · ${group}${en?' group':'族'} · ${typeName}</div></div></div>`;
                 if (QSETTINGS.show.electroneg) html += `<div class="elem-result-line"><span class="elem-result-label">${en?'EN':'电负性'}</span><span class="elem-result-val">${elem.en.toFixed(2)}</span></div>`;
-                if (QSETTINGS.show.isotopes) html += `<div class="elem-result-line"><span class="elem-result-label">${en?'Isotopes':'同位素'}</span><div class="elem-chip-row">${elem.isotopes.map(m=>`<span class="elem-iso-chip">${elem.symbol}-${m}</span>`).join('')}</div></div>`;
+                if (QSETTINGS.show.isotopes) {
+                    // 同位素：每个同位素一个迷你棋子（带原子量），放射性同位素加红点标识
+                    const radioMasses = new Set((elem.radio || []).map(r => r.mass));
+                    const isoChips = elem.isotopes.map(m => {
+                        const mass = parseInt(m);
+                        const isRadio = radioMasses.has(mass);
+                        // 26px 迷你棋子角标过小，额外用文字标注原子量
+                        return `<span class="elem-iso-chip${isRadio ? ' iso-radio-chip' : ''}">${miniPieceHTML(elem.symbol, 'white', 26, mass)}<span class="iso-chip-mass">${mass}</span>${isRadio ? '<span class="iso-radio-dot"></span>' : ''}</span>`;
+                    }).join('');
+                    html += `<div class="elem-result-line"><span class="elem-result-label">${en?'Isotopes':'同位素'}</span><div class="elem-chip-row">${isoChips}</div></div>`;
+                }
                 if (QSETTINGS.show.directions) html += `<div class="elem-result-line"><span class="elem-result-label">${en?'Moves':'走法'}</span><span class="elem-result-val">[${elem.valence}] ${dirs.join('、')}</span></div>`;
                 if (QSETTINGS.show.ionic) html += bondLine(en?'Ionic bonds':'离子键', bonds.ionic);
                 if (QSETTINGS.show.covalent) html += bondLine(en?'Covalent bonds':'共价键', bonds.covalent);
@@ -10061,7 +10100,9 @@ ${moveDemoHTML}
                     for (const m of elem.isotopes) {
                         const mass = parseInt(m);
                         const product = qGetTransmutationProduct(elem, mass);
-                        if (product) transEntries.push(`<span class="elem-result-val">${elem.symbol}-${mass} → </span>${qChip(product.symbol)}<span class="elem-result-val">-${product.mass}</span>`);
+                        // 两侧都用带原子量的迷你棋子（吸收α后 Z+2、质量数+4，取最接近同位素），
+                        // 26px 角标过小，额外用文字标注原子量
+                        if (product) transEntries.push(`${miniPieceHTML(elem.symbol, 'white', 26, mass)}<span class="iso-chip-mass">${mass}</span><span class="elem-result-val"> → </span>${miniPieceHTML(product.symbol, 'white', 26, product.mass)}<span class="iso-chip-mass">${product.mass}</span>`);
                     }
                     if (transEntries.length) html += `<div class="elem-result-line"><span class="elem-result-label">${en?'Transmutation':'嬗变'}</span><div class="elem-chip-row">${transEntries.join('<span class="elem-result-val">、</span>')}</div></div>`;
                 }
