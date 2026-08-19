@@ -1383,6 +1383,8 @@
         .review-depth-chip.active { background:#b0908a; border-color:#b0908a; color:#fff; }
         .review-depth-hint { font-size:0.72em; color:#b0908a; opacity:0; transition:opacity 0.3s; white-space:nowrap; }
         .review-depth-hint.show { opacity:1; }
+        .review-timeout-range { flex:1; min-width:80px; max-width:140px; accent-color:#b0908a; }
+        .review-timeout-val { font-size:0.72em; color:#b0908a; min-width:44px; text-align:right; white-space:nowrap; }
         .review-toggle-row { display:flex; align-items:center; gap:8px; padding:4px 0; }
         .review-toggle-label { font-size:0.75em; color:#888; white-space:nowrap; }
         .review-arrow-overlay { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:2; }
@@ -2167,8 +2169,8 @@
                 <div class="review-side-col">
                     <div class="review-depth-row">
                         <span class="review-depth-label">分析模式</span>
-                        <span class="review-mode-toggle" id="reviewModeStatic">静态</span>
-                        <span class="review-mode-toggle active" id="reviewModeSearch">搜索</span>
+                        <span class="review-mode-toggle active" id="reviewModeStatic">静态</span>
+                        <span class="review-mode-toggle" id="reviewModeSearch">搜索</span>
                     </div>
                     <div class="review-depth-row">
                         <span class="review-depth-label">搜索深度</span>
@@ -2179,6 +2181,11 @@
                             <span class="review-depth-chip" data-depth="9">9</span>
                         </div>
                         <span class="review-depth-hint" id="reviewDepthHint">5</span>
+                    </div>
+                    <div class="review-depth-row" id="reviewTimeoutRow">
+                        <span class="review-depth-label" id="reviewTimeoutLabel">搜索超时</span>
+                        <input type="range" class="review-timeout-range" id="reviewTimeoutRange" min="200" max="5000" step="100" value="1000">
+                        <span class="review-timeout-val" id="reviewTimeoutVal">1000ms</span>
                     </div>
                     <div class="review-toggle-row" id="reviewArrowToggles">
                         <span class="review-toggle-label">最优着法</span>
@@ -3846,6 +3853,8 @@
                         : `${pm.piece.id}:${pm.move.row},${pm.move.col}`;
                     for (let d = 1; d <= this.MAX_DEPTH; d++) {
                         let localBest = null, localScore = -Infinity;
+                        // 每层清 TT：与分析器搜索策略一致，避免浅层地平线假象（±1e8）污染深层
+                        this._transpositionTable.clear();
                         if (bestMoveKey) {
                             const idx = moves.findIndex(m => _moveKey(m) === bestMoveKey);
                             if (idx > 0) {
@@ -3898,9 +3907,14 @@
                         if (Date.now() > deadline && d > 1) {
                             if (bestMove) break;
                         }
-                        bestScore = localScore;
-                        bestMove = localBest;
-                        prevScore = localScore;
+                        const timedOut = Date.now() > deadline;
+                        // 超时层结果不采用（截断假值不可靠），保留上一完整层（与分析器搜索策略一致）；
+                        // 尚无任何完整层时用当前层兜底，避免返回 null
+                        if (!timedOut || bestMove === null) {
+                            bestScore = localScore;
+                            bestMove = localBest;
+                            prevScore = localScore;
+                        }
                         if (Math.abs(bestScore) >= 50000) break;
                     }
                     // 核变优于常规走法时选用核变
@@ -4041,11 +4055,12 @@
 
             // ========== 复盘分析引擎 ==========
             class PostGameAnalyzer {
-                constructor(game, gameRecord, analysisDepth, useStatic) {
+                constructor(game, gameRecord, analysisDepth, useStatic, timeoutMs) {
                     this.game = game;
                     this.record = gameRecord;
                     this.ANALYSIS_DEPTH = analysisDepth || 5;
                     this._useStatic = !!useStatic;
+                    this._analysisTimeoutMs = (typeof timeoutMs === 'number' && timeoutMs > 0) ? timeoutMs : null;
                     this._canceled = false;
                     this._gen = 0; // 代次计数器，用于防冲突
                     this._progress = 0;
@@ -4180,18 +4195,24 @@
                                                 let bestEval = ai.evaluate();
                                                 bestEval = nextTurn === 'white' ? bestEval : -bestEval;
                                                 ai._transpositionTable.clear();
+                                                // 动态预算（1.5.1 设计：基础 200 + 深度*70 + 棋子数*20，上限 2500ms），
+                                                // 用户可在复盘界面用超时滑动条自定义（_analysisTimeoutMs 覆盖）
+                                                const pc = this.game.pieces.filter(p => p.row >= 0).length;
+                                                const dynamicBudget = Math.min(2500, 200 + maxDepth * 70 + pc * 20);
+                                                const budget = (typeof this._analysisTimeoutMs === 'number' && this._analysisTimeoutMs > 0)
+                                                    ? this._analysisTimeoutMs : dynamicBudget;
+                                                ai._deadline = Date.now() + budget;
                                                 const moveStart = Date.now();
                                                 for (let d = 1; d <= maxDepth; d++) {
-                                                    // 每层完全冷搜（TT/killer/history 全清）：浅层地平线假象（±1e8）不污染深层；
-                                                    // 且消除启发式剪枝（null-move/razoring/futility）对走子顺序的敏感性，结果与独立冷搜逐位一致
+                                                    // 每层清 TT/killer/history：浅层地平线假象（±1e8）不污染深层，结果与独立冷搜一致
                                                     ai._transpositionTable.clear();
                                                     ai._killerMoves = [null, null];
                                                     ai._historyTable = {};
-                                                    // 不设 deadline：完整搜索，保证与独立冷搜/复算结果一致（取消由 _canceled/_gen 机制处理）
-                                                    ai._deadline = null;
                                                     const s = ai.search(d, -Infinity, Infinity, nextTurn === 'white', 0);
-                                                    bestEval = nextTurn === 'white' ? s : -s;
-                                                    console.log(`[分析]    depth=${d} 耗时=${Date.now()-moveStart}ms`);
+                                                    const timedOut = Date.now() > ai._deadline;
+                                                    // 超时层结果不采用（截断值不可靠），保留上一完整层评估（1.5.1 设计，无截断假值）
+                                                    if (!timedOut) bestEval = nextTurn === 'white' ? s : -s;
+                                                    console.log(`[分析]    depth=${d} 耗时=${Date.now()-moveStart}ms${timedOut?'(超时)':''}`);
                                                 }
                                                 ev = bestEval;
                                             }
@@ -4279,7 +4300,8 @@
                 }
                 _findBestMoveFull(boardState, colorToMove) {
                     this._restoreBoardForAnalysis(boardState);
-                    const depth = this.ANALYSIS_DEPTH;
+                    // 搜索深度与分析模式一致：静态模式用浅深度（快），深度搜索模式用 ANALYSIS_DEPTH
+                    const depth = this._useStatic ? 1 : this.ANALYSIS_DEPTH;
                     this.game.currentTurn = colorToMove;
                     const ai = new ChemissAI(this.game, colorToMove, depth);
                     try {
@@ -4367,7 +4389,7 @@
                             continue;
                         }
                         // ===== 最优着法统一判定：在走前局面搜索理论最优，结果存入 bestMoveInfo =====
-                        // （复盘箭头渲染直接复用该结果，不再重复搜索）
+                        // （复盘箭头渲染直接复用该结果，不再重复搜索；搜索深度与 classify 评估深度一致）
                         let bestCp = null;
                         let isExactBest = false;
                         let bestInfo = null;
@@ -4982,9 +5004,10 @@
                         if (attacker.bondedWith && attacker.bondedWith.includes(defender.id)) return false;
                         return !defender.bondedWith.includes(attacker.id);
                     }
-                    // 非金属-非金属：共价键机制；金属-金属：金属键机制
+                    // 金属-金属：金属键机制；非金属-非金属：共价键机制——均需目标已键合，且攻击者不是键合伙伴
                     if (!defender.bondedWith || defender.bondedWith.length === 0) return false;
                     if (attacker.bondedWith && attacker.bondedWith.includes(defender.id)) return false;
+                    return !defender.bondedWith.includes(attacker.id);
                     return !defender.bondedWith.includes(attacker.id);
                 }
 
@@ -7808,7 +7831,8 @@
                     this._dom = {};
                     this._bound = false;
                     this._analysisDepth = 5;
-                    this._useStaticAnalysis = false; // false=深度搜索, true=静态评估
+                    this._useStaticAnalysis = true; // true=静态评估(默认,快), false=深度搜索(慢)
+                    this._analysisTimeoutMs = 1000; // 搜索模式单步超时（ms），可由复盘界面滑动条自定义
                     this._showBestMove = false;
                     this._showThreat = false;
                 }
@@ -7841,13 +7865,36 @@
                     // 分析模式切换
                     const modeStatic = document.getElementById('reviewModeStatic');
                     const modeSearch = document.getElementById('reviewModeSearch');
+                    // 搜索超时滑动条（仅深度搜索模式生效）
+                    const timeoutRange = document.getElementById('reviewTimeoutRange');
+                    const timeoutVal = document.getElementById('reviewTimeoutVal');
+                    const syncTimeoutUI = () => {
+                        const disabled = this._useStaticAnalysis;
+                        if (timeoutRange) timeoutRange.style.opacity = disabled ? '0.4' : '1';
+                        if (timeoutVal) timeoutVal.style.opacity = disabled ? '0.4' : '1';
+                    };
+                    if (timeoutRange && timeoutVal) {
+                        timeoutRange.value = String(this._analysisTimeoutMs);
+                        timeoutVal.textContent = this._analysisTimeoutMs + 'ms';
+                        timeoutRange.addEventListener('input', () => {
+                            this._analysisTimeoutMs = parseInt(timeoutRange.value) || 1000;
+                            timeoutVal.textContent = this._analysisTimeoutMs + 'ms';
+                        });
+                    }
                     if (modeStatic && modeSearch) {
+                        // 初始同步UI状态（默认静态，避免进入复盘就慢速深搜）
+                        modeStatic.classList.toggle('active', this._useStaticAnalysis);
+                        modeSearch.classList.toggle('active', !this._useStaticAnalysis);
+                        const chips0 = this._dom.reviewDepthChips;
+                        if (chips0) chips0.style.opacity = this._useStaticAnalysis ? '0.4' : '1';
+                        syncTimeoutUI();
                         const switchMode = (useStatic) => {
                             this._useStaticAnalysis = useStatic;
                             modeStatic.classList.toggle('active', useStatic);
                             modeSearch.classList.toggle('active', !useStatic);
                             const chips = this._dom.reviewDepthChips;
                             if (chips) chips.style.opacity = useStatic ? '0.4' : '1';
+                            syncTimeoutUI();
                             this._startAnalysis();
                         };
                         modeStatic.addEventListener('click', () => switchMode(true));
@@ -8385,7 +8432,7 @@
                     // 新分析
                     const record = this.game._gameRecord;
                     const depth = this._analysisDepth;
-                    this.analyzer = new PostGameAnalyzer(this.game, record, depth, this._useStaticAnalysis);
+                    this.analyzer = new PostGameAnalyzer(this.game, record, depth, this._useStaticAnalysis, this._analysisTimeoutMs);
                     const hint = this._dom.reviewDepthHint;
                     const en = I18N.lang === 'en';
                     if (this._useStaticAnalysis) {
