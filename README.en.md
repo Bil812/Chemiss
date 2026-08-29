@@ -6,7 +6,7 @@ A local two-player strategy chess game built on chemistry principles
 
 [中文](./README.md) | **English**
 
-![Release](https://img.shields.io/badge/Release-v1.6.0-b0908a)
+![Release](https://img.shields.io/badge/Release-v1.7.0-b0908a)
 ![License](https://img.shields.io/github/license/Bil812/Chemiss)
 ![Platform](https://img.shields.io/badge/Platform-Web%20%7C%20Windows%20%7C%20Android-6a9a6a)
 ![Language](https://img.shields.io/badge/Language-HTML%20%2F%20CSS%20%2F%20JavaScript-e8d44d)
@@ -47,6 +47,22 @@ Chemiss is a local two-player strategy board game built entirely with HTML/CSS/J
 - **Guided beginner tutorial**: shown automatically on first visit, replayable any time from the settings bar
 - Chess clock (Bullet / Blitz / Rapid / Classical presets)
 - Online play via MQTT room codes (no server required)
+
+### AI & Models (v1.7.0)
+
+- **AlphaZero-style self-play RL**: a policy+value dual-head network trained purely by self-play (no hand-written AI involved), with bundled weights embedded in the single-file HTML (`file://`, no backend)
+- **Model config page**: choose a model per side (hand-written AI / AlphaZero-MCTS / NNUE) and set MCTS simulations, then launch an auto battle
+  - **AlphaZero-MCTS**: neural policy+value + PUCT tree search (with MCTS-Solver terminal proof / evidence propagation)
+  - **NNUE**: neural value head as static eval + alpha-beta (faster)
+  - **Hand-written AI**: 15-term static eval + alpha-beta (fast, robust)
+- **vs AI**: the AI side plays per the model config, shown in the sidebar; ML/NNUE only applies on a standard 8×8 board (otherwise falls back to hand-written)
+- **Review analysis prefers static eval + alpha-beta**: fast per-move evaluation instead of per-node neural forward passes
+
+### Board Editor & PGN (v1.7.0)
+
+- Board-edit mode supports **adjustable rows/cols (4–32)** via `setBoardSize(rows, cols)`, rebuilding the board and adapting the starting layout (white on rows `R-1`/`R-2`, black on `0`/`1`; auto-center/truncate if not 8 columns)
+- All hard-coded `8`s in move/check/bond/ray/serialize/render now use `boardRows/boardCols`
+- **PNG export writes `[BoardSize "RxC"]`**; import restores it, and older PGNs infer dimensions from the FEN
 
 ### UI & Tools
 

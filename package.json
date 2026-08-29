@@ -1,6 +1,6 @@
 {
   "name": "chemisse",
-  "version": "1.6.3",
+  "version": "1.7.0",
   "description": "化学棋 Chemiss - 双人对战 Electron 桌面应用",
   "main": "main.js",
   "scripts": {

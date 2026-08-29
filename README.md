@@ -6,7 +6,7 @@
 
 **简体中文** | [English](./README.en.md)
 
-![Release](https://img.shields.io/badge/Release-v1.6.0-b0908a)
+![Release](https://img.shields.io/badge/Release-v1.7.0-b0908a)
 ![License](https://img.shields.io/github/license/Bil812/Chemiss)
 ![Platform](https://img.shields.io/badge/Platform-Web%20%7C%20Windows%20%7C%20Android-6a9a6a)
 ![Language](https://img.shields.io/badge/Language-HTML%20%2F%20CSS%20%2F%20JavaScript-e8d44d)
@@ -36,6 +36,22 @@ Chemiss（化学棋）是一款完全基于 HTML/CSS/JavaScript 实现的本地�
 - 电荷系统：电性吸引、金属给电子（阳离子/阴离子）
 - Li 到达对方底线可核变为任意非 H 元素（自选同位素）
 - α/β/γ 射线系统：半衰期衰变、吸收嬗变、电子扰动、眩晕、重核裂变
+
+### AI 与模型（v1.7.0）
+
+- **AlphaZero 风格自我对弈强化学习**：纯自我博弈训练出的策略+价值双头神经网络（无手写 AI 参与训练），内置训练好的权重（`model_weights.js`，单文件内嵌，`file://` 无后端可运行）
+- **模型配置页**：为白/黑双方选择模型（手写AI / AlphaZero-MCTS / NNUE），可调 MCTS 模拟数，启动自动对战
+  - **AlphaZero-MCTS**：神经网络(策略+价值) + PUCT 树搜索（带 MCTS-Solver 终端证明/证据传播）
+  - **NNUE**：神经网络价值头做静态评估 + alpha-beta 剪枝（较快）
+  - **手写AI**：15 项静态评估 + alpha-beta（快、鲁棒）
+- **人机对战**：AI 方按模型配置走子，侧栏实时显示所用模型；仅标准 8×8 棋盘下 ML/NNUE 生效，非 8×8 自动退回手写AI
+- **复盘分析优先静态+AB剪枝**：逐着法用快速静态评估+alpha-beta，避免深度搜索每节点一次神经网络前向造成卡顿
+
+### 棋盘编辑与 PGN（v1.7.0）
+
+- 棋盘编辑模式支持**调整行列数（4~32×32）**：`setBoardSize(rows, cols)` 重建棋盘并按尺寸自适应摆子（白底线 `R-1`/前排 `R-2`，黑 `0`/`1`；不足/超出 8 列自动居中/截断）
+- 所有走法/将军/成键/射线/序列化/复盘渲染的硬编码 8 改为 `boardRows/boardCols`
+- **导出 PGN 标注棋盘大小** `[BoardSize "RxC"]`；导入读回并据此重建，旧 PGN 由 FEN 行列自动推断
 
 ### 对弈功能
 
