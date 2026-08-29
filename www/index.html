@@ -1964,7 +1964,7 @@
             <button class="settings-icon-btn" id="btnFlip" title="翻转棋盘"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-flip"/></svg></button>
             <button class="settings-icon-btn" id="btnAI" title="人机对战"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-robot"/></svg></button>
             <button class="settings-icon-btn" id="btnAutoPlay" title="AI自动对弈"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-autoplay"/></svg></button>
-            <button class="settings-icon-btn" id="btnAZDemo" title="手写AI vs AlphaZero演示"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-az"/></svg></button>
+            <button class="settings-icon-btn" id="btnAZDemo" title="手写AI vs Chemiss-Entrorpior演示"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-az"/></svg></button>
             <button class="settings-icon-btn" id="btnModelCfg" title="模型配置（对战模型）"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-cpu"/></svg></button>
             <button class="settings-icon-btn" id="btnClock" title="计时器"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-clock"/></svg></button>
             <button class="settings-icon-btn" id="btnReview" title="复盘分析"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-review"/></svg></button>
@@ -2337,7 +2337,7 @@
                 <div class="theme-section-label">白方模型（后手同框：白=右侧，黑=左侧）</div>
                 <div class="model-cfg-row"><label class="model-cfg-label">白方</label>
                     <select class="model-cfg-select" id="modelWhite">
-                        <option value="mcts">AlphaZero-MCTS</option>
+                        <option value="mcts">Chemiss-Entrorpior</option>
                         <option value="nnue">NNUE（网络值+AB）</option>
                         <option value="hand">手写AI（静态+AB）</option>
                     </select>
@@ -2346,7 +2346,7 @@
                     <select class="model-cfg-select" id="modelBlack">
                         <option value="hand">手写AI（静态+AB）</option>
                         <option value="nnue">NNUE（网络值+AB）</option>
-                        <option value="mcts">AlphaZero-MCTS</option>
+                        <option value="mcts">Chemiss-Entrorpior</option>
                     </select>
                 </div>
                 <div class="model-cfg-row"><label class="model-cfg-label">MCTS 模拟数</label>
@@ -2356,9 +2356,9 @@
             </div>
             <div class="theme-section">
                 <div class="model-cfg-note" id="modelCfgNote">
-                    说明：AlphaZero-MCTS = 神经网络(策略+价值)+PUCT 树搜索；NNUE = 神经网络价值头做静态评估 + alpha-beta 剪枝（较快）；手写AI = 15 项静态评估 + alpha-beta。仅标准 8×8 棋盘下 ML/NNUE 生效；非 8×8 自动退回手写AI。<br><br>
+                    说明：Chemiss-Entrorpior = 神经网络(策略+价值)+PUCT 树搜索；NNUE = 神经网络价值头做静态评估 + alpha-beta 剪枝（较快）；手写AI = 15 项静态评估 + alpha-beta。仅标准 8×8 棋盘下 ML/NNUE 生效；非 8×8 自动退回手写AI。<br><br>
                     <b>人机对战</b>：进入「人机对战」后，<b>AI 方</b>按本页所选模型走子（如 AI 执黑就用「黑方」这一栏的模型）。<br>
-                    <b>自动对战 / AlphaZero演示</b>：点击「开始自动对战」由双方所选模型对弈；默认黑=手写、白=所选。
+                    <b>自动对战 / Chemiss-Entrorpior演示</b>：点击「开始自动对战」由双方所选模型对弈；默认黑=手写、白=所选。
                 </div>
             </div>
             <div class="theme-section" style="display:flex;gap:8px;margin-top:6px;">
@@ -4432,7 +4432,7 @@ window.__CHEMISS_ML_JSON__ = {"action_space_size":4710,"input_channels":17,"boar
                         // 若未显式指定模型：ML 默认走 MCTS 演示
                         if (!this._aiModel) this._aiModel = this._forceML ? 'mcts' : (this.useML ? 'mcts' : null);
                     }
-                    // AlphaZero-MCTS：ML 双头 + PUCT 树搜索
+                    // Chemiss-Entrorpior：ML 双头 + PUCT 树搜索
                     if (this.useML && this._ml && this._isStdBoard() && (this._aiModel === 'mcts' || this._forceML)) {
                         return this.mlFindBestMove();
                     }
@@ -5598,7 +5598,7 @@ window.__CHEMISS_ML_JSON__ = {"action_space_size":4710,"input_channels":17,"boar
                     return ai;
                 }
                 _modelLabel(model) {
-                    return model === 'mcts' ? 'AlphaZero-MCTS' : model === 'nnue' ? 'NNUE' : '手写AI';
+                    return model === 'mcts' ? 'Chemiss-Entrorpior' : model === 'nnue' ? 'NNUE' : '手写AI';
                 }
 
                 getPieceById(id) { return this.pieces.find(p => p.id === id); }
@@ -8839,7 +8839,7 @@ window.__CHEMISS_ML_JSON__ = {"action_space_size":4710,"input_channels":17,"boar
                         this.aiMode = true;
                         this.aiColor = this.currentTurn;
                         this.ai = new ChemissAI(this, this.aiColor, this._aiDifficulty);
-                        // ===== AlphaZero 演示：一侧强制 ML(MCTS)，另一侧强制手写 =====
+                        // ===== Chemiss-Entrorpior 演示：一侧强制 ML(MCTS)，另一侧强制手写 =====
                         if (this.azDemo && this.azDemo.enabled) {
                             if (this.azDemo.whiteModel || this.azDemo.blackModel) {
                                 // 模型配置页：按颜色应用所选模型
@@ -10328,7 +10328,7 @@ window.__CHEMISS_ML_JSON__ = {"action_space_size":4710,"input_channels":17,"boar
                 game.updateUI();
             };
 
-            // ========== AlphaZero 演示：手写 AI vs ML(MCTS) 自动对弈 ==========
+            // ========== Chemiss-Entrorpior 演示：手写 AI vs ML(MCTS) 自动对弈 ==========
             const toggleAZDemo = () => {
                 const L = I18N.data[I18N.lang];
                 const btn = document.getElementById('btnAZDemo');
@@ -10336,7 +10336,7 @@ window.__CHEMISS_ML_JSON__ = {"action_space_size":4710,"input_channels":17,"boar
                     game.autoPlay = false; game.aiMode = false; game.ai = null;
                     game.azDemo = null;
                     if (btn) btn.classList.remove('active');
-                    game.addLog('已停止 AlphaZero 演示');
+                    game.addLog('已停止 Chemiss-Entrorpior 演示');
                     game.updateUI();
                     return;
                 }
@@ -10360,7 +10360,7 @@ window.__CHEMISS_ML_JSON__ = {"action_space_size":4710,"input_channels":17,"boar
                     }
                 };
                 applyRoles();
-                game.addLog('AlphaZero(MCTS) 执白演示对弈开始 — 手写 AI 执黑');
+                game.addLog('Chemiss-Entrorpior(MCTS) 执白演示对弈开始 — 手写 AI 执黑');
                 game.updateUI();
                 game._maybeAIMove();
             };
@@ -10515,7 +10515,7 @@ window.__CHEMISS_ML_JSON__ = {"action_space_size":4710,"input_channels":17,"boar
                 ];
                 btnDefs.push({ id: 'btnAI', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-robot"/></svg>', title: '人机对战', handler: () => toggleAI() });
                 btnDefs.push({ id: 'btnAutoPlay', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-autoplay"/></svg>', title: 'AI自动对弈', handler: () => toggleAutoPlay() });
-                btnDefs.push({ id: 'btnAZDemo', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-az"/></svg>', title: '手写AI vs AlphaZero演示', handler: () => toggleAZDemo() });
+                btnDefs.push({ id: 'btnAZDemo', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-az"/></svg>', title: '手写AI vs Chemiss-Entrorpior演示', handler: () => toggleAZDemo() });
                 btnDefs.push({ id: 'btnModelCfg', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-cpu"/></svg>', title: '模型配置（对战模型）', handler: () => openModelCfgModal() });
                 btnDefs.push({ id: 'btnTheme', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-theme"/></svg>', title: '主题设置', handler: () => openThemeModal() });
                 btnDefs.push({ id: 'btnReview', html: '<svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-review"/></svg>', title: '复盘分析', handler: () => { game.openReview(); } });

@@ -90,10 +90,10 @@ python train_selfplay.py --num_games 8 --num_simulations 100 --batch_size 256 \
   克隆关闭渲染/动画/计时副作用。
 - 纯 JS 手写的前向（conv/BN/ReLU/残差/fc/tanh）与 PyTorch 完全对齐（已在 Node 中对拍 ~1e-9）。
 
-## 在 HTML 里动态演示：手写 AI vs AlphaZero（无后端）
+## 在 HTML 里动态演示：手写 AI vs Chemiss-Entrorpior（无后端）
 
-设置栏有一个 **「手写AI vs AlphaZero演示」** 按钮（⚡ 图标），点击即开始一盘
-**手写 AI(黑) vs ML AlphaZero(白)** 的自动对弈，棋盘实时动画。
+设置栏有一个 **「手写AI vs Chemiss-Entrorpior 演示」** 按钮（⚡ 图标），点击即开始一盘
+**手写 AI(黑) vs ML Chemiss-Entrorpior(白)** 的自动对弈，棋盘实时动画。
 
 **无需任何后端/服务器**：权重以 `window.__CHEMISS_ML_JSON__`（base64 压缩，约 4.3MB）
 的形式放在 `model_weights.js` 里，通过 `<script src="./model_weights.js">` 在 `file://`
@@ -149,7 +149,7 @@ python battle.py --games 2 --budget_ms 700 --max_moves 200 --seed 11
 - 分析用 `_mkAI()` 创建的所有 ChemissAI **强制 `_disableML=true`**：`evaluate()` 回到
   手写 15 项静态评估，搜索用 **alpha-beta 剪枝**；复盘不再碰 ML/MCTS。
 - 静态模式（默认，`_useStaticAnalysis=true`）深度 1 已足够快；深度搜索模式也用静态评估做叶子。
-- 说明：演示按钮（⚡ 手写 AI vs AlphaZero）**不受影响**——它明确用 `_forceML` 实现，
+- 说明：演示按钮（⚡ 手写 AI vs Chemiss-Entrorpior）**不受影响**——它明确用 `_forceML` 实现，
   `_disableML` 不影响该演示路径。
 
 ## 单文件无后端：模型配置页 + 可调棋盘
@@ -162,7 +162,7 @@ python battle.py --games 2 --budget_ms 700 --max_moves 200 --seed 11
 | 模型 | 说明 |
 |---|---|
 | `手写AI` | 15 项静态评估 + alpha-beta 剪枝（`_aiModel='hand'`，`_disableML=true`） |
-| `AlphaZero-MCTS` | 神经网络(策略+价值) + PUCT 树搜索（`_aiModel='mcts'`，`_forceML=true`） |
+| `Chemiss-Entrorpior` | 神经网络(策略+价值) + PUCT 树搜索（`_aiModel='mcts'`，`_forceML=true`） |
 | `NNUE` | 神经网络**价值头**做静态评估 + alpha-beta 剪枝（`_aiModel='nnue'`，`useML=true` 但 `findBestMove` 走 AB 而非 MCTS），比 MCTS 快 |
 
 - 实现：`ChemissAI.applyModel(model)` 统一设置 `_aiModel/_forceML/_disableML/useML`；
@@ -173,9 +173,9 @@ python battle.py --games 2 --budget_ms 700 --max_moves 200 --seed 11
   `_applyConfiguredModel(ai)` 在人机对战(`toggleAI`)、AI 自动对弈、难度/执色切换时统一应用；
   ⚡ 演示 (`azDemo`) 仍用 `whiteModel/blackModel`，优先于全局配置。
 - **人机对战的说明**：人机模式下，AI 方按模型配置走子（AI 执黑用「黑方」模型、执白用「白方」）。
-  侧栏会显示 **AI模型** 一行；事件日志也会写明 `AI 黑方 用 AlphaZero-MCTS / NNUE / 手写AI`。
+  侧栏会显示 **AI模型** 一行；事件日志也会写明 `AI 黑方 用 Chemiss-Entrorpior / NNUE / 手写AI`。
   模型配置页的说明区同步解释了三种模型及人机/自动对弈的差异。
-- 已把「手写AI vs AlphaZero演示」(`azDemo`) 升级为按颜色的 `whiteModel/blackModel`。
+- 已把「手写AI vs Chemiss-Entrorpior 演示」(`azDemo`) 升级为按颜色的 `whiteModel/blackModel`。
 
 ### 棋盘编辑：可调行列数（`btnBoardSize`）
 
