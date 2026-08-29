@@ -19,7 +19,7 @@ A local two-player strategy chess game built on chemistry principles
 
 ## Introduction
 
-Chemiss is a local two-player strategy board game built entirely with HTML/CSS/JavaScript. It runs directly in the browser without a server. Movement, captures and bonding simulate real chemistry: ionic bonds, covalent bonds, metallic bonds, electronegativity, radioactive decay, nuclear fission and isotope transmutation. The goal is to capture the opponent's Hydrogen King (H).
+Chemiss is a local two-player strategy board game built entirely with HTML/CSS/JavaScript. It runs directly in the browser without a server. Movement, captures and bonding simulate real chemistry: ionic bonds, covalent bonds, metallic bonds, electronegativity, radioactive decay, nuclear fission and isotope transmutation. The goal is to capture the opponent's Hydrogen King (H) — or deliver checkmate (the opponent's H is attacked and cannot escape).
 
 <img width="1279" height="731" alt="Screenshot 2026-06-07 013400" src="https://github.com/user-attachments/assets/f8c65cff-cfd3-438b-b52d-ccd5efcd9f03" />
 
@@ -40,9 +40,11 @@ Chemiss is a local two-player strategy board game built entirely with HTML/CSS/J
 ### Gameplay
 
 - Local two-player mode (pure front-end, play in the browser)
+- **Winning**: capture the opponent's Hydrogen King (H), or achieve **checkmate** (the opponent's H is attacked and cannot escape — no need to physically capture it)
 - vs AI (difficulty 1-6) and AI auto-play
 - Game review: win-probability chart, move evaluation and classification
-- Move notation recording and copy
+- Move notation recording and copy, plus **PGN import/export** (save/load positions from the board-edit mode)
+- **Guided beginner tutorial**: shown automatically on first visit, replayable any time from the settings bar
 - Chess clock (Bullet / Blitz / Rapid / Classical presets)
 - Online play via MQTT room codes (no server required)
 
