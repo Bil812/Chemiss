@@ -51,8 +51,8 @@ Chemiss is a local two-player strategy board game built entirely with HTML/CSS/J
 ### AI & Models (v1.7.0)
 
 - **AlphaZero-style self-play RL**: a policy+value dual-head network trained purely by self-play (no hand-written AI involved), with bundled weights embedded in the single-file HTML (`file://`, no backend)
-- **Model config page**: choose a model per side (hand-written AI / Chemiss-Entrorpior / NNUE) and set MCTS simulations, then launch an auto battle
-  - **Chemiss-Entrorpior**: neural policy+value + PUCT tree search (with MCTS-Solver terminal proof / evidence propagation)
+- **Model config page**: choose a model per side (hand-written AI / Chemiss-Entropior / NNUE) and set MCTS simulations, then launch an auto battle
+  - **Chemiss-Entropior**: neural policy+value + PUCT tree search (with MCTS-Solver terminal proof / evidence propagation)
   - **NNUE**: neural value head as static eval + alpha-beta (faster)
   - **Hand-written AI**: 15-term static eval + alpha-beta (fast, robust)
 - **vs AI**: the AI side plays per the model config, shown in the sidebar; ML/NNUE only applies on a standard 8×8 board (otherwise falls back to hand-written)
