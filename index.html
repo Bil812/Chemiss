@@ -1750,6 +1750,26 @@
         .mobile-pgn-tools .mpgn-btn svg { width: 16px; height: 16px; }
         body.dark-mode .mobile-pgn-tools .mpgn-btn { background: #3a3a3a; color: #ddd; }
         body.dark-mode .mobile-pgn-tools .mpgn-btn:hover { background: #444; border-color: #8a7068; }
+        /* 移动端棋盘尺寸行 */
+        .mobile-pgn-tools .mpgn-size-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+        .mobile-pgn-tools .mpgn-size-label { font-size: 0.76em; color: var(--side-panel-color, #888); white-space: nowrap; }
+        .mobile-pgn-tools .mpgn-size-num {
+            width: 52px; font-size: 0.8em; padding: 4px 5px; text-align: center;
+            border: 1px solid var(--panel-border, #d0c0b8); border-radius: 6px;
+            background: var(--panel-bg, #fff); color: var(--panel-text, #222);
+        }
+        body.dark-mode .mobile-pgn-tools .mpgn-size-num { background: #3a3a3a; color: #ddd; }
+        .mobile-pgn-tools .mpgn-size-btn {
+            flex: 1; min-width: 92px; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+            padding: 8px 10px; border-radius: 8px; cursor: pointer;
+            border: 1px solid var(--panel-border, #d0c0b8); background: var(--panel-bg);
+            color: var(--panel-text, #222); font-size: 0.82em; font-weight: 600;
+            transition: border-color 0.15s, transform 0.15s;
+        }
+        .mobile-pgn-tools .mpgn-size-btn:hover { border-color: #b0908a; transform: translateY(-1px); }
+        .mobile-pgn-tools .mpgn-size-btn svg { width: 16px; height: 16px; }
+        body.dark-mode .mobile-pgn-tools .mpgn-size-btn { background: #3a3a3a; color: #ddd; }
+        body.dark-mode .mobile-pgn-tools .mpgn-size-btn:hover { background: #444; border-color: #8a7068; }
         @media (max-width:900px) {
             .mobile-pgn-tools { display: block; margin: 0 0 10px; }
             body:not(.debug-active) .mobile-pgn-tools { display: none !important; }
@@ -2002,6 +2022,13 @@
                 <div class="mpgn-btn-row">
                     <button class="mpgn-btn" id="mpgnExport"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-pgn-export"/></svg><span>导出PGN</span></button>
                     <button class="mpgn-btn" id="mpgnImport"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-pgn-import"/></svg><span>导入PGN</span></button>
+                </div>
+                <div class="mpgn-size-row">
+                    <span class="mpgn-size-label">棋盘行数</span>
+                    <input type="number" class="mpgn-size-num" id="mEditRows" min="4" max="32" value="8" title="棋盘行数" />
+                    <span class="mpgn-size-label">列数</span>
+                    <input type="number" class="mpgn-size-num" id="mEditCols" min="4" max="32" value="8" title="棋盘列数" />
+                    <button class="mpgn-size-btn" id="mBtnBoardSize"><svg class="icon-svg" viewBox="0 0 24 24"><use href="#icon-grid"/></svg><span>应用尺寸</span></button>
                 </div>
             </div>
             <div class="turn-indicator turn-white" id="turnIndicator">白方执子</div>
@@ -12264,10 +12291,22 @@ ${moveDemoHTML}
                 game.setBoardSize(r, c);
                 editRows.value = game.boardRows; editCols.value = game.boardCols;
             });
+            // 移动端棋盘尺寸控件（独立 id，避免与桌面端 getElementById 冲突）
+            const mEditRows = document.getElementById('mEditRows');
+            const mEditCols = document.getElementById('mEditCols');
+            const mBtnBoardSize = document.getElementById('mBtnBoardSize');
+            if (mBtnBoardSize) mBtnBoardSize.addEventListener('click', () => {
+                const r = parseInt(mEditRows.value) || 8;
+                const c = parseInt(mEditCols.value) || 8;
+                game.setBoardSize(r, c);
+                mEditRows.value = game.boardRows; mEditCols.value = game.boardCols;
+            });
             syncBoardSizeInputs();
             function syncBoardSizeInputs() {
                 if (editRows) editRows.value = game.boardRows || 8;
                 if (editCols) editCols.value = game.boardCols || 8;
+                if (mEditRows) mEditRows.value = game.boardRows || 8;
+                if (mEditCols) mEditCols.value = game.boardCols || 8;
             }
             game.setBoardSizeInputs = syncBoardSizeInputs;
             // 同步左上角工具栏按钮文字为当前语言
@@ -12285,6 +12324,14 @@ ${moveDemoHTML}
                     if (t) t.textContent = I18N.lang === 'en' ? 'PGN Import / Export' : 'PGN 导入导出';
                     if (eb) eb.textContent = I18N.lang === 'en' ? 'Export PGN' : '导出PGN';
                     if (ib) ib.textContent = I18N.lang === 'en' ? 'Import PGN' : '导入PGN';
+                    // 移动端尺寸行：按钮 + 说明
+                    const mb = mpg.querySelector('#mBtnBoardSize span');
+                    if (mb) mb.textContent = I18N.lang === 'en' ? 'Apply Size' : '应用尺寸';
+                    const lab = mpg.querySelectorAll('.mpgn-size-label');
+                    if (lab.length) {
+                        lab[0].textContent = I18N.lang === 'en' ? 'Rows' : '棋盘行数';
+                        lab[1].textContent = I18N.lang === 'en' ? 'Cols' : '列数';
+                    }
                 }
             }
             syncPgnToolbarLabels();
