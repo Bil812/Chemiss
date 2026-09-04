@@ -1,6 +1,6 @@
 {
   "name": "chemisse",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "化学棋 Chemiss - 双人对战 Electron 桌面应用",
   "main": "main.js",
   "scripts": {
@@ -21,6 +21,7 @@
       "main.js",
       "preload.js",
       "化学棋Chemiss.html",
+      "model_weights.js",
       "build/icon-512.png",
       "temp/**/*"
     ],
