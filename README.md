@@ -6,7 +6,7 @@
 
 **简体中文** | [English](./README.en.md)
 
-![Release](https://img.shields.io/badge/Release-v1.7.0-b0908a)
+![Release](https://img.shields.io/badge/Release-v1.7.1-b0908a)
 ![License](https://img.shields.io/github/license/Bil812/Chemiss)
 ![Platform](https://img.shields.io/badge/Platform-Web%20%7C%20Windows%20%7C%20Android-6a9a6a)
 ![Language](https://img.shields.io/badge/Language-HTML%20%2F%20CSS%20%2F%20JavaScript-e8d44d)
@@ -39,7 +39,7 @@ Chemiss（化学棋）是一款完全基于 HTML/CSS/JavaScript 实现的本地�
 
 ### AI 与模型（v1.7.0）
 
-- **AlphaZero 风格自我对弈强化学习**：纯自我博弈训练出的策略+价值双头神经网络（无手写 AI 参与训练），内置训练好的权重（`model_weights.js`，单文件内嵌，`file://` 无后端可运行）
+- **AlphaZero 风格自我对弈强化学习**：纯自我博弈训练出的策略+价值双头神经网络（无手写 AI 参与训练），权重由外部 `model_weights.js` 异步加载（首屏不被阻塞，`file://` 无后端可运行，文件与 HTML 同目录）
 - **模型配置页**：为白/黑双方选择模型（手写AI / Chemiss-Entropior / NNUE），可调 MCTS 模拟数，启动自动对战
   - **Chemiss-Entropior**：神经网络(策略+价值) + PUCT 树搜索（带 MCTS-Solver 终端证明/证据传播）
   - **NNUE**：神经网络价值头做静态评估 + alpha-beta 剪枝（较快）
