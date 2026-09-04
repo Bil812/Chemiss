@@ -6,7 +6,7 @@ A local two-player strategy chess game built on chemistry principles
 
 [中文](./README.md) | **English**
 
-![Release](https://img.shields.io/badge/Release-v1.7.0-b0908a)
+![Release](https://img.shields.io/badge/Release-v1.7.1-b0908a)
 ![License](https://img.shields.io/github/license/Bil812/Chemiss)
 ![Platform](https://img.shields.io/badge/Platform-Web%20%7C%20Windows%20%7C%20Android-6a9a6a)
 ![Language](https://img.shields.io/badge/Language-HTML%20%2F%20CSS%20%2F%20JavaScript-e8d44d)
@@ -50,7 +50,7 @@ Chemiss is a local two-player strategy board game built entirely with HTML/CSS/J
 
 ### AI & Models (v1.7.0)
 
-- **AlphaZero-style self-play RL**: a policy+value dual-head network trained purely by self-play (no hand-written AI involved), with bundled weights embedded in the single-file HTML (`file://`, no backend)
+- **AlphaZero-style self-play RL**: a policy+value dual-head network trained purely by self-play (no hand-written AI involved), with weights loaded asynchronously from an external `model_weights.js` (does not block first paint; `file://`, no backend — keep the file next to the HTML)
 - **Model config page**: choose a model per side (hand-written AI / Chemiss-Entropior / NNUE) and set MCTS simulations, then launch an auto battle
   - **Chemiss-Entropior**: neural policy+value + PUCT tree search (with MCTS-Solver terminal proof / evidence propagation)
   - **NNUE**: neural value head as static eval + alpha-beta (faster)
