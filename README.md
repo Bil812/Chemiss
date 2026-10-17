@@ -6,7 +6,7 @@
 
 **简体中文** | [English](./README.en.md)
 
-![Release](https://img.shields.io/badge/Release-v1.7.1-b0908a)
+![Release](https://img.shields.io/badge/Release-v1.7.2-b0908a)
 ![License](https://img.shields.io/github/license/Bil812/Chemiss)
 ![Platform](https://img.shields.io/badge/Platform-Web%20%7C%20Windows%20%7C%20Android-6a9a6a)
 ![Language](https://img.shields.io/badge/Language-HTML%20%2F%20CSS%20%2F%20JavaScript-e8d44d)
@@ -29,10 +29,11 @@ Chemiss（化学棋）是一款完全基于 HTML/CSS/JavaScript 实现的本地�
 
 - 完整实现周期表 1–7 周期、**103 种元素（H–Lr）** 及其常见同位素数据库
 - 三种成键与吃子机制：
-  - **离子键**：金属-非金属按例外表、电负性差、法扬斯规则判定，可直接吃子
+  - **离子键**：金属-非金属按例外表、电负性差、法扬斯规则判定，可直接吃子（电子流向为平衡性简化：真实离子键中金属失电子、非金属得电子）
   - **共价键**：相邻异色自动成键，每原子最多一根，按电负性差降序贪心分配
   - **金属键**：多原子簇共享电子海
 - 电负性、极化力参与键型判定
+- 稀有气体不参与成键/吃子；He 价电子按真实值 2 计算（Ne/Ar/Kr/Xe/Rn 为 8）
 - 电荷系统：电性吸引、金属给电子（阳离子/阴离子）
 - Li 到达对方底线可核变为任意非 H 元素（自选同位素）
 - α/β/γ 射线系统：半衰期衰变、吸收嬗变、电子扰动、眩晕、重核裂变

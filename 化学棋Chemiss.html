@@ -2217,7 +2217,7 @@
                 α 衰变在第一行，β 衰变在第二行（只有一种时只显示一行）。<br>
                 [] 内是本行内同位素的衰变产物，同位素格式：元素符号-质量数（半衰期）衰变类型（α或β）。<br><br>
                 3. <b>嬗变 vs 放射性</b><br>
-                放射性：同位素自身衰变（α: Z-2，β: Z+1）。<br>
+                放射性：同位素自身衰变（α: Z-2、A-4，β: Z+1、A 不变）。<br>
                 嬗变：同位素吸收 α 粒子后转变（Z+2，质量数+4），所有同位素（包括稳定的）都会计算。<br><br>
                 4. <b>悬停与点击</b><br>
                 鼠标悬停：弹出该元素的简要信息卡片。<br>
@@ -2524,7 +2524,7 @@
             const PIECE_DEFS = {
                 // ==================== Period 1 ====================
                 'H':  { symbol:'H',  Z:1,  valence:1, en:2.20, mass:1,   period:1, group:NONMETAL, isHK:true },
-                'He': { symbol:'He', Z:2,  valence:8, en:0,    mass:4,   period:1, group:NONMETAL, noble:true },
+                'He': { symbol:'He', Z:2,  valence:2, en:0,    mass:4,   period:1, group:NONMETAL, noble:true }, // He 价电子为 2
                 // ==================== Period 2 ====================
                 'Li': { symbol:'Li', Z:3,  valence:1, en:0.98, mass:7,   period:2, group:METAL },
                 'Be': { symbol:'Be', Z:4,  valence:2, en:1.57, mass:9,   period:2, group:METAL },
@@ -2544,7 +2544,7 @@
                 'Cl': { symbol:'Cl', Z:17, valence:7, en:3.16, mass:35,  period:3, group:NONMETAL },
                 'Ar': { symbol:'Ar', Z:18, valence:8, en:0,    mass:40,  period:3, group:NONMETAL, noble:true },
                 // ==================== Period 4 ====================
-                'K':  { symbol:'K',  Z:19, valence:1, en:0.82, mass:39,  period:4, group:METAL, radio:true, halfLife:8, decay:'beta' },
+                'K':  { symbol:'K',  Z:19, valence:1, en:0.82, mass:39,  period:4, group:METAL },
                 'Ca': { symbol:'Ca', Z:20, valence:2, en:1.00, mass:40,  period:4, group:METAL },
                 'Sc': { symbol:'Sc', Z:21, valence:3, en:1.36, mass:45,  period:4, group:METAL },
                 'Ti': { symbol:'Ti', Z:22, valence:4, en:1.54, mass:48,  period:4, group:METAL },
@@ -2563,7 +2563,7 @@
                 'Br': { symbol:'Br', Z:35, valence:7, en:2.96, mass:80,  period:4, group:NONMETAL },
                 'Kr': { symbol:'Kr', Z:36, valence:8, en:3.00, mass:84,  period:4, group:NONMETAL, noble:true },
                 // ==================== Period 5 ====================
-                'Rb': { symbol:'Rb', Z:37, valence:1, en:0.82, mass:85,  period:5, group:METAL, radio:true, halfLife:8, decay:'beta' },
+                'Rb': { symbol:'Rb', Z:37, valence:1, en:0.82, mass:85,  period:5, group:METAL },
                 'Sr': { symbol:'Sr', Z:38, valence:2, en:0.95, mass:88,  period:5, group:METAL },
                 'Y':  { symbol:'Y',  Z:39, valence:3, en:1.22, mass:89,  period:5, group:METAL },
                 'Zr': { symbol:'Zr', Z:40, valence:4, en:1.33, mass:91,  period:5, group:METAL },
@@ -2589,7 +2589,7 @@
                 'Pr': { symbol:'Pr', Z:59, valence:3, en:1.13, mass:141, period:6, group:METAL, lanthanide:true },
                 'Nd': { symbol:'Nd', Z:60, valence:3, en:1.14, mass:144, period:6, group:METAL, lanthanide:true },
                 'Pm': { symbol:'Pm', Z:61, valence:3, en:1.13, mass:145, period:6, group:METAL, lanthanide:true, radio:true, halfLife:5, decay:'beta' },
-                'Sm': { symbol:'Sm', Z:62, valence:3, en:1.17, mass:150, period:6, group:METAL, lanthanide:true, radio:true, halfLife:10, decay:'alpha' },
+                'Sm': { symbol:'Sm', Z:62, valence:3, en:1.17, mass:150, period:6, group:METAL, lanthanide:true },
                 'Eu': { symbol:'Eu', Z:63, valence:2, en:1.2,  mass:153, period:6, group:METAL, lanthanide:true },
                 'Gd': { symbol:'Gd', Z:64, valence:3, en:1.20, mass:157, period:6, group:METAL, lanthanide:true },
                 'Tb': { symbol:'Tb', Z:65, valence:3, en:1.2,  mass:159, period:6, group:METAL, lanthanide:true },
@@ -2748,8 +2748,8 @@
                 'Fr':[{mass:223,radio:true,halfLife:2,decay:'beta'}],
                 'Ra':[{mass:226,radio:true,halfLife:3,decay:'alpha'},{mass:228,radio:true,halfLife:2,decay:'beta'}],
                 'Ac':[{mass:227,radio:true,halfLife:3,decay:'beta'},{mass:228,radio:true,halfLife:2,decay:'beta'}],
-                'Th':[{mass:232,radio:true,halfLife:8,decay:'alpha'},{mass:230,radio:true,halfLife:6,decay:'alpha'},{mass:228,radio:true,halfLife:2,decay:'alpha'}],
-                'Pa':[{mass:231,radio:true,halfLife:5,decay:'alpha'}],
+                'Th':[{mass:232,radio:true,halfLife:8,decay:'alpha'},{mass:230,radio:true,halfLife:6,decay:'alpha'},{mass:228,radio:true,halfLife:2,decay:'alpha'},{mass:234,radio:true,halfLife:5,decay:'beta'},{mass:231,radio:true,halfLife:4,decay:'beta'}],
+                'Pa':[{mass:231,radio:true,halfLife:5,decay:'alpha'},{mass:234,radio:true,halfLife:3,decay:'beta'}],
                 'U':[{mass:238,radio:true,halfLife:8,decay:'alpha'},{mass:235,radio:true,halfLife:7,decay:'alpha'},{mass:234,radio:true,halfLife:6,decay:'alpha'}],
                 'Np':[{mass:237,radio:true,halfLife:6,decay:'alpha'},{mass:239,radio:true,halfLife:4,decay:'beta'}],
                 'Pu':[{mass:244,radio:true,halfLife:8,decay:'alpha'},{mass:239,radio:true,halfLife:7,decay:'alpha'},{mass:238,radio:true,halfLife:6,decay:'alpha'}],
@@ -5893,7 +5893,7 @@
                                 // 判为共价键 → 形成低电负性差金属-非金属共价键
                                 const needP = 8 - p.totalElectrons;
                                 const needN = 8 - n.totalElectrons;
-                                const sharedE = Math.min(Math.max(0, needP), Math.max(0, needN));
+                                const sharedE = Math.max(0, Math.min(Math.max(0, needP), Math.max(0, needN), p.valence, n.valence));
                                 candidates.push({ p1: p.id, p2: n.id, type: 'covalent', shared: sharedE, enDiff });
                                 continue;
                             }
@@ -5906,7 +5906,7 @@
                                 const octetN = n.isHydrogenKing ? 2 : 8;
                                 const needP = octetP - p.totalElectrons;
                                 const needN = octetN - n.totalElectrons;
-                                const sharedE = Math.min(Math.max(0, needP), Math.max(0, needN));
+                                const sharedE = Math.max(0, Math.min(Math.max(0, needP), Math.max(0, needN), p.valence, n.valence));
                                 candidates.push({ p1: p.id, p2: n.id, type: 'covalent', shared: sharedE, enDiff });
                             }
                         }
@@ -6038,8 +6038,8 @@
                         'Ba-H': 'ionic',
                         'Ra-H': 'ionic',
                         'Be-H': 'covalent', // BeH₂ 共价聚合物
-                        'Mg-H': 'covalent', // MgH₂ 共价聚合物
-                        'Na-P': 'covalent',
+                        'Mg-H': 'ionic',    // MgH₂ 盐型离子氢化物
+                        'Na-P': 'ionic',    // Na₃P 离子型磷化物
                         'Al-Cl': 'covalent',// AlCl₃ 分子共价
                         'Fe-Cl': 'covalent',// 过渡金属氯化物，典型共价
                         'Cu-Cl': 'covalent',
@@ -6912,7 +6912,8 @@
                             if (newKey) {
                                 const np = this.transformPiece(p, newKey);
                                 if (!np) return;
-                                this.addLog(`${this.nuclideText(oldSym,oldMass)} →α衰变→ ${np.symbol} + α射线${emitGamma?' + γ射线':''}`);
+                                this._applyIsotopeByMass(np, p.mass - 4);
+                                this.addLog(`${this.nuclideText(oldSym,oldMass)} →α衰变→ ${this.nuclideText(np.symbol,np.mass)} + α射线${emitGamma?' + γ射线':''}`);
                                 this.alphaRayEffect(np, dir);
                                 if (emitGamma && gammaDir) this._scheduleTimeout(() => this.gammaRayEffect(p, gammaDir), delay + 200);
                             } else {
@@ -6925,7 +6926,8 @@
                             if (newKey) {
                                 const np = this.transformPiece(p, newKey);
                                 if (!np) return;
-                                this.addLog(`${this.nuclideText(oldSym,oldMass)} →β⁻衰变→ ${np.symbol} + β射线${emitGamma?' + γ射线':''}`);
+                                this._applyIsotopeByMass(np, p.mass);
+                                this.addLog(`${this.nuclideText(oldSym,oldMass)} →β⁻衰变→ ${this.nuclideText(np.symbol,np.mass)} + β射线${emitGamma?' + γ射线':''}`);
                                 this.betaRayEffect(np, dir);
                                 if (emitGamma && gammaDir) this._scheduleTimeout(() => this.gammaRayEffect(p, gammaDir), delay + 200);
                             } else {
@@ -6941,6 +6943,18 @@
                 }
 
                 // ========== 射线效果 ==========
+                // 辅助：按目标质量数给棋子应用最近的核素（α 用 A−4，β 用 A 不变）
+                _applyIsotopeByMass(piece, targetMass) {
+                    if (!piece || typeof targetMass !== 'number' || !isFinite(targetMass) || targetMass <= 0) return;
+                    const iso = this.findClosestIsotope(piece.defKey, targetMass);
+                    if (!iso) return;
+                    piece.mass = iso.mass;
+                    piece.radioactive = !iso.stable;
+                    piece.halfLifeRounds = iso.stable ? 0 : (iso.halfLife || 3);
+                    piece.decayMode = iso.stable ? null : (iso.decay || 'alpha');
+                    piece.isotopeName = iso.name || null;
+                }
+
                 // 辅助：查找最接近指定质量数的同位素
                 findClosestIsotope(elementKey, targetMass) {
                     const isos = ISOTOPES[elementKey] || [];
@@ -7061,36 +7075,46 @@
                         this.gammaRayEffect(piece, ALL_DIRS[Math.floor(this._detRand(this.roundNumber * 7331 + piece.id * 151 + 7) * 8)]);
                         return;
                     }
-                    // 裂变产物为Z在30-60之间且有稳定同位素的元素
-                    const fissionPool = Object.keys(PIECE_DEFS).filter(k => {
+                    // 裂变产物满足 Z 守恒：Z1+Z2=Z母；A 按 Z 比例分配到最接近的核素
+                    const parentZ = piece.Z, parentA = piece.mass || 0;
+                    const pairPool = Object.keys(PIECE_DEFS).filter(k => {
+                        const d = PIECE_DEFS[k];
+                        const z2 = parentZ - d.Z;
+                        if (d.Z < 30 || d.Z > 60 || z2 < 30 || z2 > 60) return false;
+                        if (d.noble || d.isHK) return false;
+                        const partner = Z_TO_KEY[z2];
+                        if (!partner || !PIECE_DEFS[partner] || PIECE_DEFS[partner].noble || PIECE_DEFS[partner].isHK) return false;
+                        return (ISOTOPES[k] || []).length > 0 && (ISOTOPES[partner] || []).length > 0;
+                    });
+                    const fissionPool = pairPool.length > 0 ? pairPool : Object.keys(PIECE_DEFS).filter(k => {
                         const d = PIECE_DEFS[k];
                         if (d.Z < 30 || d.Z > 60 || d.noble || d.isHK) return false;
-                        const isos = ISOTOPES[k] || [];
-                        return isos.some(i => i.stable);
+                        return (ISOTOPES[k] || []).length > 0;
                     });
                     const k1 = fissionPool[Math.floor(this._detRand(this.roundNumber * 7753 + piece.id * 173 + 11) * fissionPool.length)];
-                    let k2 = fissionPool[Math.floor(this._detRand(this.roundNumber * 7873 + piece.id * 197 + 17) * fissionPool.length)];
-                    let retries = 0;
-                    while (k2 === k1 && fissionPool.length > 1 && retries < 50) {
-                        k2 = fissionPool[Math.floor(this._detRand(this.roundNumber * 7993 + piece.id * 211 + retries * 31 + 23) * fissionPool.length)];
-                        retries++;
-                    }
+                    const k2 = pairPool.length > 0
+                        ? Z_TO_KEY[parentZ - PIECE_DEFS[k1].Z]
+                        : fissionPool[Math.floor(this._detRand(this.roundNumber * 7873 + piece.id * 197 + 17) * fissionPool.length)];
                     const cells = this.getAdjacentEmptyCells(piece.row, piece.col);
-                    const makeIsotope = (k) => {
+                    const makeIsotope = (k, targetMass = 0) => {
                         const isos = ISOTOPES[k] || [];
-                        const stable = isos.find(i => i.stable) || isos[0] || {mass:0};
-                        return {mass:stable.mass, radio:!!stable.radio, halfLife:stable.halfLife||0, decay:stable.decay||null, name:stable.name||null};
+                        const iso = (targetMass > 0 ? this.findClosestIsotope(k, targetMass) : null) || isos.find(i => i.stable) || isos[0];
+                        if (!iso) return {mass: targetMass > 0 ? targetMass : 0};
+                        if (targetMass > 0) return {mass: targetMass, radio:true, halfLife:iso.halfLife||4, decay:iso.decay||'beta', name:null};
+                        return {mass: iso.mass, radio:!iso.stable, halfLife:iso.stable ? 0 : (iso.halfLife||3), decay:iso.stable ? null : (iso.decay||'alpha'), name:iso.name||null};
                     };
                     // 创建新棋子先放入JS状态，暂不更新DOM
                     const newPieces = [];
                     if (cells.length > 0) {
-                        const iso1 = makeIsotope(k1);
+                        const a1 = parentA > 0 ? Math.max(1, Math.round(parentA * PIECE_DEFS[k1].Z / parentZ)) : 0;
+                        const iso1 = makeIsotope(k1, a1);
                         const np1 = new Piece(k1, piece.color, this.getNextId(), iso1);
                         np1.row = cells[0].row; np1.col = cells[0].col; this.placePiece(np1);
                         newPieces.push(np1);
                         this.addLog(` 裂变产物1：${this.nuclideText(np1.symbol,np1.mass)}(Z=${np1.Z})`);
                         if (cells.length > 1) {
-                            const iso2 = makeIsotope(k2);
+                            const a2 = parentA > 0 && a1 > 0 ? Math.max(1, parentA - a1) : 0;
+                            const iso2 = makeIsotope(k2, a2);
                             const np2 = new Piece(k2, piece.color, this.getNextId(), iso2);
                             np2.row = cells[1].row; np2.col = cells[1].col; this.placePiece(np2);
                             newPieces.push(np2);
@@ -10888,14 +10912,14 @@ ${lineupHTML}
 <p>Dots around a piece show its move directions.</p>
 ${moveDemoHTML}
 <h4 style="color:#b0908a;margin:10px 0 4px;">IV. Bonds & Captures</h4>
-<p><b>Ionic capture</b>: Metal vs nonmetal — bond type determined by: (1) hardcoded exceptions (e.g. Li-H, Na-H always ionic; Be-H, Mg-H always covalent), (2) EN diff > 2.0 → ionic, < 0.8 → covalent, (3) Fajans rule (polarizing power = valence/period vs anion softness), (4) default threshold EN diff > 1.7 → ionic, else covalent. Attacker gains defender's electrons up to octet deficit (8 − current total; 2 for H-king), lasting 3 turns. Unabsorbed defender electrons emit beta rays (up to 8).</p>
+<p><b>Ionic capture</b>: Metal vs nonmetal — bond type determined by: (1) hardcoded exceptions (e.g. Li-H, Na-H, Mg-H, Na-P ionic; Be-H covalent), (2) EN diff > 2.0 → ionic, < 0.8 → covalent, (3) Fajans rule (polarizing power = valence/period vs anion softness), (4) default threshold EN diff > 1.7 → ionic, else covalent. Attacker gains defender's electrons up to octet deficit (8 − current total; 2 for H-king), lasting 3 turns. Unabsorbed defender electrons emit beta rays (up to 8). In a real ionic bond the metal loses electrons to the nonmetal; Chemiss keeps "attacker gains" in both directions as a deliberate balance simplification.</p>
 <p><b>Covalent/Metallic capture</b>: Target must be bonded, attacker not a bond partner. Adjacent opposite-color pieces auto-bond. Covalent: 1 bond per atom max, sorted by EN diff descending. Metallic: multi-atom clusters share an electron sea (⌈total valence / N⌉ + 1).</p>
 <p><b>Noble gases</b>: No bonds, cannot capture or be captured.</p>
 <h4 style="color:#b0908a;margin:10px 0 4px;">V. Special Abilities</h4>
 <p><b>Electrostatic attraction</b>: Between turns, opposite-charge pieces move toward each other. Cross-color opposite-charge pairs take priority; sorted by Coulomb force |q<sub>1</sub>q<sub>2</sub>|/r².</p>
 <p><b>Metal electron donation</b>: Metal gives 1 electron to adjacent friendly nonmetal → metal becomes cation (+1 charge, 3 turns), nonmetal gains +1 bonus electron (3 turns).</p>
 <p><b>Li transmutation</b>: Li reaching opponent's back rank can become any non-H element (choose isotope).</p>
-<p><b>Radioactive decay</b>: Each turn, radioactive pieces count down half-life. Once half-life reaches 0, ~55% chance per turn to trigger decay (alpha: Z−2, beta: Z+1, gamma: no transmutation) emitting a ray. α/β decay has 50% chance to emit a concurrent gamma ray.</p>
+<p><b>Radioactive decay</b>: Each turn, radioactive pieces advance a decay countdown (not a real half-life). Once it reaches 0, there is a ~55% chance per turn to trigger decay and emit a ray (alpha: Z−2, A−4; beta: Z+1, A unchanged; gamma: no transmutation). α/β decay has a 50% chance to emit a concurrent gamma ray.</p>
 <h4 style="color:#b0908a;margin:10px 0 4px;">VI. Ray Effects</h4>
 <p>Alpha (range 2): Target absorbs Z+2 transmutation (or valence −1 if no suitable element). Heavy nuclei (Z≥90): 40% chance to fission.</p>
 <p>Beta (range 4): Target valence ±1 (random, 3 turns). Heavy nuclei may fission.</p>
@@ -10915,14 +10939,14 @@ ${lineupHTML}
 <p>棋子周围圆点表示当前可移动方向。</p>
 ${moveDemoHTML}
 <h4 style="color:#b0908a;margin:10px 0 4px;">四、成键与吃子</h4>
-<p><b>离子键吃子</b>：金属-非金属判定流程：①硬编码例外表(Li-H,Na-H等=离子型；Be-H,Mg-H等=共价型)；②电负性差&gt;2.0&rarr;离子型，&lt;0.8&rarr;共价型；③法扬斯规则(极化力=价电子数/周期 vs 阴离子软度)；④默认阈值电负性差&gt;1.7&rarr;离子型，否则共价型。攻击方获得防御方电子至八隅体上限(8&minus;当前总电子；氢王上限2)，持续3回合。未吸收的防御方电子转化为&beta;射线(最多8条)。</p>
+<p><b>离子键吃子</b>：金属-非金属判定流程：①硬编码例外表(Li-H,Na-H,Mg-H,Na-P等=离子型；Be-H等=共价型)；②电负性差&gt;2.0&rarr;离子型，&lt;0.8&rarr;共价型；③法扬斯规则(极化力=价电子数/周期 vs 阴离子软度)；④默认阈值电负性差&gt;1.7&rarr;离子型，否则共价型。攻击方获得防御方电子至八隅体上限(8&minus;当前总电子；氢王上限2)，持续3回合。未吸收的防御方电子转化为&beta;射线(最多8条)。说明：真实离子键中金属失电子、非金属得电子；本作为平衡性简化，统一表现为攻击方获得防御方电子。</p>
 <p><b>共价/金属键吃子</b>：目标必须已键合，攻击者不能是键合伙伴。相邻异色棋子自动成键，共价键按电负性差降序贪心分配、每原子限1根。金属键可形成多原子簇，共享电子海(&lceil;总价电子/N&rceil;+1)。</p>
 <p><b>稀有气体</b>：不参与任何键合，不能吃子也不能被吃。</p>
 <h4 style="color:#b0908a;margin:10px 0 4px;">五、特殊能力</h4>
 <p><b>电性吸引</b>：回合切换时，异号电荷棋子自动互相靠近。不同阵营且异号电荷对优先，按库仑力|q<sub>1</sub>q<sub>2</sub>|/r&sup2;排序。</p>
 <p><b>金属给电子</b>：金属给相邻己方非金属1个电子&rarr;金属带正电荷(3回合)，非金属获得+1额外电子(3回合)。</p>
 <p><b>Li核变</b>：Li到达对方底线可变为除H外的任意元素(选同位素)。</p>
-<p><b>放射性衰变</b>：每回合放射性棋子倒计半衰期，归零后约55%概率触发衰变，发射射线(&alpha;: Z&minus;2, &beta;: Z+1, &gamma;: 不嬗变)。&alpha;/&beta;衰变有50%概率伴随&gamma;射线。</p>
+<p><b>放射性衰变</b>：每回合放射性棋子推进衰变倒计回合（非真实半衰期），归零后约55%概率触发衰变，发射射线(&alpha;: Z&minus;2、A&minus;4，&beta;: Z+1、A 不变，&gamma;: 不嬗变)。&alpha;/&beta;衰变有50%概率伴随&gamma;射线。</p>
 <h4 style="color:#b0908a;margin:10px 0 4px;">六、射线效果</h4>
 <p>alpha射线(射程2)：目标Z+2吸收嬗变，若无对应元素则价电子&minus;1；重核(Z&ge;90)有40%概率裂变。</p>
 <p>beta射线(射程4)：目标价电子随机&plusmn;1(3回合)；重核可裂变。</p>
@@ -11422,7 +11446,7 @@ ${moveDemoHTML}
             const QUERY_EXCEPTIONS = {
                 'Li-H':'ionic','Na-H':'ionic','K-H':'ionic','Rb-H':'ionic','Cs-H':'ionic','Fr-H':'ionic',
                 'Ca-H':'ionic','Sr-H':'ionic','Ba-H':'ionic','Ra-H':'ionic',
-                'Be-H':'covalent','Mg-H':'covalent','Na-P':'covalent','Al-Cl':'covalent',
+                'Be-H':'covalent','Mg-H':'ionic','Na-P':'ionic','Al-Cl':'covalent',
                 'Fe-Cl':'covalent','Cu-Cl':'covalent','Ag-I':'covalent'
             };
             let currentQueryMode = 'common';
@@ -11969,10 +11993,10 @@ ${moveDemoHTML}
                         tag: en ? 'Captures' : '吃子',
                         title: en ? 'Bonds & Captures' : '成键与吃子',
                         body: en
-                            ? `<p><b>Ionic capture</b> (metal vs nonmetal): attacker directly captures the defender and gains electrons up to its <b>octet gap</b> — excess electrons fly off as &beta; rays.</p>
+                            ? `<p><b>Ionic capture</b> (metal vs nonmetal): attacker directly captures the defender and gains electrons up to its <b>octet gap</b> — excess electrons fly off as &beta; rays. (Balance simplification: in a real ionic bond the metal loses electrons to the nonmetal.)</p>
                                <p><b>Covalent / metallic capture</b>: the target must already be <b>bonded</b> and you must not be its bond partner.</p>
                                <p><b>Noble gases</b> bond with nothing, cannot capture, and cannot be captured.</p>`
-                            : `<p><b>离子键吃子</b>（金属 vs 非金属）：攻击方直接吃掉防御方并获得电子至<b>八隅体缺口</b>，多余电子以 &beta; 射线四散。</p>
+                            : `<p><b>离子键吃子</b>（金属 vs 非金属）：攻击方直接吃掉防御方并获得电子至<b>八隅体缺口</b>，多余电子以 &beta; 射线四散。（平衡性简化：真实离子键中金属失电子、非金属得电子）</p>
                                <p><b>共价/金属键吃子</b>：目标必须已<b>处于键合状态</b>，且你不能是它的键合伙伴。</p>
                                <p><b>稀有气体</b>不与任何棋子成键，不能吃子，也不能被吃。</p>`,
                         visual: `<div class="tutorial-visual">
@@ -11993,7 +12017,7 @@ ${moveDemoHTML}
                                <p><b>Radioactive decay</b>: radioactive pieces count down; when it hits zero, they may decay and fire a ray.</p>`
                             : `<p><b>金属给电子</b>：金属给相邻己方非金属 1 个电子，自身变为阳离子。</p>
                                <p><b>Li 核变</b>：到达对方底线的 Li 可变为<b>除 H 外</b>的任意元素。</p>
-                               <p><b>放射性衰变</b>：放射性棋子倒计半衰期，归零后可能衰变并发射射线。</p>`,
+                               <p><b>放射性衰变</b>：放射性棋子推进衰变倒计回合（非真实半衰期），归零后可能衰变并发射射线。</p>`,
                         visual: `<div class="tutorial-visual"></div>`
                     },
                     {
