@@ -10946,7 +10946,7 @@ ${moveDemoHTML}
 <p><b>电性吸引</b>：回合切换时，异号电荷棋子自动互相靠近。不同阵营且异号电荷对优先，按库仑力|q<sub>1</sub>q<sub>2</sub>|/r&sup2;排序。</p>
 <p><b>金属给电子</b>：金属给相邻己方非金属1个电子&rarr;金属带正电荷(3回合)，非金属获得+1额外电子(3回合)。</p>
 <p><b>Li核变</b>：Li到达对方底线可变为除H外的任意元素(选同位素)。</p>
-<p><b>放射性衰变</b>：每回合放射性棋子推进衰变倒计回合（非真实半衰期），归零后约55%概率触发衰变，发射射线(&alpha;: Z&minus;2、A&minus;4，&beta;: Z+1、A 不变，&gamma;: 不嬗变)。&alpha;/&beta;衰变有50%概率伴随&gamma;射线。</p>
+<p><b>放射性衰变</b>：每回合放射性棋子累计衰变计数（非真实半衰期）；计数达到该核素的半衰期回合数后，每回合约55%概率触发衰变，衰变后计数清零并发射射线(&alpha;: Z&minus;2、A&minus;4，&beta;: Z+1、A 不变，&gamma;: 不嬗变)。&alpha;/&beta;衰变有50%概率伴随&gamma;射线。</p>
 <h4 style="color:#b0908a;margin:10px 0 4px;">六、射线效果</h4>
 <p>alpha射线(射程2)：目标Z+2吸收嬗变，若无对应元素则价电子&minus;1；重核(Z&ge;90)有40%概率裂变。</p>
 <p>beta射线(射程4)：目标价电子随机&plusmn;1(3回合)；重核可裂变。</p>
@@ -12017,7 +12017,7 @@ ${moveDemoHTML}
                                <p><b>Radioactive decay</b>: radioactive pieces count down; when it hits zero, they may decay and fire a ray.</p>`
                             : `<p><b>金属给电子</b>：金属给相邻己方非金属 1 个电子，自身变为阳离子。</p>
                                <p><b>Li 核变</b>：到达对方底线的 Li 可变为<b>除 H 外</b>的任意元素。</p>
-                               <p><b>放射性衰变</b>：放射性棋子推进衰变倒计回合（非真实半衰期），归零后可能衰变并发射射线。</p>`,
+                               <p><b>放射性衰变</b>：放射性棋子每回合累计衰变计数（非真实半衰期）；达到半衰期回合数后每回合约55%概率衰变并发射射线。</p>`,
                         visual: `<div class="tutorial-visual"></div>`
                     },
                     {
