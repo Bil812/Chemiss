@@ -2430,6 +2430,9 @@
                         <span class="review-mode-toggle active" id="reviewModeStatic">静态</span>
                         <span class="review-mode-toggle" id="reviewModeSearch">搜索</span>
                     </div>
+                    <div class="review-depth-row" id="reviewHandNoteRow">
+                        <span class="review-depth-hint" id="reviewHandNote">分析使用手写AI（不加载神经网络）</span>
+                    </div>
                     <div class="review-depth-row">
                         <span class="review-depth-label">搜索深度</span>
                         <div class="review-depth-chips" id="reviewDepthChips">
@@ -3236,6 +3239,8 @@
 
                 // 按模型名配置本 AI：'hand'=手写静态评估+AB；'mcts'=ML双头+PUCT；'nnue'=ML价值头+AB
                 applyModel(model) {
+                    // 复盘分析专用 AI：无论界面选了什么模型，一律手写AI
+                    if (this._reviewOnly) model = 'hand';
                     this._aiModel = model;
                     if (model === 'hand') {
                         this._disableML = true; this._forceML = false; this.useML = false;
@@ -3257,6 +3262,7 @@
                 // 加载扁平化权重 JSON（model_weights.json），重建推理所用的层张量。
                 // json: { action_space_size, num_channels, num_res_blocks, shapes:[{name,shape,numel}], flat:[...] }
                 loadMLWeights(json) {
+                    if (this._disableML) return false;   // 复盘分析/演示模式：禁止加载神经网络
                     if (!json || !json.shapes) return false;
                     // 支持两种权重载体：flat_b64（base64 float32，file:// 无后端用）或 flat（数组）
                     let flat;
@@ -4781,7 +4787,13 @@
                 // 避免每节点一次深度神经网络前向/MCTS 造成卡顿（“分析优先静态分析+AB剪枝”）。
                 _mkAI(game, color, depth) {
                     const ai = new ChemissAI(game, color, depth);
-                    ai._disableML = true;   // 禁用 ML 懒加载 → evaluate() 走手写15项静态评估，AB剪枝
+                    // 复盘分析强制手写AI：不加载、不使用神经网络（避免每节点 NN 前向/MCTS 造成卡顿）
+                    ai._reviewOnly = true;
+                    ai._disableML = true;
+                    ai.useML = false;
+                    ai._forceML = false;
+                    ai._aiModel = 'hand';
+                    ai._ml = null;
                     return ai;
                 }
                 _rawToCentipawns(raw) {
@@ -5214,7 +5226,7 @@
                                 ev = nextTurn === 'white' ? ns : -ns;
                             }
                         } catch(x) {
-                            const nmAI = new ChemissAI(G, nextTurn, 1);
+                            const nmAI = this._mkAI(G, nextTurn, 1);
                             ev = nextTurn === 'white' ? nmAI.evaluate() : -nmAI.evaluate();
                         }
                     } else {
@@ -5244,7 +5256,7 @@
                                 ev = bestEval;
                             }
                         } catch(x) {
-                            const nmAI = new ChemissAI(G, nextTurn, 1);
+                            const nmAI = this._mkAI(G, nextTurn, 1);
                             ev = nextTurn === 'white' ? nmAI.evaluate() : -nmAI.evaluate();
                         }
                     }
@@ -9507,7 +9519,9 @@
                                 // B4: 有精确键合数据则直接恢复（与实战一致），否则重建
                                 this.game._applyBondedInfo(b);
                                 const quickAI = new ChemissAI(this.game, 'white', 1);
-                                quickAI._disableML = true;   // 复盘即时evalu: 用静态手写评估（快），不走ML
+                                quickAI._reviewOnly = true;
+                                quickAI._disableML = true;   // 复盘即时eval: 用静态手写评估（快），不走ML
+                                quickAI.useML = false; quickAI._forceML = false; quickAI._aiModel = 'hand';
                                 const rawEval = quickAI.evaluate();
                                 const isMoverWhite = move.color === 'white';
                                 const cp = isMoverWhite ? rawEval * 5 : -rawEval * 5;
